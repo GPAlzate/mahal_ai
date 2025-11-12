@@ -29,10 +29,3 @@ export function getDatabaseURL(): string {
 export function getOpenAIAPIKey(): string {
   return getEnvVar('OPENAI_API_KEY') as string;
 }
-
-/**
- * Retrieves the Vercel Blob read/write token from environment variables
- */
-export function getBlobReadWriteToken(): string {
-  return getEnvVar('BLOB_READ_WRITE_TOKEN') as string;
-}

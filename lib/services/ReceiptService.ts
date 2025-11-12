@@ -1,6 +1,6 @@
 import { sql } from '@/lib/db';
 import { generateShareCode } from '@/lib/helpers/ShareCodeHelper';
-import { ParsedReceipt } from '@/lib/schemas/ParsedReceipt';
+import { ParsedReceipt } from '@/lib/schemas/receipt/public/ParsedReceipt';
 
 /**
  * Service for managing receipts

@@ -14,7 +14,7 @@ Extract the following information:
    - description: The item/charge description
    - quantity: The quantity (default to 1 for charges like tax, tip, etc.)
    - unitPrice: The price per unit
-   - totalPrice: Total for this line (unitPrice × quantity)
+   - totalPrice: Total for this line (unitPrice x quantity)
    - receiptLineType: One of the following:
      * "PRCH" for purchased items
      * "TAX" for tax charges
@@ -23,7 +23,7 @@ Extract the following information:
      * "DSCT" for discounts (totalPrice should be negative)
 
 3. **Totals**:
-   - currency: Currency code (e.g., "PHP", "USD")
+   - currency: Currency code (e.g., "PHP")
    - subtotal: Sum of all PRCH items before taxes/tips/charges
    - amountDue: Final total amount due
 
@@ -32,7 +32,7 @@ Extract the following information:
 - All monetary values should be numbers (not strings)
 - Discounts should have negative totalPrice values
 - If a field is not found, omit merchantName or receiptDate (but receiptLines, currency, subtotal, and amountDue are required)
-- Calculate totalPrice = unitPrice × quantity for each line
+- Calculate totalPrice = unitPrice x quantity for each line
 - Be precise with numbers - double-check calculations
 
 **Expected JSON format:**
@@ -66,8 +66,4 @@ Extract the following information:
   "subtotal": 100.00,
   "amountDue": 127.00
 }
-
-If you cannot read the receipt clearly or it's not a valid receipt image, return:
-{
-  "error": "Unable to parse receipt. Please provide a clearer image."
-}`;
+`;

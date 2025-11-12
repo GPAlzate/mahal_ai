@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { receiptService } from '@/lib/services/ReceiptService';
-import { CreateReceiptRequestSchema } from '@/lib/schemas/ApiSchemas';
+import { CreateReceiptRequestSchema } from '@/lib/schemas/receipt/request/CreateReceiptRequest';
 
 /**
  * POST /api/receipts
@@ -48,8 +48,8 @@ export async function POST(request: NextRequest) {
       requestData.receiptLines &&
       requestData.receiptLines.length > 0 &&
       requestData.currency &&
-      typeof requestData.subtotal === 'number' &&
-      typeof requestData.amountDue === 'number'
+      requestData.subtotal &&
+      requestData.amountDue
     ) {
       // All required fields present, create ParsedReceipt object
       parsedData = {
@@ -62,9 +62,9 @@ export async function POST(request: NextRequest) {
       };
     }
 
-    const receipt = await receiptService.createReceipt(parsedData);
+    const parsedReceipt = await receiptService.createReceipt(parsedData);
 
-    return NextResponse.json(receipt, { status: 201 });
+    return NextResponse.json(parsedReceipt, { status: 201 });
   } catch (error) {
     console.error('Error creating receipt:', error);
 

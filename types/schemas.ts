@@ -1,121 +1,48 @@
-import { z } from "zod";
+/**
+ * SCHEMA MIGRATION TRACKER
+ *
+ * This file is being deprecated. All schemas are being moved to lib/schemas/
+ * organized by domain and purpose. Once all schemas are migrated, DELETE THIS FILE.
+ *
+ * DO NOT import from this file - it should not be used anywhere in the codebase.
+ */
 
-// Enum schemas matching database enums
-export const ReceiptLineTypeSchema = z.enum(['PRCH', 'TAX', 'TIP', 'SRVC', 'DSCT']);
-export type ReceiptLineType = z.infer<typeof ReceiptLineTypeSchema>;
+// ========================================
+// ✅ COMPLETED - Schemas moved to lib/schemas/
+// ========================================
 
-export const ReceiptStatusSchema = z.enum(['PINP', 'DRFT', 'FLZD', 'DLTD']);
-export type ReceiptStatus = z.infer<typeof ReceiptStatusSchema>;
+// Receipt Domain - Public (Database Entities):
+// ✅ Receipt → lib/schemas/receipt/public/Receipt.ts
+// ✅ ReceiptLine → lib/schemas/receipt/public/ReceiptLine.ts
+// ✅ ReceiptLineType → lib/schemas/receipt/public/ReceiptLineType.ts
+// ✅ ParsedReceipt (OpenAI output) → lib/schemas/receipt/public/ParsedReceipt.ts
 
-// Base schemas for database tables
-export const ParticipantSchema = z.object({
-  id: z.number().optional(),
-  receipt_id: z.number(),
-  display_name: z.string().min(1, "Name is required"),
-  created_at: z.date().optional(),
-  updated_at: z.date().optional(),
-  deleted_at: z.date().nullable().optional(),
-});
-export type Participant = z.infer<typeof ParticipantSchema>;
+// Receipt Domain - Request Schemas:
+// ✅ CreateReceiptRequest → lib/schemas/receipt/request/CreateReceiptRequest.ts
+// ✅ CreateReceiptLineRequest → lib/schemas/receipt/request/CreateReceiptLineRequest.ts
+// ✅ UpdateReceiptLineRequest → lib/schemas/receipt/request/UpdateReceiptLineRequest.ts
+// ✅ ParseReceiptRequest → lib/schemas/receipt/request/ParseReceiptRequest.ts
 
-export const ReceiptLineSchema = z.object({
-  id: z.number().optional(),
-  receipt_id: z.number(),
-  line_type: ReceiptLineTypeSchema.default('PRCH'),
-  item_name: z.string().min(1, "Item name is required"),
-  unit_price: z.number().positive("Price must be positive"),
-  quantity: z.number().positive("Quantity must be positive"),
-  created_at: z.date().optional(),
-  updated_at: z.date().optional(),
-  deleted_at: z.date().nullable().optional(),
-});
-export type ReceiptLine = z.infer<typeof ReceiptLineSchema>;
+// ========================================
+// ⏳ TODO - Schemas to be migrated
+// ========================================
 
-export const LineParticipantSchema = z.object({
-  receipt_line_id: z.number(),
-  participant_id: z.number(),
-  share_quantity: z.number().positive("Share quantity must be positive").default(1),
-});
-export type LineParticipant = z.infer<typeof LineParticipantSchema>;
+// Participant Domain - Public (Database Entities):
+// ⏳ Participant → needs lib/schemas/participant/public/Participant.ts
+// ⏳ LineParticipant → needs lib/schemas/participant/public/LineParticipant.ts
 
-export const ReceiptSchema = z.object({
-  id: z.number().optional(),
-  share_code: z.string().length(5, "Share code must be 5 characters").nullable().optional(),
-  status: ReceiptStatusSchema.default('DRFT'),
-  created_at: z.date().optional(),
-  updated_at: z.date().optional(),
-  deleted_at: z.date().nullable().optional(),
-});
-export type Receipt = z.infer<typeof ReceiptSchema>;
+// Participant Domain - Request Schemas:
+// ⏳ CreateParticipantRequest → needs lib/schemas/participant/request/CreateParticipantRequest.ts
+// ⏳ AssignLineParticipantRequest → needs lib/schemas/participant/request/AssignLineParticipantRequest.ts
 
-// API Request/Response schemas
-export const CreateParticipantRequestSchema = z.object({
-  display_name: z.string().min(1, "Name is required").max(100, "Name too long"),
-});
+// Receipt Summary - Response Schemas:
+// ⏳ ParticipantSummary → needs lib/schemas/receipt/response/ParticipantSummary.ts
+// ⏳ ReceiptSummary → needs lib/schemas/receipt/response/ReceiptSummary.ts
 
-export const CreateReceiptLineRequestSchema = z.object({
-  line_type: ReceiptLineTypeSchema,
-  item_name: z.string().min(1, "Item name is required").max(200, "Name too long"),
-  unit_price: z.number().positive("Price must be positive"),
-  quantity: z.number().positive("Quantity must be positive"),
-});
-
-export const AssignLineParticipantRequestSchema = z.object({
-  receipt_line_id: z.number(),
-  participant_id: z.number(),
-  share_quantity: z.number().positive("Share quantity must be positive").default(1),
-});
-
-// Complete receipt creation schema
-export const CreateReceiptRequestSchema = z.object({
-  participants: z.array(CreateParticipantRequestSchema).min(1, "At least one participant required"),
-  receipt_lines: z.array(CreateReceiptLineRequestSchema).min(1, "At least one item required"),
-  line_assignments: z.array(AssignLineParticipantRequestSchema),
-});
-
-// OpenAI Vision API response schema
-export const ParsedReceiptItemSchema = z.object({
-  item_name: z.string(),
-  unit_price: z.number(),
-  quantity: z.number(),
-});
-
-export const ParsedReceiptSchema = z.object({
-  items: z.array(ParsedReceiptItemSchema),
-  subtotal: z.number().optional(),
-  tax: z.number().optional(),
-  tip: z.number().optional(),
-  service_charge: z.number().optional(),
-  discount: z.number().optional(),
-  total: z.number().optional(),
-  merchant: z.string().optional(),
-  date: z.string().optional(),
-});
-export type ParsedReceipt = z.infer<typeof ParsedReceiptSchema>;
-
-// Receipt summary for display
-export const ParticipantSummarySchema = z.object({
-  participant_id: z.number(),
-  display_name: z.string(),
-  items: z.array(z.object({
-    item_name: z.string(),
-    unit_price: z.number(),
-    share_quantity: z.number(),
-    subtotal: z.number(),
-  })),
-  subtotal: z.number(),
-  tax: z.number(),
-  tip: z.number(),
-  service_charge: z.number(),
-  discount: z.number(),
-  total: z.number(),
-});
-export type ParticipantSummary = z.infer<typeof ParticipantSummarySchema>;
-
-export const ReceiptSummarySchema = z.object({
-  share_code: z.string(),
-  status: ReceiptStatusSchema,
-  participants: z.array(ParticipantSummarySchema),
-  grand_total: z.number(),
-});
-export type ReceiptSummary = z.infer<typeof ReceiptSummarySchema>;
+// ========================================
+// 📝 Notes
+// ========================================
+// - Old schema used snake_case (receipt_id, display_name)
+// - New schemas use camelCase (receiptId, displayName) for consistency
+// - When migrating, ensure field names match database schema transformation
+// - Delete this file once all TODOs are completed
