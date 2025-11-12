@@ -61,8 +61,16 @@ export class OpenAIService {
         throw new Error(parsed.error);
       }
 
-      if (!parsed.items || !Array.isArray(parsed.items)) {
-        throw new Error('Invalid response format: missing items array');
+      if (!parsed.receiptLines || !Array.isArray(parsed.receiptLines)) {
+        throw new Error('Invalid response format: missing receiptLines array');
+      }
+
+      if (!parsed.currency) {
+        throw new Error('Invalid response format: missing currency');
+      }
+
+      if (typeof parsed.subtotal !== 'number' || typeof parsed.amountDue !== 'number') {
+        throw new Error('Invalid response format: missing subtotal or amountDue');
       }
 
       return parsed;
