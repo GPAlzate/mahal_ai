@@ -49,10 +49,11 @@ export async function POST(request: NextRequest) {
     const { imageBase64 } = validation.data;
 
     // Parse receipt image with OpenAI
-    const parsedData = await openAIService.parseReceiptImage(imageBase64);
+    logger.log('Proceeding to parse image');
+    const parsedReceipt = await openAIService.parseReceiptImage(imageBase64);
 
-    logger.log('Successfully parsed receipt');
-    return NextResponse.json(parsedData, { status: 200 });
+    logger.log(`Successfully parsed receipt: ${parsedReceipt}`);
+    return NextResponse.json(parsedReceipt, { status: 200 });
   } catch (error) {
     logger.error('Error parsing receipt:', error);
 
