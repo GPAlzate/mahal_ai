@@ -1,6 +1,7 @@
 import { sql } from '@/lib/db';
 import { generateShareCode } from '@/lib/helpers/ShareCodeHelper';
 import { ParsedReceipt } from '@/lib/schemas/receipt/public/ParsedReceipt';
+import { toReceipt, ReceiptDTO } from '@/lib/schemas/receipt/dto/ReceiptDTO';
 
 /**
  * Service for managing receipts
@@ -25,18 +26,18 @@ export class ReceiptService {
         const result = await sql`
           INSERT INTO receipts (share_code, status)
           VALUES (${shareCode}, 'DRFT')
-          RETURNING id, share_code, status, created_at
+          RETURNING *
         `;
 
         if (result && result.length > 0) {
-          const receipt = result[0];
+          const receiptDTO = result[0] as ReceiptDTO;
 
           // If we have parsed data, add line items to the newly created receipt
           if (parsedData) {
-            await this.addParsedLineItems(receipt.id, parsedData);
+            await this.addParsedLineItems(receiptDTO.id, parsedData);
           }
 
-          return receipt;
+          return toReceipt(receiptDTO);
         }
       } catch (error: any) {
         // Check if error is due to unique constraint violation (duplicate share_code)

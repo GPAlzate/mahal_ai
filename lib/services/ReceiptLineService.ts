@@ -1,6 +1,7 @@
 import { sql } from '@/lib/db';
 import { CreateReceiptLineRequest } from '@/lib/schemas/receipt/request/CreateReceiptLineRequest';
 import { UpdateReceiptLineRequest } from '@/lib/schemas/receipt/request/UpdateReceiptLineRequest';
+import { toReceiptLine, ReceiptLineDTO } from '@/lib/schemas/receipt/dto/ReceiptLineDTO';
 
 /**
  * Service for managing receipt lines
@@ -13,23 +14,13 @@ export class ReceiptLineService {
    */
   async getReceiptLines(receiptId: number) {
     const result = await sql`
-      SELECT
-        id,
-        receipt_id as "receiptId",
-        description,
-        quantity,
-        unit_price as "unitPrice",
-        total_price as "totalPrice",
-        receipt_line_type as "receiptLineType",
-        created_at as "createdAt",
-        updated_at as "updatedAt",
-        deleted_at as "deletedAt"
+      SELECT *
       FROM receipt_lines
       WHERE receipt_id = ${receiptId} AND deleted_at IS NULL
       ORDER BY created_at ASC
     `;
 
-    return result;
+    return (result as ReceiptLineDTO[]).map(toReceiptLine);
   }
 
   /**
@@ -70,20 +61,10 @@ export class ReceiptLineService {
         ${lineData.totalPrice},
         ${lineData.receiptLineType}
       )
-      RETURNING
-        id,
-        receipt_id as "receiptId",
-        description,
-        quantity,
-        unit_price as "unitPrice",
-        total_price as "totalPrice",
-        receipt_line_type as "receiptLineType",
-        created_at as "createdAt",
-        updated_at as "updatedAt",
-        deleted_at as "deletedAt"
+      RETURNING *
     `;
 
-    return result[0];
+    return toReceiptLine(result[0] as ReceiptLineDTO);
   }
 
   /**
@@ -118,59 +99,58 @@ export class ReceiptLineService {
       WHERE id = ${lineId} AND receipt_id = ${receiptId} AND deleted_at IS NULL
     `;
 
-    if (!lineCheck || lineCheck.length === 0) {
+    if (lineCheck.length === 0) {
       throw new Error('Receipt line not found');
     }
 
-    // Build dynamic UPDATE query based on provided fields
-    const updates: string[] = [];
+    // Build dynamic update safely using positional parameters
+    const fields: string[] = [];
     const values: any[] = [];
 
     if (lineData.description !== undefined) {
-      updates.push(`description = $${values.length + 1}`);
+      fields.push('description');
       values.push(lineData.description);
     }
     if (lineData.quantity !== undefined) {
-      updates.push(`quantity = $${values.length + 1}`);
+      fields.push('quantity');
       values.push(lineData.quantity);
     }
     if (lineData.unitPrice !== undefined) {
-      updates.push(`unit_price = $${values.length + 1}`);
+      fields.push('unit_price');
       values.push(lineData.unitPrice);
     }
     if (lineData.totalPrice !== undefined) {
-      updates.push(`total_price = $${values.length + 1}`);
+      fields.push('total_price');
       values.push(lineData.totalPrice);
     }
     if (lineData.receiptLineType !== undefined) {
-      updates.push(`receipt_line_type = $${values.length + 1}`);
+      fields.push('receipt_line_type');
       values.push(lineData.receiptLineType);
     }
 
-    if (updates.length === 0) {
-      throw new Error('No fields to update');
+    if (fields.length === 0) {
+      const result = await sql`
+        SELECT * FROM receipt_lines WHERE id = ${lineId}
+      `;
+      return toReceiptLine(result[0] as ReceiptLineDTO);
     }
 
-    updates.push(`updated_at = NOW()`);
+    // Always update timestamp
+    fields.push('updated_at');
+    values.push(new Date());
 
-    const result = await sql`
+    // Build SET clause with positional parameters ($1, $2, ...)
+    const setClause = fields.map((f, i) => `${f} = $${i + 1}`).join(', ');
+    const query = `
       UPDATE receipt_lines
-      SET ${sql.unsafe(updates.join(', '))}
-      WHERE id = ${lineId}
-      RETURNING
-        id,
-        receipt_id as "receiptId",
-        description,
-        quantity,
-        unit_price as "unitPrice",
-        total_price as "totalPrice",
-        receipt_line_type as "receiptLineType",
-        created_at as "createdAt",
-        updated_at as "updatedAt",
-        deleted_at as "deletedAt"
+      SET ${setClause}
+      WHERE id = $${fields.length + 1}
+      RETURNING *
     `;
 
-    return result[0];
+    const result = await sql(query, [...values, lineId]);
+
+    return toReceiptLine(result[0] as ReceiptLineDTO);
   }
 
   /**
@@ -208,20 +188,10 @@ export class ReceiptLineService {
       UPDATE receipt_lines
       SET deleted_at = NOW(), updated_at = NOW()
       WHERE id = ${lineId}
-      RETURNING
-        id,
-        receipt_id as "receiptId",
-        description,
-        quantity,
-        unit_price as "unitPrice",
-        total_price as "totalPrice",
-        receipt_line_type as "receiptLineType",
-        created_at as "createdAt",
-        updated_at as "updatedAt",
-        deleted_at as "deletedAt"
+      RETURNING *
     `;
 
-    return result[0];
+    return toReceiptLine(result[0] as ReceiptLineDTO);
   }
 }
 
