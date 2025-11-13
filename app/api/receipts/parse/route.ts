@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { openAIService } from '@/lib/services/OpenAIService';
-import { ParseReceiptRequestSchema } from '@/lib/schemas/ParseReceiptRequest';
+import { ParseReceiptRequestSchema } from '@/lib/schemas/receipt/request/ParseReceiptRequest';
 
 /**
  * POST /api/receipts/parse
