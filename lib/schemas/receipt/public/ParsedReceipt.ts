@@ -16,11 +16,11 @@ const ParsedReceiptLineSchema = z.object({
  * Zod schema for parsed receipt (used for OpenAI structured outputs)
  */
 export const ParsedReceiptSchema = z.object({
-  merchantName: z.string().optional().describe('Name of the merchant/store'),
+  merchantName: z.string().nullable().describe('Name of the merchant/store'),
   receiptDate: z
     .string()
     .regex(/^\d{4}-\d{2}-\d{2}$/)
-    .optional()
+    .nullable()
     .describe('Receipt date in YYYY-MM-DD format'),
   receiptLines: z
     .array(ParsedReceiptLineSchema)

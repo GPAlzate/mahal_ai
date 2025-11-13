@@ -20,7 +20,12 @@ Extract the following information:
      * "TAX" for tax charges
      * "TIP" for tips/gratuity
      * "SRVC" for service charges
-     * "DSCT" for discounts (totalPrice should be negative)
+     * "DSCT" for discounts - Look for these indicators:
+       - Negative sign (-) before the amount
+       - Amount in parentheses: (100.00)
+       - Words like: "discount", "dsct", "promo", "coupon", "off", "reduction"
+       - Any deduction from the total
+       - totalPrice MUST be negative (e.g., -50.00, not 50.00)
 
 3. **Totals**:
    - currency: Currency code (e.g., "PHP")
@@ -30,7 +35,10 @@ Extract the following information:
 **Important Instructions:**
 - Return ONLY valid JSON, no additional text or explanation
 - All monetary values should be numbers (not strings)
-- Discounts should have negative totalPrice values
+- **Discount Handling**:
+  * Identify discounts by: negative signs, parentheses, or keywords (discount, promo, coupon, etc.)
+  * ALWAYS make discount totalPrice negative (e.g., -100.00)
+  * Even if receipt shows discount as positive or in parentheses, convert to negative
 - If a field is not found, omit merchantName or receiptDate (but receiptLines, currency, subtotal, and amountDue are required)
 - Calculate totalPrice = unitPrice x quantity for each line
 - Be precise with numbers - double-check calculations
@@ -48,10 +56,17 @@ Extract the following information:
       "receiptLineType": "PRCH"
     },
     {
+      "description": "Discount",
+      "quantity": 1,
+      "unitPrice": 20.00,
+      "totalPrice": -20.00,
+      "receiptLineType": "DSCT"
+    },
+    {
       "description": "Tax",
       "quantity": 1,
-      "unitPrice": 12.00,
-      "totalPrice": 12.00,
+      "unitPrice": 10.00,
+      "totalPrice": 10.00,
       "receiptLineType": "TAX"
     },
     {
@@ -64,6 +79,6 @@ Extract the following information:
   ],
   "currency": "PHP",
   "subtotal": 100.00,
-  "amountDue": 127.00
+  "amountDue": 105.00
 }
 `;

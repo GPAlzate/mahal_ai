@@ -3,14 +3,17 @@ import { zodTextFormat } from 'openai/helpers/zod';
 import { getOpenAIAPIKey } from '@/lib/env';
 import { RECEIPT_PARSER_PROMPT } from '@/lib/prompts/receiptParser';
 import { ParsedReceipt, ParsedReceiptSchema } from '@/lib/schemas/receipt/public/ParsedReceipt';
+import { Logger } from '../utils/Logger';
 
 /**
  * Service for interacting with OpenAI API
  */
 export class OpenAIService {
   private client: OpenAI;
+  protected logger: any;
 
   constructor() {
+    this.logger = new Logger(OpenAIService.name);
     this.client = new OpenAI({
       apiKey: getOpenAIAPIKey(),
     });
@@ -31,6 +34,9 @@ export class OpenAIService {
    */
   async parseReceiptImage(imageBase64: string): Promise<ParsedReceipt> {
     try {
+      this.logger.log('Starting receipt image parsing with GPT-4o-mini');
+
+      console.time('Receipt Parsing')
       const response = await this.client.responses.parse({
         model: 'gpt-4o-mini',
         input: [
@@ -53,14 +59,18 @@ export class OpenAIService {
           format: zodTextFormat(ParsedReceiptSchema, 'receipt'),
         },
       });
+      console.timeEnd('Receipt Parsing')
 
       // Structured Outputs automatically validates and parses the response
       if (!response.output_parsed) {
+        this.logger.error('No parsed output received from OpenAI');
         throw new Error('No parsed output from OpenAI');
       }
 
+      this.logger.log(`Successfully parsed receipt image: ${JSON.stringify(response, null, 2)}`);
       return response.output_parsed;
     } catch (error) {
+      this.logger.error('Failed to parse receipt image:', error);
       if (error instanceof Error) {
         throw new Error(`Failed to parse receipt: ${error.message}`);
       }
