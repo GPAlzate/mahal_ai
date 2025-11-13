@@ -3,6 +3,19 @@ import { receiptService } from '@/lib/services/ReceiptService';
 import { CreateReceiptRequestSchema } from '@/lib/schemas/receipt/request/CreateReceiptRequest';
 
 /**
+ * Receipts API
+ *
+ * Implemented:
+ * ✅ POST /api/receipts - Create new receipt
+ * ✅ POST /api/receipts/parse - Parse receipt image (no DB write)
+ *
+ * Pending:
+ * ⏳ GET /api/receipts/[id] - Get receipt details with metadata
+ * ⏳ PUT /api/receipts/[id] - Update receipt (merchant name, date, currency, etc.)
+ * ⏳ DELETE /api/receipts/[id] - Delete/archive entire receipt
+ */
+
+/**
  * POST /api/receipts
  * Create a new receipt with optional parsed data
  *
