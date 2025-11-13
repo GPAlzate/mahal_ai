@@ -66,8 +66,8 @@ export async function POST(request: NextRequest) {
     ) {
       // All required fields present, create ParsedReceipt object
       parsedData = {
-        merchantName: requestData.merchantName,
-        receiptDate: requestData.receiptDate,
+        merchantName: requestData.merchantName ?? null,
+        receiptDate: requestData.receiptDate ?? null,
         receiptLines: requestData.receiptLines,
         currency: requestData.currency,
         subtotal: requestData.subtotal,
