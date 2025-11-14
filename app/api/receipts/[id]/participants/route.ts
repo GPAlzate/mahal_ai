@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { participantService } from '@/lib/services/ParticipantService';
-import { CreateParticipantRequestSchema } from '@/lib/schemas/participant/request/CreateParticipantRequest';
+import { BatchCreateParticipantsRequestSchema } from '@/lib/schemas/participant/request/CreateParticipantRequest';
 
 /**
  * GET /api/receipts/[id]/participants
@@ -44,22 +44,26 @@ export async function GET(
 
 /**
  * POST /api/receipts/[id]/participants
- * Add a new participant to a receipt
+ * Add participant(s) to a receipt
+ * Always expects an array (single participant is a singleton array)
  *
  * Request body:
- * {
- *   displayName: string
- * }
+ * [
+ *   { displayName: string },
+ *   { displayName: string }
+ * ]
  *
  * Response:
- * {
- *   id: number,
- *   receiptId: number,
- *   displayName: string,
- *   createdAt: timestamp,
- *   updatedAt: timestamp,
- *   deletedAt: timestamp | null
- * }
+ * [
+ *   {
+ *     id: number,
+ *     receiptId: number,
+ *     displayName: string,
+ *     createdAt: timestamp,
+ *     updatedAt: timestamp,
+ *     deletedAt: timestamp | null
+ *   }
+ * ]
  */
 export async function POST(
   request: NextRequest,
@@ -75,8 +79,8 @@ export async function POST(
 
     const body = await request.json();
 
-    // Validate request body
-    const validation = CreateParticipantRequestSchema.safeParse(body);
+    // Validate request body (expects array of participants)
+    const validation = BatchCreateParticipantsRequestSchema.safeParse(body);
 
     if (!validation.success) {
       return NextResponse.json(
@@ -85,13 +89,16 @@ export async function POST(
       );
     }
 
-    const participant = await participantService.createParticipant(receiptId, validation.data);
+    const participants = await participantService.batchCreateParticipants(
+      receiptId,
+      validation.data
+    );
 
-    return NextResponse.json(participant, { status: 201 });
+    return NextResponse.json(participants, { status: 201 });
   } catch (error) {
-    console.error('Error creating participant:', error);
+    console.error('Error creating participant(s):', error);
 
-    const errorMessage = error instanceof Error ? error.message : 'Failed to create participant';
+    const errorMessage = error instanceof Error ? error.message : 'Failed to create participant(s)';
 
     const status = errorMessage.includes('not found')
       ? 404

@@ -1,7 +1,7 @@
 import { z } from 'zod';
 
 /**
- * Schema for creating a participant
+ * Schema for creating a single participant
  * Used in: POST /api/receipts/[id]/participants
  */
 export const CreateParticipantRequestSchema = z.object({
@@ -9,3 +9,11 @@ export const CreateParticipantRequestSchema = z.object({
 });
 
 export type CreateParticipantRequest = z.infer<typeof CreateParticipantRequestSchema>;
+
+/**
+ * Schema for batch creating participants
+ * Used in: POST /api/receipts/[id]/participants
+ */
+export const BatchCreateParticipantsRequestSchema = z.array(CreateParticipantRequestSchema);
+
+export type BatchCreateParticipantsRequest = z.infer<typeof BatchCreateParticipantsRequestSchema>;

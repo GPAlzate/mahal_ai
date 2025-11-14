@@ -24,17 +24,29 @@ export class ParticipantService {
   }
 
   /**
-   * Create a new participant
+   * Create a new participant. Defers to batchCreateParticipants method
    * @param receiptId - ID of the receipt
    * @param participantData - Participant data
    * @returns Created participant
    */
   async createParticipant(receiptId: number, participantData: CreateParticipantRequest) {
-    // Verify receipt exists and is not finalized
+    return (await this.batchCreateParticipants(receiptId, [participantData]))[0];
+  }
+
+  /**
+   * Create a new participant
+   * @param receiptId - ID of the receipt
+   * @param createParticipantsRequest - Participant data
+   * @returns Created participants
+   */
+  async batchCreateParticipants(
+    receiptId: number,
+    createParticipantsRequest: CreateParticipantRequest[]
+  ) {
     const receipt = await sql`
-      SELECT id, status FROM receipts
-      WHERE id = ${receiptId} AND deleted_at IS NULL
-    `;
+    SELECT id, status FROM receipts
+    WHERE id = ${receiptId} AND deleted_at IS NULL
+  `;
 
     if (!receipt || receipt.length === 0) {
       throw new Error('Receipt not found');
@@ -44,14 +56,24 @@ export class ParticipantService {
       throw new Error('Cannot modify finalized receipt');
     }
 
-    const result = await sql`
-      INSERT INTO participants (receipt_id, display_name)
-      VALUES (${receiptId}, ${participantData.displayName})
-      RETURNING *
-    `;
+    if (createParticipantsRequest.length === 0) {
+      return [];
+    }
 
-    return toParticipant(result[0] as ParticipantDTO);
+    const rows = createParticipantsRequest.map(p => [receiptId, p.displayName]);
+
+    const result = await sql`
+    INSERT INTO participants (receipt_id, display_name)
+    SELECT * FROM UNNEST(
+      ${rows.map(r => r[0])}::int[],
+      ${rows.map(r => r[1])}::text[]
+    )
+    RETURNING *
+  `;
+
+    return result.map(r => toParticipant(r as ParticipantDTO));
   }
+
 
   /**
    * Update a participant

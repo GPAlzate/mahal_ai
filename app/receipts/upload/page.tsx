@@ -6,7 +6,7 @@ import { Button } from '@/components/Button';
 import { Card } from '@/components/Card';
 import { api } from '@/lib/client/api-client';
 
-export default function Home() {
+export default function UploadPage() {
   const router = useRouter();
   const [file, setFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
@@ -51,21 +51,6 @@ export default function Home() {
     }
   };
 
-  const handlePaste = (e: React.ClipboardEvent) => {
-    const items = e.clipboardData?.items;
-    if (!items) return;
-
-    for (let i = 0; i < items.length; i++) {
-      if (items[i].type.indexOf('image') !== -1) {
-        const file = items[i].getAsFile();
-        if (file) {
-          handleFileChange(file);
-        }
-        break;
-      }
-    }
-  };
-
   const handleSubmit = async () => {
     if (!file) return;
 
@@ -107,19 +92,15 @@ export default function Home() {
   };
 
   return (
-    <div
-      className="min-h-screen bg-white p-4 md:p-8"
-      onPaste={handlePaste}
-      tabIndex={0}
-    >
+    <div className="min-h-screen bg-white p-4 md:p-8">
       <div className="max-w-2xl mx-auto">
         {/* Header */}
-        <div className="mb-8 text-center">
+        <div className="mb-8">
           <h1 className="text-4xl md:text-6xl font-bold uppercase tracking-wider mb-4">
-            mahal ai
+            Upload Receipt
           </h1>
           <p className="text-lg font-mono">
-            Upload a receipt to split the bill
+            Take a photo or upload an image of your receipt to get started
           </p>
         </div>
 
@@ -159,8 +140,7 @@ export default function Home() {
               <p className="text-xl font-bold uppercase tracking-wider mb-2">
                 Drop image here
               </p>
-              <p className="font-mono text-sm mb-1">or click to browse</p>
-              <p className="font-mono text-xs">Paste (Ctrl+V) also works!</p>
+              <p className="font-mono text-sm">or click to browse</p>
               <input
                 id="file-input"
                 type="file"
