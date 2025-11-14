@@ -11,7 +11,7 @@ Extract the following information:
    - receiptDate: Date of the receipt (if visible, in ISO format YYYY-MM-DD)
 
 2. **Receipt Lines (receiptLines)**: An array of ALL line items including purchases, taxes, tips, service charges, and discounts. Each line must have:
-   - description: The item/charge description
+   - itemName: The item/charge description
    - quantity: The quantity (default to 1 for charges like tax, tip, etc.)
    - unitPrice: The price per unit
    - totalPrice: Total for this line (unitPrice x quantity)
@@ -49,28 +49,28 @@ Extract the following information:
   "receiptDate": "2025-01-15",
   "receiptLines": [
     {
-      "description": "Item 1",
+      "itemName": "Item 1",
       "quantity": 2,
       "unitPrice": 50.00,
       "totalPrice": 100.00,
       "receiptLineType": "PRCH"
     },
     {
-      "description": "Discount",
+      "itemName": "Discount",
       "quantity": 1,
       "unitPrice": 20.00,
       "totalPrice": -20.00,
       "receiptLineType": "DSCT"
     },
     {
-      "description": "Tax",
+      "itemName": "Tax",
       "quantity": 1,
       "unitPrice": 10.00,
       "totalPrice": 10.00,
       "receiptLineType": "TAX"
     },
     {
-      "description": "Tip",
+      "itemName": "Tip",
       "quantity": 1,
       "unitPrice": 15.00,
       "totalPrice": 15.00,

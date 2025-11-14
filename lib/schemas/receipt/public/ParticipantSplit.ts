@@ -5,7 +5,7 @@ import { z } from 'zod';
  */
 export const LineItemSplitSchema = z.object({
   receiptLineId: z.number(),
-  description: z.string(),
+  itemName: z.string(),
   quantity: z.number(),
   unitPrice: z.number(),
   shareQuantity: z.number(),

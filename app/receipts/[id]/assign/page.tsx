@@ -5,13 +5,12 @@ import { useRouter } from 'next/navigation';
 import { Button } from '@/components/Button';
 import { Card } from '@/components/Card';
 import { LineItemCard } from '@/components/LineItemCard';
-import { ShareQuantityPicker } from '@/components/ShareQuantityPicker';
 import { useParticipants } from '@/lib/client/hooks/useParticipants';
 import { api } from '@/lib/client/api-client';
 
 interface ReceiptLine {
   id: number;
-  description: string;
+  itemName: string;
   quantity: number;
   unitPrice: number;
   receiptLineType: string;
@@ -19,8 +18,13 @@ interface ReceiptLine {
 
 interface LineAssignments {
   [lineId: number]: {
-    [participantId: number]: number; // participantId -> shareQuantity
+    [participantId: number]: number;
   };
+}
+
+interface Participant {
+  id: number;
+  displayName: string;
 }
 
 export default function AssignPage({ params }: { params: Promise<{ id: string }> }) {
@@ -33,10 +37,17 @@ export default function AssignPage({ params }: { params: Promise<{ id: string }>
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [activeLineId, setActiveLineId] = useState<number | null>(null);
+  const [activeParticipantId, setActiveParticipantId] = useState<number | null>(null);
 
-  const { participants } = useParticipants(receiptId);
+  const {
+    participants,
+    loading: participantsLoading,
+    error: participantsError,
+  } = useParticipants(receiptId);
 
-  // Fetch receipt lines (only PRCH items)
+  const combinedLoading = loading || participantsLoading;
+
   useEffect(() => {
     async function fetchLines() {
       try {
@@ -46,15 +57,16 @@ export default function AssignPage({ params }: { params: Promise<{ id: string }>
         );
         setLines(purchaseLines);
 
-        // Fetch existing assignments for each line
         const assignmentsData: LineAssignments = {};
-        for (const line of purchaseLines) {
-          const lineAssignments = await api.assignments.list(receiptId, line.id);
-          assignmentsData[line.id] = {};
-          lineAssignments.forEach((assignment: any) => {
-            assignmentsData[line.id][assignment.participantId] = assignment.shareQuantity;
-          });
-        }
+        await Promise.all(
+          purchaseLines.map(async (line) => {
+            const lineAssignments = await api.assignments.list(receiptId, line.id);
+            assignmentsData[line.id] = {};
+            lineAssignments.forEach((assignment: any) => {
+              assignmentsData[line.id][assignment.participantId] = assignment.shareQuantity;
+            });
+          })
+        );
         setAssignments(assignmentsData);
         setLoading(false);
       } catch (err: any) {
@@ -66,70 +78,106 @@ export default function AssignPage({ params }: { params: Promise<{ id: string }>
     fetchLines();
   }, [receiptId]);
 
-  const handleShareChange = async (
+  const refreshLineAssignments = async (lineId: number) => {
+    const lineAssignments = await api.assignments.list(receiptId, lineId);
+    setAssignments((prev) => {
+      const updated = { ...prev };
+      updated[lineId] = {};
+      lineAssignments.forEach((assignment: any) => {
+        updated[lineId][assignment.participantId] = assignment.shareQuantity;
+      });
+      return updated;
+    });
+  };
+
+  const updateAssignment = async (
     lineId: number,
     participantId: number,
     newQuantity: number
   ) => {
-    // Update local state immediately (optimistic update)
-    setAssignments((prev) => ({
-      ...prev,
-      [lineId]: {
-        ...prev[lineId],
-        [participantId]: newQuantity,
-      },
-    }));
+    setAssignments((prev) => {
+      const nextLineAssignments = { ...(prev[lineId] || {}) };
+      if (newQuantity === 0) {
+        delete nextLineAssignments[participantId];
+      } else {
+        nextLineAssignments[participantId] = newQuantity;
+      }
+
+      return {
+        ...prev,
+        [lineId]: nextLineAssignments,
+      };
+    });
 
     try {
       if (newQuantity === 0) {
-        // Unassign participant
         await api.assignments.unassign(receiptId, lineId, participantId);
-
-        // Remove from local state
-        setAssignments((prev) => {
-          const newAssignments = { ...prev };
-          delete newAssignments[lineId][participantId];
-          return newAssignments;
-        });
       } else {
-        // Assign or update share quantity
         await api.assignments.assign(receiptId, lineId, participantId, newQuantity);
       }
     } catch (err: any) {
-      // Revert on error
       setError(err.message);
-      // Refetch to get correct state
-      const lineAssignments = await api.assignments.list(receiptId, lineId);
-      setAssignments((prev) => {
-        const updated = { ...prev };
-        updated[lineId] = {};
-        lineAssignments.forEach((assignment: any) => {
-          updated[lineId][assignment.participantId] = assignment.shareQuantity;
-        });
-        return updated;
-      });
+      await refreshLineAssignments(lineId);
     }
   };
 
+  const toggleAssignment = async (lineId: number, participantId: number) => {
+    const currentQuantity = assignments[lineId]?.[participantId] || 0;
+    const nextQuantity = currentQuantity > 0 ? 0 : 1;
+    await updateAssignment(lineId, participantId, nextQuantity);
+  };
+
+  const handleLineSelection = async (lineId: number) => {
+    setError(null);
+    if (activeParticipantId) {
+      await toggleAssignment(lineId, activeParticipantId);
+    }
+    setActiveLineId((prev) => (prev === lineId ? null : lineId));
+  };
+
+  const handleParticipantSelection = async (participantId: number) => {
+    setError(null);
+    if (activeLineId) {
+      await toggleAssignment(activeLineId, participantId);
+    }
+    setActiveParticipantId((prev) => (prev === participantId ? null : participantId));
+  };
+
   const handleContinue = async () => {
-    // Check if all lines have at least one assignment
     const unassignedLines = lines.filter(
       (line) => !assignments[line.id] || Object.keys(assignments[line.id]).length === 0
     );
 
     if (unassignedLines.length > 0) {
       setError(
-        `Please assign participants to all items. Missing: ${unassignedLines.map((l) => l.description).join(', ')}`
+        `Assign at least one participant to every item: ${unassignedLines
+          .map((line) => line.itemName)
+          .join(', ')}`
       );
       return;
     }
 
-    // TODO: Navigate to review page when it's built
-    setError('Review page coming soon! Assignments saved.');
-    setSaving(false);
+    try {
+      setSaving(true);
+      router.push(`/receipts/${receiptId}/misc-charges`);
+    } catch (err: any) {
+      setError(err.message || 'Unable to continue');
+      setSaving(false);
+    }
   };
 
-  if (loading) {
+  const getAssignedParticipants = (lineId: number) => {
+    const lineAssignments = assignments[lineId] || {};
+    return participants.filter((participant: Participant) => lineAssignments[participant.id]);
+  };
+
+  const getParticipantAssignmentCount = (participantId: number) => {
+    return lines.reduce((count, line) => {
+      return count + (assignments[line.id]?.[participantId] ? 1 : 0);
+    }, 0);
+  };
+
+  if (combinedLoading) {
     return (
       <div className="min-h-screen bg-white p-4 md:p-8">
         <div className="max-w-4xl mx-auto">
@@ -143,66 +191,131 @@ export default function AssignPage({ params }: { params: Promise<{ id: string }>
 
   return (
     <div className="min-h-screen bg-white p-4 md:p-8">
-      <div className="max-w-4xl mx-auto">
-        {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-4xl md:text-6xl font-bold uppercase tracking-wider mb-4">
+      <div className="max-w-5xl mx-auto flex flex-col gap-8">
+        <div>
+          <h1 className="text-4xl md:text-6xl font-bold uppercase tracking-wider mb-3">
             Assign Items
           </h1>
           <p className="text-lg font-mono">
-            Who&apos;s paying for what? Assign shares for each item.
+            Tap a line and a participant to pair them. Repeat to split items together.
           </p>
         </div>
 
-        {/* Error Message */}
-        {error && (
-          <Card padding="md" className="mb-6 border-red-600">
-            <p className="font-bold uppercase tracking-wider text-red-600">{error}</p>
+        {(error || participantsError) && (
+          <Card padding="md" className="border-red-600">
+            <p className="font-bold uppercase tracking-wider text-red-600">
+              {error || participantsError}
+            </p>
           </Card>
         )}
 
-        {/* Line Items */}
-        {lines.map((line) => (
-          <LineItemCard
-            key={line.id}
-            description={line.description}
-            quantity={line.quantity}
-            unitPrice={line.unitPrice}
-          >
-            <div className="space-y-3">
-              {participants.map((participant) => {
-                const shareQuantity = assignments[line.id]?.[participant.id] || 0;
-                return (
-                  <div
-                    key={participant.id}
-                    className="flex items-center justify-between p-3 border-2 border-black"
-                  >
-                    <span className="font-bold uppercase tracking-wider">
-                      {participant.displayName}
+        <section className="space-y-4 max-h-[60vh] overflow-y-auto pr-2">
+          {lines.length === 0 && (
+            <Card padding="md">
+              <p className="font-mono text-center">No purchase lines found for this receipt.</p>
+            </Card>
+          )}
+
+          {lines.map((line) => {
+            const assignedParticipants = getAssignedParticipants(line.id);
+            return (
+              <LineItemCard
+                key={line.id}
+                itemName={line.itemName}
+                quantity={line.quantity}
+                unitPrice={line.unitPrice}
+                onClick={() => handleLineSelection(line.id)}
+                isActive={activeLineId === line.id}
+              >
+                <div className="flex flex-wrap gap-2">
+                  {assignedParticipants.length === 0 ? (
+                    <span className="font-mono text-xs uppercase tracking-wide text-gray-500">
+                      Select participants below to assign this item
                     </span>
-                    <ShareQuantityPicker
-                      value={shareQuantity}
-                      onChange={(newQuantity) =>
-                        handleShareChange(line.id, participant.id, newQuantity)
-                      }
-                      min={0}
-                    />
-                  </div>
+                  ) : (
+                    assignedParticipants.map((participant) => (
+                      <span
+                        key={participant.id}
+                        className="border-2 border-black px-3 py-1 text-sm font-bold uppercase tracking-wider"
+                      >
+                        {participant.displayName}
+                      </span>
+                    ))
+                  )}
+                </div>
+              </LineItemCard>
+            );
+          })}
+        </section>
+
+        <section className="pb-24 border-t-4 border-black pt-6">
+          <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
+            <h2 className="text-2xl font-bold uppercase tracking-wider">Participants</h2>
+            <div className="flex flex-wrap gap-4 text-sm font-mono">
+              {activeLineId && (
+                <span>
+                  Assigning to:{' '}
+                  <strong>
+                    {lines.find((line) => line.id === activeLineId)?.itemName || 'Select a line'}
+                  </strong>
+                </span>
+              )}
+              {activeParticipantId && (
+                <span>
+                  Assigning from:{' '}
+                  <strong>
+                    {participants.find((p) => p.id === activeParticipantId)?.displayName ||
+                      'Select a participant'}
+                  </strong>
+                </span>
+              )}
+            </div>
+          </div>
+
+          {participants.length === 0 ? (
+            <Card padding="md">
+              <p className="font-mono text-center">
+                No participants yet. Add them first to start assigning.
+              </p>
+            </Card>
+          ) : (
+            <div className="flex flex-wrap gap-4">
+              {participants.map((participant: Participant) => {
+                const isActive = activeParticipantId === participant.id;
+                const assignedCount = getParticipantAssignmentCount(participant.id);
+
+                return (
+                  <button
+                    key={participant.id}
+                    type="button"
+                    onClick={() => handleParticipantSelection(participant.id)}
+                    className={`
+                      border-4 border-black px-4 py-3 flex flex-col gap-1
+                      uppercase tracking-wider text-left min-w-[160px]
+                      ${isActive ? 'bg-black text-white' : 'bg-white'}
+                    `}
+                  >
+                    <span className="font-bold">{participant.displayName}</span>
+                    <span className="font-mono text-xs">
+                      {assignedCount > 0
+                        ? `${assignedCount} item${assignedCount > 1 ? 's' : ''}`
+                        : 'Unassigned'}
+                    </span>
+                  </button>
                 );
               })}
             </div>
-          </LineItemCard>
-        ))}
+          )}
+        </section>
 
-        {/* Continue Button */}
-        <div className="sticky bottom-4">
+        <div className="sticky bottom-0 left-0 right-0 bg-white border-t-4 border-black pt-4 pb-2">
           <Button
             fullWidth
             size="lg"
             onClick={handleContinue}
             disabled={saving}
           >
-            {saving ? 'Saving...' : 'Continue to Review'}
+            {saving ? 'Continuing...' : 'Continue to Misc Charges'}
           </Button>
         </div>
       </div>

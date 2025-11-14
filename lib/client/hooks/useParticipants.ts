@@ -27,7 +27,8 @@ export function useParticipants(receiptId: number) {
 
   const addParticipant = async (displayName: string) => {
     try {
-      const newParticipant = await api.participants.create(receiptId, displayName);
+      const newParticipants = await api.participants.create(receiptId, [{ displayName }]);
+      const newParticipant = newParticipants[0];
       setParticipants((prev) => [...prev, newParticipant]);
       return newParticipant;
     } catch (err: any) {

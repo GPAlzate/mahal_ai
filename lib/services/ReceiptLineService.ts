@@ -47,15 +47,15 @@ export class ReceiptLineService {
     const result = await sql`
       INSERT INTO receipt_lines (
         receipt_id,
-        description,
+        item_name,
         quantity,
         unit_price,
         total_price,
-        receipt_line_type
+        line_type
       )
       VALUES (
         ${receiptId},
-        ${lineData.description},
+        ${lineData.itemName},
         ${lineData.quantity},
         ${lineData.unitPrice},
         ${lineData.totalPrice},
@@ -107,9 +107,9 @@ export class ReceiptLineService {
     const fields: string[] = [];
     const values: any[] = [];
 
-    if (lineData.description !== undefined) {
-      fields.push('description');
-      values.push(lineData.description);
+    if (lineData.itemName !== undefined) {
+      fields.push('item_name');
+      values.push(lineData.itemName);
     }
     if (lineData.quantity !== undefined) {
       fields.push('quantity');
@@ -124,7 +124,7 @@ export class ReceiptLineService {
       values.push(lineData.totalPrice);
     }
     if (lineData.receiptLineType !== undefined) {
-      fields.push('receipt_line_type');
+      fields.push('line_type');
       values.push(lineData.receiptLineType);
     }
 

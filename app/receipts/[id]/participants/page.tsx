@@ -44,14 +44,14 @@ export default function ParticipantsPage({ params }: { params: Promise<{ id: str
           setCheckingLines(false);
         } else if (receipt.status === 'PRSP') {
           // Still parsing (status='PRSP'), check again in 2 seconds
-          setTimeout(checkReceiptStatus, 2000);
+          setTimeout(checkReceiptStatus, 3000);
         } else {
           // Unknown status, try again
-          setTimeout(checkReceiptStatus, 2000);
+          setTimeout(checkReceiptStatus, 3000);
         }
       } catch (err) {
         // Error fetching receipt, try again
-        setTimeout(checkReceiptStatus, 2000);
+        setTimeout(checkReceiptStatus, 3000);
       }
     };
 

@@ -11,7 +11,7 @@ import { CreateReceiptLineRequestSchema } from '@/lib/schemas/receipt/request/Cr
  *   {
  *     id: number,
  *     receiptId: number,
- *     description: string,
+ *     itemName: string,
  *     quantity: number,
  *     unitPrice: number,
  *     totalPrice: number,

@@ -8,7 +8,7 @@ import { ReceiptLineTypeSchema } from './ReceiptLineType';
 export const ReceiptLineSchema = z.object({
   id: z.number(),
   receiptId: z.number(),
-  description: z.string(),
+  itemName: z.string(),
   quantity: z.number(),
   unitPrice: z.number(),
   totalPrice: z.number(),

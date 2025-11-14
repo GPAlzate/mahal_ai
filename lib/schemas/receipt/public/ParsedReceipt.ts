@@ -5,7 +5,7 @@ import { ReceiptLineTypeSchema } from './ReceiptLineType';
  * Zod schema for parsed receipt line
  */
 const ParsedReceiptLineSchema = z.object({
-  description: z.string().describe('The item or charge description'),
+  itemName: z.string().describe('The item or charge description'),
   quantity: z.number().positive().describe('The quantity'),
   unitPrice: z.number().describe('The price per unit'),
   totalPrice: z.number().describe('Total for this line (unitPrice × quantity)'),
