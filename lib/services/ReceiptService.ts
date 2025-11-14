@@ -2,6 +2,7 @@ import { sql } from '@/lib/db';
 import { generateShareCode } from '@/lib/helpers/ShareCodeHelper';
 import { ParsedReceipt } from '@/lib/schemas/receipt/public/ParsedReceipt';
 import { toReceipt, ReceiptDTO } from '@/lib/schemas/receipt/dto/ReceiptDTO';
+import { Receipt } from '@/lib/schemas/receipt/public/Receipt';
 
 /**
  * Service for managing receipts
@@ -51,6 +52,44 @@ export class ReceiptService {
     }
 
     throw new Error('Failed to generate unique share code after multiple attempts');
+  }
+
+  /**
+   * Get receipt by ID
+   * @param receiptId - ID of the receipt
+   * @returns Receipt object
+   * @throws Error if receipt not found
+   */
+  async getReceipt(receiptId: number): Promise<Receipt> {
+    const result = await sql`
+      SELECT * FROM receipts
+      WHERE id = ${receiptId} AND deleted_at IS NULL
+    `;
+
+    if (result.length === 0) {
+      throw new Error('Receipt not found');
+    }
+
+    return result[0] as Receipt;
+  }
+
+  /**
+   * Find receipt by share code
+   * @param shareCode - 5-character share code
+   * @returns Receipt object
+   * @throws Error if receipt not found
+   */
+  async findReceiptByShareCode(shareCode: string): Promise<Receipt> {
+    const result = await sql`
+      SELECT * FROM receipts
+      WHERE share_code = ${shareCode.toUpperCase()} AND deleted_at IS NULL
+    `;
+
+    if (result.length === 0) {
+      throw new Error('Receipt not found');
+    }
+
+    return result[0] as Receipt;
   }
 
   /**
