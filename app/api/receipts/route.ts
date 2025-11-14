@@ -37,7 +37,7 @@ import { FindReceiptByShareCodeRequestSchema } from '@/lib/schemas/receipt/reque
  *   total: number
  * }
  */
-export async function findByShareCode(request: NextRequest) {
+export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const shareCode = searchParams.get('shareCode');
@@ -67,8 +67,6 @@ export async function findByShareCode(request: NextRequest) {
     return NextResponse.json({ error: errorMessage }, { status });
   }
 }
-
-export { findByShareCode as GET };
 
 /**
  * POST /api/receipts

@@ -2,8 +2,8 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Receipt Splitter",
-  description: "Split receipts easily with friends",
+  title: "mahal ai ❤️",
+  description: "kkp with friends",
 };
 
 export default function RootLayout({

@@ -3,6 +3,10 @@ import { generateShareCode } from '@/lib/helpers/ShareCodeHelper';
 import { ParsedReceipt } from '@/lib/schemas/receipt/public/ParsedReceipt';
 import { toReceipt, ReceiptDTO } from '@/lib/schemas/receipt/dto/ReceiptDTO';
 import { Receipt } from '@/lib/schemas/receipt/public/Receipt';
+import { openAIService } from '@/lib/services/OpenAIService';
+import { Logger } from '@/lib/utils/Logger';
+
+const logger = new Logger('ReceiptService');
 
 /**
  * Service for managing receipts
@@ -93,6 +97,27 @@ export class ReceiptService {
   }
 
   /**
+   * Update receipt status
+   * @param receiptId - ID of the receipt
+   * @param status - New status value
+   * @throws Error if receipt not found
+   */
+  async updateStatus(receiptId: number, status: string) {
+    const result = await sql`
+      UPDATE receipts
+      SET status = ${status}, updated_at = NOW()
+      WHERE id = ${receiptId} AND deleted_at IS NULL
+      RETURNING *
+    `;
+
+    if (!result || result.length === 0) {
+      throw new Error('Receipt not found');
+    }
+
+    return toReceipt(result[0] as ReceiptDTO);
+  }
+
+  /**
    * Add parsed line items to an existing receipt
    * Executes all inserts concurrently for better performance
    *
@@ -135,6 +160,41 @@ export class ReceiptService {
 
     // Flatten results (each query returns an array with one item)
     return results.map((result) => result[0]).filter(Boolean);
+  }
+
+  /**
+   * Parse receipt image in background
+   * Updates receipt status to 'DRFT' on success or 'DLTD' on error
+   * @param receiptId - ID of the receipt
+   * @param imageBase64 - Base64 encoded image data URI
+   */
+  async parseInBackground(receiptId: number, imageBase64: string) {
+    try {
+      logger.log(`Starting background parsing for receipt ${receiptId}`);
+
+      // Parse receipt image with OpenAI
+      const parsedReceipt = await openAIService.parseReceiptImage(imageBase64);
+
+      logger.log(`Successfully parsed, adding line items`);
+
+      // Add line items to receipt
+      await this.addParsedLineItems(receiptId, parsedReceipt);
+
+      // Update receipt status to DRFT (ready)
+      await this.updateStatus(receiptId, 'DRFT');
+
+      logger.log(`[Receipt ${receiptId}] Parsing complete, status updated to DRFT`);
+    } catch (error) {
+      logger.error(`[Receipt ${receiptId}] Parsing failed:`, error);
+
+      // Update receipt status to DLTD (mark as deleted/failed)
+      try {
+        await this.updateStatus(receiptId, 'DLTD');
+        logger.log(`Receipt ${receiptId} status updated to DLTD (failed)`);
+      } catch (updateError) {
+        logger.error(`Failed to update status for receipt ${receiptId}:`, updateError);
+      }
+    }
   }
 }
 

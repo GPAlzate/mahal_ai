@@ -6,7 +6,6 @@ import type { Receipt } from '@/lib/schemas/receipt/public/Receipt';
 import type { ReceiptLine } from '@/lib/schemas/receipt/public/ReceiptLine';
 import type { Participant } from '@/lib/schemas/participant/public/Participant';
 import type { LineParticipant } from '@/lib/schemas/participant/public/LineParticipant';
-import type { ParsedReceipt } from '@/lib/schemas/receipt/public/ParsedReceipt';
 import type { ReceiptSummary } from '@/lib/schemas/receipt/public/ReceiptSummary';
 
 class APIError extends Error {
@@ -48,7 +47,7 @@ async function fetchAPI<T>(
 export const api = {
   receipts: {
     parse: (imageBase64: string) =>
-      fetchAPI<ParsedReceipt>('/api/receipts/parse', {
+      fetchAPI<{ receiptId: number; status: string }>('/api/receipts/parse', {
         method: 'POST',
         body: JSON.stringify({ imageBase64 }),
       }),

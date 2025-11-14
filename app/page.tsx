@@ -82,14 +82,11 @@ export default function Home() {
           const base64 = reader.result as string;
           // Keep the full data URI (data:image/jpeg;base64,...)
 
-          // Step 1: Parse receipt with OpenAI
-          const parsedData = await api.receipts.parse(base64);
+          // Create receipt and start background parsing
+          const { receiptId } = await api.receipts.parse(base64);
 
-          // Step 2: Create receipt in database
-          const receipt = await api.receipts.create(parsedData);
-
-          // Navigate to participants page
-          router.push(`/receipts/${receipt.id}/participants`);
+          // Navigate to participants page immediately
+          router.push(`/receipts/${receiptId}/participants`);
         } catch (err: any) {
           setError(err.message || 'Failed to process receipt');
           setLoading(false);
@@ -206,16 +203,6 @@ export default function Home() {
         >
           {loading ? 'Processing...' : 'Continue'}
         </Button>
-
-        {loading && (
-          <div className="mt-6">
-            <Card padding="md">
-              <p className="font-mono text-center">
-                AI is scanning your receipt... This may take a few seconds.
-              </p>
-            </Card>
-          </div>
-        )}
       </div>
     </div>
   );

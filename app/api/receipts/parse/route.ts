@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { openAIService } from '@/lib/services/OpenAIService';
+import { receiptService } from '@/lib/services/ReceiptService';
 import { ParseReceiptRequestSchema } from '@/lib/schemas/receipt/request/ParseReceiptRequest';
 import { Logger } from '@/lib/utils/Logger';
 
@@ -7,8 +7,8 @@ const logger = new Logger('POST /api/receipts/parse');
 
 /**
  * POST /api/receipts/parse
- * Parse a receipt image using OpenAI and return structured data
- * Does NOT create a receipt - only parses the image
+ * Creates a receipt and starts parsing in the background
+ * Returns immediately with receiptId, allowing user to add participants while parsing
  *
  * Request body:
  * {
@@ -17,11 +17,8 @@ const logger = new Logger('POST /api/receipts/parse');
  *
  * Response:
  * {
- *   items: [{name, unitPrice, quantity}],
- *   tax?: number,
- *   tip?: number,
- *   serviceCharge?: number,
- *   discount?: number
+ *   receiptId: number,
+ *   status: 'PRSP' // Pre-processing/parsing in progress
  * }
  *
  * TODO: Add image storage for finalized receipts
@@ -48,16 +45,24 @@ export async function POST(request: NextRequest) {
 
     const { imageBase64 } = validation.data;
 
-    // Parse receipt image with OpenAI
-    logger.log('Proceeding to parse image');
-    const parsedReceipt = await openAIService.parseReceiptImage(imageBase64);
+    // Create receipt with status='PRSP' (pre-processing/parsing)
+    logger.log('Creating receipt with status=PRSP');
+    const receipt = await receiptService.createReceipt();
 
-    logger.log(`Successfully parsed receipt: ${parsedReceipt}`);
-    return NextResponse.json(parsedReceipt, { status: 200 });
+    // Update status to PRSP
+    await receiptService.updateStatus(receipt.id, 'PRSP');
+
+    // Fire off background parsing (don't await!)
+    receiptService.parseInBackground(receipt.id, imageBase64).catch((err) => {
+      logger.error(`Background parsing promise rejected for receipt ${receipt.id}:`, err);
+    });
+
+    logger.log(`Receipt ${receipt.id} created, parsing in background`);
+    return NextResponse.json({ receiptId: receipt.id, status: 'PRSP' }, { status: 201 });
   } catch (error) {
-    logger.error('Error parsing receipt:', error);
+    logger.error('Error creating receipt:', error);
 
-    const errorMessage = error instanceof Error ? error.message : 'Failed to parse receipt';
+    const errorMessage = error instanceof Error ? error.message : 'Failed to create receipt';
 
     return NextResponse.json(
       { error: errorMessage },

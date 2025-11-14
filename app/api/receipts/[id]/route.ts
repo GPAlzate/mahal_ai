@@ -9,7 +9,7 @@ import { receiptService } from '@/lib/services/ReceiptService';
  * {
  *   id: number,
  *   share_code: string,
- *   status: "DRFT" | "FLZD" | "DLTD",
+ *   status: "PRSP" | "DRFT" | "FLZD" | "DLTD",
  *   created_at: timestamp,
  *   updated_at: timestamp,
  *   deleted_at: timestamp | null

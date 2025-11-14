@@ -13,6 +13,9 @@ interface LocalParticipant {
   displayName: string;
 }
 
+/**
+ * TODO: make ui like the CLEAR app
+ */
 export default function ParticipantsPage({ params }: { params: Promise<{ id: string }> }) {
   const resolvedParams = use(params);
   const receiptId = parseInt(resolvedParams.id);
@@ -25,25 +28,34 @@ export default function ParticipantsPage({ params }: { params: Promise<{ id: str
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
-  // Check if receipt lines are ready (parsing complete)
+  // Check if receipt parsing is complete
   useEffect(() => {
-    const checkLines = async () => {
+    const checkReceiptStatus = async () => {
       try {
-        const lines = await api.lines.list(receiptId);
-        if (lines && lines.length > 0) {
+        const receipt = await api.receipts.get(receiptId);
+
+        if (receipt.status === 'DRFT') {
+          // Parsing complete, receipt is ready
           setLinesReady(true);
           setCheckingLines(false);
+        } else if (receipt.status === 'DLTD') {
+          // Parsing failed (marked as deleted)
+          setError('Failed to parse receipt. Please try uploading again.');
+          setCheckingLines(false);
+        } else if (receipt.status === 'PRSP') {
+          // Still parsing (status='PRSP'), check again in 2 seconds
+          setTimeout(checkReceiptStatus, 2000);
         } else {
-          // Keep checking every 2 seconds
-          setTimeout(checkLines, 2000);
+          // Unknown status, try again
+          setTimeout(checkReceiptStatus, 2000);
         }
       } catch (err) {
-        // Receipt might still be parsing, try again
-        setTimeout(checkLines, 2000);
+        // Error fetching receipt, try again
+        setTimeout(checkReceiptStatus, 2000);
       }
     };
 
-    checkLines();
+    checkReceiptStatus();
   }, [receiptId]);
 
   const handleAddParticipant = (e: React.FormEvent) => {
@@ -95,22 +107,6 @@ export default function ParticipantsPage({ params }: { params: Promise<{ id: str
             Who&apos;s splitting this receipt? Add everyone now.
           </p>
         </div>
-
-        {/* Parsing Status */}
-        {checkingLines && (
-          <Card padding="md" className="mb-6 border-black">
-            <div className="flex items-center gap-4">
-              <div className="animate-spin h-6 w-6 border-4 border-black border-t-transparent" />
-              <p className="font-mono">AI is parsing your receipt...</p>
-            </div>
-          </Card>
-        )}
-
-        {linesReady && (
-          <Card padding="md" className="mb-6 bg-black text-white">
-            <p className="font-bold uppercase tracking-wider">✓ Receipt parsed successfully!</p>
-          </Card>
-        )}
 
         {/* Add Participant Form */}
         <Card padding="lg" className="mb-6">
@@ -167,18 +163,16 @@ export default function ParticipantsPage({ params }: { params: Promise<{ id: str
           onClick={handleContinue}
           disabled={participants.length === 0 || !linesReady || saving}
         >
-          {saving ? 'Saving participants...' : 'Continue to Assignment'}
+          {saving && 'Saving participants...'}
+          {!saving && checkingLines && (
+            <span className="flex items-center gap-2 justify-center">
+              <div className="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full" />
+              Parsing receipt...
+            </span>
+          )}
+          {!saving && !checkingLines && participants.length === 0 && 'Add participants to continue'}
+          {!saving && !checkingLines && participants.length > 0 && 'View Receipt →'}
         </Button>
-
-        {!linesReady && participants.length > 0 && (
-          <div className="mt-4">
-            <Card padding="sm">
-              <p className="font-mono text-sm text-center">
-                Button will enable when receipt parsing is complete
-              </p>
-            </Card>
-          </div>
-        )}
       </div>
     </div>
   );
