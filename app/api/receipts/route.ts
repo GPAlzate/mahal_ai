@@ -9,11 +9,11 @@ import { FindReceiptByShareCodeRequestSchema } from '@/lib/schemas/receipt/reque
  *
  * Implemented:
  * ✅ GET /api/receipts?shareCode=XXXXX - Get receipt summary by share code
+ * ✅ GET /api/receipts/[id] - Get receipt metadata
  * ✅ POST /api/receipts - Create new receipt
  * ✅ POST /api/receipts/parse - Parse receipt image (no DB write)
  *
  * Pending:
- * ⏳ GET /api/receipts/[id] - Get receipt details with metadata
  * ⏳ PUT /api/receipts/[id] - Update receipt (merchant name, date, currency, etc.)
  * ⏳ DELETE /api/receipts/[id] - Delete/archive entire receipt
  */
