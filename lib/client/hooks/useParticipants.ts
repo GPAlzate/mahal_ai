@@ -1,7 +1,7 @@
 'use client';
 
+import { api } from '@/lib/client/api-client';
 import { useState, useEffect } from 'react';
-import { api } from '../api-client';
 
 export function useParticipants(receiptId: number) {
   const [participants, setParticipants] = useState<any[]>([]);

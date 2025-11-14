@@ -1,7 +1,7 @@
 'use client';
 
+import { api } from '@/lib/client/api-client';
 import { useState, useEffect } from 'react';
-import { api } from '../api-client';
 
 export function useReceipt(receiptId: number) {
   const [receipt, setReceipt] = useState<any>(null);

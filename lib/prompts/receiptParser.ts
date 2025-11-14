@@ -25,7 +25,7 @@ Extract the following information:
        - Amount in parentheses: (100.00)
        - Words like: "discount", "dsct", "promo", "coupon", "off", "reduction"
        - Any deduction from the total
-       - totalPrice MUST be negative (e.g., -50.00, not 50.00)
+       - These amounts MUST be set to negative in your output (e.g., -50.00, not 50.00)
 
 3. **Totals**:
    - currency: Currency code (e.g., "PHP")
@@ -58,7 +58,7 @@ Extract the following information:
     {
       "itemName": "Discount",
       "quantity": 1,
-      "unitPrice": 20.00,
+      "unitPrice": -20.00,
       "totalPrice": -20.00,
       "receiptLineType": "DSCT"
     },

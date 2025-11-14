@@ -50,7 +50,6 @@ export class ReceiptLineService {
         item_name,
         quantity,
         unit_price,
-        total_price,
         line_type
       )
       VALUES (
@@ -118,10 +117,6 @@ export class ReceiptLineService {
     if (lineData.unitPrice !== undefined) {
       fields.push('unit_price');
       values.push(lineData.unitPrice);
-    }
-    if (lineData.totalPrice !== undefined) {
-      fields.push('total_price');
-      values.push(lineData.totalPrice);
     }
     if (lineData.receiptLineType !== undefined) {
       fields.push('line_type');

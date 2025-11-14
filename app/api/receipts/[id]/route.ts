@@ -2,8 +2,11 @@ import { NextRequest, NextResponse } from 'next/server';
 import { receiptService } from '@/lib/services/ReceiptService';
 
 /**
- * GET /api/receipts/[id]
- * Get receipt metadata by ID
+ * GET /api/receipts/[id]?includeLines=true
+ * Get receipt metadata by ID, optionally with lines
+ *
+ * Query params:
+ * - includeLines: boolean (optional, default: false)
  *
  * Response: Receipt
  * {
@@ -12,7 +15,8 @@ import { receiptService } from '@/lib/services/ReceiptService';
  *   status: "PRSP" | "DRFT" | "FLZD" | "DLTD",
  *   created_at: timestamp,
  *   updated_at: timestamp,
- *   deleted_at: timestamp | null
+ *   deleted_at: timestamp | null,
+ *   lines?: ReceiptLine[] (if includeLines=true)
  * }
  */
 export async function GET(
@@ -27,7 +31,11 @@ export async function GET(
       return NextResponse.json({ error: 'Invalid receipt ID' }, { status: 400 });
     }
 
-    const receipt = await receiptService.getReceipt(receiptId);
+    // Extract includeLines query parameter
+    const { searchParams } = new URL(request.url);
+    const includeLines = searchParams.get('includeLines') === 'true';
+
+    const receipt = await receiptService.getReceipt(receiptId, includeLines);
 
     return NextResponse.json(receipt, { status: 200 });
   } catch (error) {

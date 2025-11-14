@@ -1,5 +1,5 @@
+import { ReceiptLineTypeSchema } from '@/lib/schemas/receipt/public/ReceiptLineType';
 import { z } from 'zod';
-import { ReceiptLineTypeSchema } from '../public/ReceiptLineType';
 
 /**
  * DTO schema for ReceiptLine from database (snake_case)
@@ -11,7 +11,6 @@ export const ReceiptLineDTOSchema = z.object({
   item_name: z.string(),
   quantity: z.number(),
   unit_price: z.number(),
-  total_price: z.number(),
   line_type: ReceiptLineTypeSchema,
   created_at: z.date(),
   updated_at: z.date(),
@@ -30,7 +29,7 @@ export function toReceiptLine(dto: ReceiptLineDTO) {
     itemName: dto.item_name,
     quantity: dto.quantity,
     unitPrice: dto.unit_price,
-    totalPrice: dto.total_price,
+    totalPrice: dto.unit_price * dto.quantity, // derived
     receiptLineType: dto.line_type,
     createdAt: dto.created_at,
     updatedAt: dto.updated_at,

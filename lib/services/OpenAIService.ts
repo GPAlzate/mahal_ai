@@ -3,7 +3,7 @@ import { zodTextFormat } from 'openai/helpers/zod';
 import { getOpenAIAPIKey } from '@/lib/env';
 import { RECEIPT_PARSER_PROMPT } from '@/lib/prompts/receiptParser';
 import { ParsedReceipt, ParsedReceiptSchema } from '@/lib/schemas/receipt/public/ParsedReceipt';
-import { Logger } from '../utils/Logger';
+import { Logger } from '@/lib/utils/Logger';
 
 /**
  * Service for interacting with OpenAI API

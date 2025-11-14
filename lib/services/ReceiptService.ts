@@ -61,39 +61,111 @@ export class ReceiptService {
   /**
    * Get receipt by ID
    * @param receiptId - ID of the receipt
-   * @returns Receipt object
+   * @param includeLines - If true, fetches receipt with lines via JOIN
+   * @returns Receipt object (with optional lines array)
    * @throws Error if receipt not found
    */
-  async getReceipt(receiptId: number): Promise<Receipt> {
+  async getReceipt(receiptId: number, includeLines: boolean = false): Promise<Receipt> {
+    if (!includeLines) {
+      // Simple query without lines
+      const result = await sql`
+        SELECT * FROM receipts
+        WHERE id = ${receiptId} AND deleted_at IS NULL
+      `;
+
+      if (result.length === 0) {
+        throw new Error('Receipt not found');
+      }
+
+      return toReceipt(result[0] as ReceiptDTO);
+    }
+
+    // Query with LEFT JOIN to include lines
     const result = await sql`
-      SELECT * FROM receipts
-      WHERE id = ${receiptId} AND deleted_at IS NULL
+      SELECT
+        r.*,
+        rl.id as line_id,
+        rl.receipt_id,
+        rl.item_name,
+        rl.quantity,
+        rl.unit_price,
+        rl.line_type,
+        rl.created_at as line_created_at,
+        rl.updated_at as line_updated_at
+      FROM receipts r
+      LEFT JOIN receipt_lines rl ON r.id = rl.receipt_id AND rl.deleted_at IS NULL
+      WHERE r.id = ${receiptId} AND r.deleted_at IS NULL
+      ORDER BY rl.created_at ASC
     `;
 
     if (result.length === 0) {
       throw new Error('Receipt not found');
     }
 
-    return result[0] as Receipt;
+    // Map joined rows to ReceiptLineDTOs
+    const linesDTOs = result
+      .filter((row: any) => row.line_id) // Skip rows with no line (LEFT JOIN with no match)
+      .map((row: any) => ({
+        id: row.line_id,
+        receipt_id: row.receipt_id,
+        item_name: row.item_name,
+        quantity: row.quantity,
+        unit_price: row.unit_price,
+        line_type: row.line_type,
+        created_at: row.line_created_at,
+        updated_at: row.line_updated_at,
+        deleted_at: null,
+      }));
+
+    return toReceipt(result[0] as ReceiptDTO, linesDTOs);
   }
 
   /**
    * Find receipt by share code
+   * Always includes lines (for sharing context)
    * @param shareCode - 5-character share code
-   * @returns Receipt object
+   * @returns Receipt object with lines
    * @throws Error if receipt not found
    */
   async findReceiptByShareCode(shareCode: string): Promise<Receipt> {
+    // Query with LEFT JOIN to include lines
     const result = await sql`
-      SELECT * FROM receipts
-      WHERE share_code = ${shareCode.toUpperCase()} AND deleted_at IS NULL
+      SELECT
+        r.*,
+        rl.id as line_id,
+        rl.receipt_id,
+        rl.item_name,
+        rl.quantity,
+        rl.unit_price,
+        rl.line_type,
+        rl.created_at as line_created_at,
+        rl.updated_at as line_updated_at
+      FROM receipts r
+      LEFT JOIN receipt_lines rl ON r.id = rl.receipt_id AND rl.deleted_at IS NULL
+      WHERE r.share_code = ${shareCode.toUpperCase()} AND r.deleted_at IS NULL
+      ORDER BY rl.created_at ASC
     `;
 
     if (result.length === 0) {
       throw new Error('Receipt not found');
     }
 
-    return result[0] as Receipt;
+    // Map joined rows to ReceiptLineDTOs
+    const linesDTOs = result
+      .filter((row: any) => row.line_id) // Skip rows with no line (LEFT JOIN with no match)
+      .map((row: any) => ({
+        id: row.line_id,
+        receipt_id: row.receipt_id,
+        item_name: row.item_name,
+        quantity: row.quantity,
+        unit_price: row.unit_price,
+        line_type: row.line_type,
+        created_at: row.line_created_at,
+        updated_at: row.line_updated_at,
+        deleted_at: null,
+      }));
+
+    return toReceipt(result[0] as ReceiptDTO, linesDTOs);
   }
 
   /**
@@ -147,7 +219,7 @@ export class ReceiptService {
         VALUES (
           ${receiptId},
           ${line.receiptLineType},
-          ${line.description},
+          ${line.itemName},
           ${line.unitPrice},
           ${line.quantity}
         )

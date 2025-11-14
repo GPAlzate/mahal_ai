@@ -5,7 +5,6 @@ import { useRouter } from 'next/navigation';
 import { Button } from '@/components/Button';
 import { Card } from '@/components/Card';
 import { LineItemCard } from '@/components/LineItemCard';
-import { useParticipants } from '@/lib/client/hooks/useParticipants';
 import { api } from '@/lib/client/api-client';
 
 interface ReceiptLine {
@@ -33,6 +32,7 @@ export default function AssignPage({ params }: { params: Promise<{ id: string }>
   const router = useRouter();
 
   const [lines, setLines] = useState<ReceiptLine[]>([]);
+  const [participants, setParticipants] = useState<Participant[]>([]);
   const [assignments, setAssignments] = useState<LineAssignments>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -40,34 +40,18 @@ export default function AssignPage({ params }: { params: Promise<{ id: string }>
   const [activeLineId, setActiveLineId] = useState<number | null>(null);
   const [activeParticipantId, setActiveParticipantId] = useState<number | null>(null);
 
-  const {
-    participants,
-    loading: participantsLoading,
-    error: participantsError,
-  } = useParticipants(receiptId);
-
-  const combinedLoading = loading || participantsLoading;
-
   useEffect(() => {
-    async function fetchLines() {
+    async function fetchSplitGroup() {
       try {
-        const allLines = await api.lines.list(receiptId);
-        const purchaseLines = allLines.filter(
+        const splitGroup = await api.splitGroups.get(receiptId);
+
+        // Extract purchase lines from receipt
+        const purchaseLines = (splitGroup.receipt.lines || []).filter(
           (line: ReceiptLine) => line.receiptLineType === 'PRCH'
         );
-        setLines(purchaseLines);
 
-        const assignmentsData: LineAssignments = {};
-        await Promise.all(
-          purchaseLines.map(async (line) => {
-            const lineAssignments = await api.assignments.list(receiptId, line.id);
-            assignmentsData[line.id] = {};
-            lineAssignments.forEach((assignment: any) => {
-              assignmentsData[line.id][assignment.participantId] = assignment.shareQuantity;
-            });
-          })
-        );
-        setAssignments(assignmentsData);
+        setLines(purchaseLines);
+        setParticipants(splitGroup.participants);
         setLoading(false);
       } catch (err: any) {
         setError(err.message);
@@ -75,7 +59,7 @@ export default function AssignPage({ params }: { params: Promise<{ id: string }>
       }
     }
 
-    fetchLines();
+    fetchSplitGroup();
   }, [receiptId]);
 
   const refreshLineAssignments = async (lineId: number) => {
@@ -129,18 +113,30 @@ export default function AssignPage({ params }: { params: Promise<{ id: string }>
 
   const handleLineSelection = async (lineId: number) => {
     setError(null);
+
+    // If a participant is already selected, assign them together and clear selections
     if (activeParticipantId) {
       await toggleAssignment(lineId, activeParticipantId);
+      setActiveLineId(null);
+      setActiveParticipantId(null);
+    } else {
+      // Toggle line selection
+      setActiveLineId((prev) => (prev === lineId ? null : lineId));
     }
-    setActiveLineId((prev) => (prev === lineId ? null : lineId));
   };
 
   const handleParticipantSelection = async (participantId: number) => {
     setError(null);
+
+    // If a line is already selected, assign them together and clear selections
     if (activeLineId) {
       await toggleAssignment(activeLineId, participantId);
+      setActiveLineId(null);
+      setActiveParticipantId(null);
+    } else {
+      // Toggle participant selection
+      setActiveParticipantId((prev) => (prev === participantId ? null : participantId));
     }
-    setActiveParticipantId((prev) => (prev === participantId ? null : participantId));
   };
 
   const handleContinue = async () => {
@@ -177,7 +173,7 @@ export default function AssignPage({ params }: { params: Promise<{ id: string }>
     }, 0);
   };
 
-  if (combinedLoading) {
+  if (loading) {
     return (
       <div className="min-h-screen bg-white p-4 md:p-8">
         <div className="max-w-4xl mx-auto">
@@ -201,10 +197,10 @@ export default function AssignPage({ params }: { params: Promise<{ id: string }>
           </p>
         </div>
 
-        {(error || participantsError) && (
+        {error && (
           <Card padding="md" className="border-red-600">
             <p className="font-bold uppercase tracking-wider text-red-600">
-              {error || participantsError}
+              {error}
             </p>
           </Card>
         )}
@@ -218,6 +214,9 @@ export default function AssignPage({ params }: { params: Promise<{ id: string }>
 
           {lines.map((line) => {
             const assignedParticipants = getAssignedParticipants(line.id);
+            const isSelected = activeLineId === line.id;
+            const isAssignmentMode = activeParticipantId !== null;
+
             return (
               <LineItemCard
                 key={line.id}
@@ -225,7 +224,14 @@ export default function AssignPage({ params }: { params: Promise<{ id: string }>
                 quantity={line.quantity}
                 unitPrice={line.unitPrice}
                 onClick={() => handleLineSelection(line.id)}
-                isActive={activeLineId === line.id}
+                isActive={isSelected}
+                className={`transition-all ${
+                  isSelected
+                    ? 'border-8 border-yellow-400 bg-yellow-50'
+                    : isAssignmentMode
+                      ? 'hover:bg-purple-100 hover:border-purple-500 cursor-pointer hover:scale-[1.02]'
+                      : ''
+                }`}
               >
                 <div className="flex flex-wrap gap-2">
                   {assignedParticipants.length === 0 ? (
@@ -283,6 +289,9 @@ export default function AssignPage({ params }: { params: Promise<{ id: string }>
               {participants.map((participant: Participant) => {
                 const isActive = activeParticipantId === participant.id;
                 const assignedCount = getParticipantAssignmentCount(participant.id);
+                const isLineAssignmentMode = activeLineId !== null;
+                const isAlreadyAssigned =
+                  activeLineId && assignments[activeLineId]?.[participant.id];
 
                 return (
                   <button
@@ -290,9 +299,16 @@ export default function AssignPage({ params }: { params: Promise<{ id: string }>
                     type="button"
                     onClick={() => handleParticipantSelection(participant.id)}
                     className={`
-                      border-4 border-black px-4 py-3 flex flex-col gap-1
+                      border-4 px-4 py-3 flex flex-col gap-1
                       uppercase tracking-wider text-left min-w-[160px]
-                      ${isActive ? 'bg-black text-white' : 'bg-white'}
+                      transition-all
+                      ${
+                        isActive
+                          ? 'bg-yellow-300 border-yellow-400 text-black font-extrabold shadow-[8px_8px_0px_0px_rgba(0,0,0,1)]'
+                          : isLineAssignmentMode && !isAlreadyAssigned
+                            ? 'border-black bg-green-100 hover:bg-green-300 hover:scale-105 cursor-pointer'
+                            : 'border-black bg-white hover:bg-gray-100'
+                      }
                     `}
                   >
                     <span className="font-bold">{participant.displayName}</span>

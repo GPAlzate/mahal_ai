@@ -1,3 +1,4 @@
+import { ReceiptLineSchema } from '@/lib/schemas/receipt/public/ReceiptLine';
 import { z } from 'zod';
 
 /**
@@ -10,14 +11,19 @@ export type ReceiptStatus = z.infer<typeof ReceiptStatusSchema>;
 /**
  * Schema for Receipt database entity
  * Represents a row from the receipts table
+ *
+ * Optional fields:
+ * - lines: Array of receipt lines. Only populated when explicitly requested
+ *   (e.g., GET /api/receipts/[id]?includeLines=true or via share code)
  */
 export const ReceiptSchema = z.object({
   id: z.number(),
-  share_code: z.string(),
+  shareCode: z.string(),
   status: ReceiptStatusSchema,
-  created_at: z.date(),
-  updated_at: z.date(),
-  deleted_at: z.date().nullable(),
+  createdAt: z.date(),
+  updatedAt: z.date(),
+  deletedAt: z.date().nullable(),
+  lines: z.array(ReceiptLineSchema).optional(),
 });
 
 export type Receipt = z.infer<typeof ReceiptSchema>;

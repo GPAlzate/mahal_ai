@@ -7,6 +7,7 @@ import type { ReceiptLine } from '@/lib/schemas/receipt/public/ReceiptLine';
 import type { Participant } from '@/lib/schemas/participant/public/Participant';
 import type { LineParticipant } from '@/lib/schemas/participant/public/LineParticipant';
 import type { ReceiptSummary } from '@/lib/schemas/receipt/public/ReceiptSummary';
+import type { SplitGroup } from '@/lib/schemas/receipt/public/SplitGroup';
 
 class APIError extends Error {
   constructor(
@@ -58,7 +59,8 @@ export const api = {
         body: JSON.stringify(data),
       }),
 
-    get: (id: number) => fetchAPI<Receipt>(`/api/receipts/${id}`),
+    get: (id: number, includeLines?: boolean) =>
+      fetchAPI<Receipt>(`/api/receipts/${id}${includeLines ? '?includeLines=true' : ''}`),
 
     getByShareCode: (shareCode: string) =>
       fetchAPI<ReceiptSummary>(`/api/receipts?shareCode=${shareCode}`),
@@ -127,6 +129,11 @@ export const api = {
         `/api/receipts/${receiptId}/lines/${lineId}/assignments/${participantId}`,
         { method: 'DELETE' }
       ),
+  },
+
+  splitGroups: {
+    get: (receiptId: number) =>
+      fetchAPI<SplitGroup>(`/api/split-groups?receiptId=${receiptId}`),
   },
 };
 

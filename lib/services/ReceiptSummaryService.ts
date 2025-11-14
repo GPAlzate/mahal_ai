@@ -89,7 +89,7 @@ export class ReceiptSummaryService {
 
           return {
             receiptLineId: line.id,
-            description: line.description,
+            itemName: line.itemName,
             quantity: line.quantity,
             unitPrice: line.unitPrice,
             shareQuantity: assignment.shareQuantity,
@@ -164,7 +164,7 @@ export class ReceiptSummaryService {
    */
   async validateAllLinesAssigned(receiptId: number): Promise<void> {
     const unassignedLines = await sql`
-      SELECT rl.id, rl.description
+      SELECT rl.id, rl.item_name
       FROM receipt_lines rl
       LEFT JOIN line_participants lp ON rl.id = lp.receipt_line_id
       WHERE rl.receipt_id = ${receiptId}
@@ -174,9 +174,9 @@ export class ReceiptSummaryService {
     `;
 
     if (unassignedLines.length > 0) {
-      const descriptions = unassignedLines.map((l: any) => l.description).join(', ');
+      const itemNames = unassignedLines.map((l: any) => l.item_name).join(', ');
       throw new Error(
-        `Cannot finalize: The following purchase lines are not assigned to any participant: ${descriptions}`
+        `Cannot finalize: The following purchase lines are not assigned to any participant: ${itemNames}`
       );
     }
   }
