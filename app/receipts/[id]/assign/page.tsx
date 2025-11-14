@@ -62,29 +62,16 @@ export default function AssignPage({ params }: { params: Promise<{ id: string }>
     fetchSplitGroup();
   }, [receiptId]);
 
-  const refreshLineAssignments = async (lineId: number) => {
-    const lineAssignments = await api.assignments.list(receiptId, lineId);
+  const toggleAssignment = (lineId: number, participantId: number) => {
     setAssignments((prev) => {
-      const updated = { ...prev };
-      updated[lineId] = {};
-      lineAssignments.forEach((assignment: any) => {
-        updated[lineId][assignment.participantId] = assignment.shareQuantity;
-      });
-      return updated;
-    });
-  };
+      const currentQuantity = prev[lineId]?.[participantId] || 0;
+      const nextQuantity = currentQuantity > 0 ? 0 : 1;
 
-  const updateAssignment = async (
-    lineId: number,
-    participantId: number,
-    newQuantity: number
-  ) => {
-    setAssignments((prev) => {
       const nextLineAssignments = { ...(prev[lineId] || {}) };
-      if (newQuantity === 0) {
+      if (nextQuantity === 0) {
         delete nextLineAssignments[participantId];
       } else {
-        nextLineAssignments[participantId] = newQuantity;
+        nextLineAssignments[participantId] = nextQuantity;
       }
 
       return {
@@ -92,46 +79,29 @@ export default function AssignPage({ params }: { params: Promise<{ id: string }>
         [lineId]: nextLineAssignments,
       };
     });
-
-    try {
-      if (newQuantity === 0) {
-        await api.assignments.unassign(receiptId, lineId, participantId);
-      } else {
-        await api.assignments.assign(receiptId, lineId, participantId, newQuantity);
-      }
-    } catch (err: any) {
-      setError(err.message);
-      await refreshLineAssignments(lineId);
-    }
   };
 
-  const toggleAssignment = async (lineId: number, participantId: number) => {
-    const currentQuantity = assignments[lineId]?.[participantId] || 0;
-    const nextQuantity = currentQuantity > 0 ? 0 : 1;
-    await updateAssignment(lineId, participantId, nextQuantity);
-  };
-
-  const handleLineSelection = async (lineId: number) => {
+  const handleLineSelection = (lineId: number) => {
     setError(null);
 
-    // If a participant is already selected, assign them together and clear selections
+    // If a participant is already selected, assign them together and keep participant selected
     if (activeParticipantId) {
-      await toggleAssignment(lineId, activeParticipantId);
+      toggleAssignment(lineId, activeParticipantId);
+      // Keep participant selected, clear line selection
       setActiveLineId(null);
-      setActiveParticipantId(null);
     } else {
       // Toggle line selection
       setActiveLineId((prev) => (prev === lineId ? null : lineId));
     }
   };
 
-  const handleParticipantSelection = async (participantId: number) => {
+  const handleParticipantSelection = (participantId: number) => {
     setError(null);
 
-    // If a line is already selected, assign them together and clear selections
+    // If a line is already selected, assign them together and keep line selected
     if (activeLineId) {
-      await toggleAssignment(activeLineId, participantId);
-      setActiveLineId(null);
+      toggleAssignment(activeLineId, participantId);
+      // Keep line selected, clear participant selection
       setActiveParticipantId(null);
     } else {
       // Toggle participant selection
@@ -155,9 +125,24 @@ export default function AssignPage({ params }: { params: Promise<{ id: string }>
 
     try {
       setSaving(true);
+      setError(null);
+
+      // Convert local assignments to batch API format
+      const assignmentsList = Object.entries(assignments).flatMap(([lineId, participants]) =>
+        Object.entries(participants).map(([participantId, shareQuantity]) => ({
+          receiptLineId: Number(lineId),
+          participantId: Number(participantId),
+          shareQuantity: Number(shareQuantity),
+        }))
+      );
+
+      // Batch persist all assignments to API
+      await api.assignments.batchAssign(receiptId, assignmentsList);
+
+      // Navigate to next page
       router.push(`/receipts/${receiptId}/misc-charges`);
     } catch (err: any) {
-      setError(err.message || 'Unable to continue');
+      setError(err.message || 'Unable to save assignments');
       setSaving(false);
     }
   };
@@ -186,9 +171,10 @@ export default function AssignPage({ params }: { params: Promise<{ id: string }>
   }
 
   return (
-    <div className="min-h-screen bg-white p-4 md:p-8">
-      <div className="max-w-5xl mx-auto flex flex-col gap-8">
-        <div>
+    <div className="h-screen flex flex-col bg-white">
+      {/* Header - fixed */}
+      <div className="p-4 md:p-8 border-b-4 border-black">
+        <div className="max-w-5xl mx-auto">
           <h1 className="text-4xl md:text-6xl font-bold uppercase tracking-wider mb-3">
             Assign Items
           </h1>
@@ -196,16 +182,22 @@ export default function AssignPage({ params }: { params: Promise<{ id: string }>
             Tap a line and a participant to pair them. Repeat to split items together.
           </p>
         </div>
+      </div>
 
-        {error && (
+      {/* Error message */}
+      {error && (
+        <div className="p-4 max-w-5xl mx-auto w-full">
           <Card padding="md" className="border-red-600">
             <p className="font-bold uppercase tracking-wider text-red-600">
               {error}
             </p>
           </Card>
-        )}
+        </div>
+      )}
 
-        <section className="space-y-4 max-h-[60vh] overflow-y-auto pr-2">
+      {/* Items list - scrollable */}
+      <div className="flex-1 overflow-y-auto p-4 md:p-8">
+        <section className="space-y-4 max-w-5xl mx-auto">
           {lines.length === 0 && (
             <Card padding="md">
               <p className="font-mono text-center">No purchase lines found for this receipt.</p>
@@ -216,6 +208,8 @@ export default function AssignPage({ params }: { params: Promise<{ id: string }>
             const assignedParticipants = getAssignedParticipants(line.id);
             const isSelected = activeLineId === line.id;
             const isAssignmentMode = activeParticipantId !== null;
+            const isAssignedToSelectedParticipant =
+              activeParticipantId && assignments[line.id]?.[activeParticipantId];
 
             return (
               <LineItemCard
@@ -228,9 +222,11 @@ export default function AssignPage({ params }: { params: Promise<{ id: string }>
                 className={`transition-all ${
                   isSelected
                     ? 'border-8 border-yellow-400 bg-yellow-50'
-                    : isAssignmentMode
-                      ? 'hover:bg-purple-100 hover:border-purple-500 cursor-pointer hover:scale-[1.02]'
-                      : ''
+                    : isAssignedToSelectedParticipant
+                      ? 'border-4 border-green-400 bg-green-50'
+                      : isAssignmentMode
+                        ? 'hover:bg-purple-100 hover:border-purple-500 cursor-pointer hover:scale-[1.02]'
+                        : ''
                 }`}
               >
                 <div className="flex flex-wrap gap-2">
@@ -253,10 +249,13 @@ export default function AssignPage({ params }: { params: Promise<{ id: string }>
             );
           })}
         </section>
+      </div>
 
-        <section className="pb-24 border-t-4 border-black pt-6">
-          <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
-            <h2 className="text-2xl font-bold uppercase tracking-wider">Participants</h2>
+      {/* Participants - fixed at bottom with horizontal scroll */}
+      <div className="border-t-4 border-black bg-white">
+        {/* Status indicators */}
+        {(activeLineId || activeParticipantId) && (
+          <div className="px-4 pt-3 pb-2 border-b-2 border-gray-300 max-w-5xl mx-auto">
             <div className="flex flex-wrap gap-4 text-sm font-mono">
               {activeLineId && (
                 <span>
@@ -277,62 +276,68 @@ export default function AssignPage({ params }: { params: Promise<{ id: string }>
               )}
             </div>
           </div>
+        )}
 
-          {participants.length === 0 ? (
-            <Card padding="md">
-              <p className="font-mono text-center">
+        {/* Participants horizontal scroll */}
+        <div className="overflow-x-auto">
+          <div className="p-4">
+            {participants.length === 0 ? (
+              <div className="text-center font-mono text-gray-500">
                 No participants yet. Add them first to start assigning.
-              </p>
-            </Card>
-          ) : (
-            <div className="flex flex-wrap gap-4">
-              {participants.map((participant: Participant) => {
-                const isActive = activeParticipantId === participant.id;
-                const assignedCount = getParticipantAssignmentCount(participant.id);
-                const isLineAssignmentMode = activeLineId !== null;
-                const isAlreadyAssigned =
-                  activeLineId && assignments[activeLineId]?.[participant.id];
+              </div>
+            ) : (
+              <div className="flex gap-4 pb-2">
+                {participants.map((participant: Participant) => {
+                  const isActive = activeParticipantId === participant.id;
+                  const assignedCount = getParticipantAssignmentCount(participant.id);
+                  const isLineAssignmentMode = activeLineId !== null;
+                  const isAlreadyAssigned =
+                    activeLineId && assignments[activeLineId]?.[participant.id];
 
-                return (
-                  <button
-                    key={participant.id}
-                    type="button"
-                    onClick={() => handleParticipantSelection(participant.id)}
-                    className={`
-                      border-4 px-4 py-3 flex flex-col gap-1
-                      uppercase tracking-wider text-left min-w-[160px]
-                      transition-all
-                      ${
-                        isActive
-                          ? 'bg-yellow-300 border-yellow-400 text-black font-extrabold shadow-[8px_8px_0px_0px_rgba(0,0,0,1)]'
-                          : isLineAssignmentMode && !isAlreadyAssigned
-                            ? 'border-black bg-green-100 hover:bg-green-300 hover:scale-105 cursor-pointer'
-                            : 'border-black bg-white hover:bg-gray-100'
-                      }
-                    `}
-                  >
-                    <span className="font-bold">{participant.displayName}</span>
-                    <span className="font-mono text-xs">
-                      {assignedCount > 0
-                        ? `${assignedCount} item${assignedCount > 1 ? 's' : ''}`
-                        : 'Unassigned'}
-                    </span>
-                  </button>
-                );
-              })}
-            </div>
-          )}
-        </section>
+                  return (
+                    <button
+                      key={participant.id}
+                      type="button"
+                      onClick={() => handleParticipantSelection(participant.id)}
+                      className={`
+                        border-4 px-4 py-3 flex flex-col gap-1
+                        uppercase tracking-wider text-left min-w-[160px]
+                        transition-all flex-shrink-0
+                        ${
+                          isActive
+                            ? 'bg-yellow-300 border-yellow-400 text-black font-extrabold shadow-[8px_8px_0px_0px_rgba(0,0,0,1)]'
+                            : isLineAssignmentMode && !isAlreadyAssigned
+                              ? 'border-black bg-green-100 hover:bg-green-300 hover:scale-105 cursor-pointer'
+                              : 'border-black bg-white hover:bg-gray-100'
+                        }
+                      `}
+                    >
+                      <span className="font-bold">{participant.displayName}</span>
+                      <span className="font-mono text-xs">
+                        {assignedCount > 0
+                          ? `${assignedCount} item${assignedCount > 1 ? 's' : ''}`
+                          : 'Unassigned'}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        </div>
 
-        <div className="sticky bottom-0 left-0 right-0 bg-white border-t-4 border-black pt-4 pb-2">
-          <Button
-            fullWidth
-            size="lg"
-            onClick={handleContinue}
-            disabled={saving}
-          >
-            {saving ? 'Continuing...' : 'Continue to Misc Charges'}
-          </Button>
+        {/* Continue button */}
+        <div className="p-4 border-t-4 border-black bg-white">
+          <div className="max-w-5xl mx-auto">
+            <Button
+              fullWidth
+              size="lg"
+              onClick={handleContinue}
+              disabled={saving}
+            >
+              {saving ? 'Continuing...' : 'Continue to Misc Charges'}
+            </Button>
+          </div>
         </div>
       </div>
     </div>

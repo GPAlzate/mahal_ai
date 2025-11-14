@@ -23,6 +23,56 @@ export class LineParticipantService {
   }
 
   /**
+   * Batch assign participants to receipt lines
+   * @param receiptId - ID of the receipt (for validation)
+   * @param assignments - Array of assignments to create
+   * @returns Array of created line participant assignments
+   */
+  async batchAssignParticipants(
+    receiptId: number,
+    assignments: Array<{ receiptLineId: number; participantId: number; shareQuantity: number }>
+  ) {
+    if (!assignments || assignments.length === 0) {
+      return [];
+    }
+
+    // Verify receipt exists and is not finalized (once, not per assignment)
+    const receipt = await sql`
+      SELECT id, status FROM receipts
+      WHERE id = ${receiptId} AND deleted_at IS NULL
+    `;
+
+    if (!receipt || receipt.length === 0) {
+      throw new Error('Receipt not found');
+    }
+
+    if (receipt[0].status === 'FLZD') {
+      throw new Error('Cannot modify finalized receipt');
+    }
+
+    // Build array of SQL upsert promises (using ON CONFLICT to update existing assignments)
+    const upsertPromises = assignments.map((assignment) =>
+      sql`
+        INSERT INTO line_participants (receipt_line_id, participant_id, share_quantity)
+        VALUES (
+          ${assignment.receiptLineId},
+          ${assignment.participantId},
+          ${assignment.shareQuantity}
+        )
+        ON CONFLICT (receipt_line_id, participant_id)
+        DO UPDATE SET share_quantity = ${assignment.shareQuantity}
+        RETURNING *
+      `
+    );
+
+    // Execute all upserts concurrently
+    const results = await Promise.all(upsertPromises);
+
+    // Flatten results and convert to public format
+    return results.map((result) => toLineParticipant(result[0] as LineParticipantDTO));
+  }
+
+  /**
    * Assign a participant to a receipt line
    * @param receiptId - ID of the receipt (for validation)
    * @param receiptLineId - ID of the receipt line

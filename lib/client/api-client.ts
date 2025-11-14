@@ -124,6 +124,15 @@ export const api = {
         body: JSON.stringify({ participantId, shareQuantity }),
       }),
 
+    batchAssign: (
+      receiptId: number,
+      assignments: Array<{ receiptLineId: number; participantId: number; shareQuantity: number }>
+    ) =>
+      fetchAPI<LineParticipant[]>('/api/line-participants/batch', {
+        method: 'POST',
+        body: JSON.stringify({ receiptId, assignments }),
+      }),
+
     unassign: (receiptId: number, lineId: number, participantId: number) =>
       fetchAPI<void>(
         `/api/receipts/${receiptId}/lines/${lineId}/assignments/${participantId}`,
