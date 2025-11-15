@@ -73,32 +73,13 @@ export default function Home() {
     setError(null);
 
     try {
-      // Convert image to base64
-      const reader = new FileReader();
-      reader.readAsDataURL(file);
+      // Upload file directly to API (no Base64 conversion needed)
+      const { receiptId } = await api.receipts.parse(file);
 
-      reader.onloadend = async () => {
-        try {
-          const base64 = reader.result as string;
-          // Keep the full data URI (data:image/jpeg;base64,...)
-
-          // Create receipt and start background parsing
-          const { receiptId } = await api.receipts.parse(base64);
-
-          // Navigate to participants page immediately
-          router.push(`/receipts/${receiptId}/participants`);
-        } catch (err: any) {
-          setError(err.message || 'Failed to process receipt');
-          setLoading(false);
-        }
-      };
-
-      reader.onerror = () => {
-        setError('Failed to read file');
-        setLoading(false);
-      };
+      // Navigate to participants page immediately
+      router.push(`/receipts/${receiptId}/participants`);
     } catch (err: any) {
-      setError(err.message || 'An error occurred');
+      setError(err.message || 'Failed to process receipt');
       setLoading(false);
     }
   };
@@ -201,7 +182,7 @@ export default function Home() {
           onClick={handleSubmit}
           disabled={!file || loading}
         >
-          {loading ? 'Processing...' : 'Continue'}
+          {loading ? 'Creating receipt...' : 'Continue'}
         </Button>
       </div>
     </div>

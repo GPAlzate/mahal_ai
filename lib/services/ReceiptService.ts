@@ -14,13 +14,12 @@ const logger = new Logger('ReceiptService');
 export class ReceiptService {
   /**
    * Create a new receipt with a unique share code
-   * Optionally includes parsed line items if parsedData is provided
    *
-   * @param parsedData - Optional parsed receipt data from OpenAI
+   * @param imageURI - Optional Vercel Blob URL for the receipt image
    * @returns Created receipt with id, share_code, status, created_at
    * @throws Error if unable to generate unique share code
    */
-  async createReceipt(parsedData?: ParsedReceipt) {
+  async createReceipt(imageURI?: string) {
     const maxAttempts = 5;
     let attempts = 0;
 
@@ -29,19 +28,13 @@ export class ReceiptService {
 
       try {
         const result = await sql`
-          INSERT INTO receipts (share_code, status)
-          VALUES (${shareCode}, 'DRFT')
+          INSERT INTO receipts (share_code, status, image_uri)
+          VALUES (${shareCode}, 'DRFT', ${imageURI || null})
           RETURNING *
         `;
 
         if (result && result.length > 0) {
           const receiptDTO = result[0] as ReceiptDTO;
-
-          // If we have parsed data, add line items to the newly created receipt
-          if (parsedData) {
-            await this.addParsedLineItems(receiptDTO.id, parsedData);
-          }
-
           return toReceipt(receiptDTO);
         }
       } catch (error: any) {
@@ -66,6 +59,7 @@ export class ReceiptService {
    * @throws Error if receipt not found
    */
   async getReceipt(receiptId: number, includeLines: boolean = false): Promise<Receipt> {
+    logger.log(`Calling getReceipt for receiptId: ${receiptId}. Including lines: ${includeLines}`)
     if (!includeLines) {
       // Simple query without lines
       const result = await sql`
@@ -74,7 +68,7 @@ export class ReceiptService {
       `;
 
       if (result.length === 0) {
-        throw new Error('Receipt not found');
+        throw new Error(`Receipt ${receiptId} not found`);
       }
 
       return toReceipt(result[0] as ReceiptDTO);
@@ -99,7 +93,7 @@ export class ReceiptService {
     `;
 
     if (result.length === 0) {
-      throw new Error('Receipt not found');
+      throw new Error(`Receipt ${receiptId} not found`);
     }
 
     // Map joined rows to ReceiptLineDTOs

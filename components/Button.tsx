@@ -18,9 +18,9 @@ export function Button({
   const baseStyles = 'border-4 border-black font-bold uppercase tracking-wider transition-none';
 
   const variantStyles = {
-    primary: 'bg-black text-white hover:bg-white hover:text-black active:translate-x-1 active:translate-y-1',
-    secondary: 'bg-white text-black hover:bg-black hover:text-white active:translate-x-1 active:translate-y-1',
-    danger: 'bg-white text-black border-black hover:bg-black hover:text-white active:translate-x-1 active:translate-y-1',
+    primary: 'bg-black text-white hover:enabled:bg-white hover:enabled:text-black active:enabled:translate-x-1 active:enabled:translate-y-1',
+    secondary: 'bg-white text-black hover:enabled:bg-black hover:enabled:text-white active:enabled:translate-x-1 active:enabled:translate-y-1',
+    danger: 'bg-white text-black border-black hover:enabled:bg-black hover:enabled:text-white active:enabled:translate-x-1 active:enabled:translate-y-1',
   };
 
   const sizeStyles = {
@@ -29,7 +29,7 @@ export function Button({
     lg: 'px-8 py-4 text-lg',
   };
 
-  const disabledStyles = 'opacity-50 cursor-not-allowed hover:bg-black hover:text-white';
+  const disabledStyles = 'opacity-50 cursor-not-allowed';
 
   return (
     <button

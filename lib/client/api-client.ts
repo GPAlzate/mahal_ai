@@ -47,17 +47,35 @@ async function fetchAPI<T>(
 
 export const api = {
   receipts: {
-    parse: (imageBase64: string) =>
-      fetchAPI<{ receiptId: number; status: string }>('/api/receipts/parse', {
-        method: 'POST',
-        body: JSON.stringify({ imageBase64 }),
-      }),
+    parse: async (imageFile: File) => {
+      const formData = new FormData();
+      formData.append('image', imageFile);
 
-    create: (data: any) =>
-      fetchAPI<Receipt>('/api/receipts', {
+      const response = await fetch('/api/receipts/parse', {
         method: 'POST',
-        body: JSON.stringify(data),
-      }),
+        body: formData,
+        // Don't set Content-Type header - browser will set it with boundary
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new APIError(
+          data.error || 'An error occurred',
+          response.status,
+          data.details
+        );
+      }
+
+      return data as { receiptId: number; status: string };
+    },
+
+    // TODO: Implement manual receipt entry flow
+    // create: (data: any) =>
+    //   fetchAPI<Receipt>('/api/receipts', {
+    //     method: 'POST',
+    //     body: JSON.stringify(data),
+    //   }),
 
     get: (id: number, includeLines?: boolean) =>
       fetchAPI<Receipt>(`/api/receipts/${id}${includeLines ? '?includeLines=true' : ''}`),

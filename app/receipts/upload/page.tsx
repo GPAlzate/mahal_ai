@@ -58,35 +58,13 @@ export default function UploadPage() {
     setError(null);
 
     try {
-      // Convert image to base64
-      const reader = new FileReader();
-      reader.readAsDataURL(file);
+      // Upload file directly to API (no Base64 conversion needed)
+      const { receiptId } = await api.receipts.parse(file);
 
-      reader.onloadend = async () => {
-        try {
-          const base64 = reader.result as string;
-          // Keep the full data URI (data:image/jpeg;base64,...)
-
-          // Step 1: Parse receipt with OpenAI
-          const parsedData = await api.receipts.parse(base64);
-
-          // Step 2: Create receipt in database
-          const receipt = await api.receipts.create(parsedData);
-
-          // Navigate to participants page
-          router.push(`/receipts/${receipt.id}/participants`);
-        } catch (err: any) {
-          setError(err.message || 'Failed to process receipt');
-          setLoading(false);
-        }
-      };
-
-      reader.onerror = () => {
-        setError('Failed to read file');
-        setLoading(false);
-      };
+      // Navigate to participants page immediately
+      router.push(`/receipts/${receiptId}/participants`);
     } catch (err: any) {
-      setError(err.message || 'An error occurred');
+      setError(err.message || 'Failed to process receipt');
       setLoading(false);
     }
   };

@@ -42,6 +42,7 @@ Extract the following information:
 - If a field is not found, omit merchantName or receiptDate (but receiptLines, currency, subtotal, and amountDue are required)
 - Calculate totalPrice = unitPrice x quantity for each line
 - Be precise with numbers - double-check calculations
+- Line items with a price of 0 should *NOT* be parsed and should be omitted from the output
 
 **Expected JSON format:**
 {

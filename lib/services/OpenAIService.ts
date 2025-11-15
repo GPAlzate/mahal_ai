@@ -28,11 +28,11 @@ export class OpenAIService {
    * Uses OpenAI Structured Outputs to ensure type-safe, schema-validated responses.
    * No need for manual JSON parsing or validation - OpenAI guarantees schema adherence.
    *
-   * @param imageBase64 - Base64 data URI of the receipt image (e.g., "data:image/jpeg;base64,...")
+   * @param imageURL - Public image URL (Vercel Blob) or Base64 data URI
    * @returns Structured receipt data with line items and misc charges
    * @throws Error if the API call fails or model refuses
    */
-  async parseReceiptImage(imageBase64: string): Promise<ParsedReceipt> {
+  async parseReceiptImage(imageURL: string): Promise<ParsedReceipt> {
     try {
       this.logger.log('Starting receipt image parsing with GPT-4o-mini');
 
@@ -49,7 +49,7 @@ export class OpenAIService {
               },
               {
                 type: 'input_image',
-                image_url: imageBase64,
+                image_url: imageURL,
                 detail: 'high', // High detail for accurate text extraction
               },
             ],

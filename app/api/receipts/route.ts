@@ -1,7 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { receiptService } from '@/lib/services/ReceiptService';
 import { receiptSummaryService } from '@/lib/services/ReceiptSummaryService';
-import { CreateReceiptRequestSchema } from '@/lib/schemas/receipt/request/CreateReceiptRequest';
 import { FindReceiptByShareCodeRequestSchema } from '@/lib/schemas/receipt/request/FindReceiptByShareCodeRequest';
 
 /**
@@ -9,11 +7,10 @@ import { FindReceiptByShareCodeRequestSchema } from '@/lib/schemas/receipt/reque
  *
  * Implemented:
  * ✅ GET /api/receipts?shareCode=XXXXX - Get receipt summary by share code
- * ✅ GET /api/receipts/[id] - Get receipt metadata
- * ✅ POST /api/receipts - Create new receipt
- * ✅ POST /api/receipts/parse - Parse receipt image (no DB write)
+ * ✅ POST /api/receipts/parse - Parse receipt image and create receipt
  *
  * Pending:
+ * ⏳ POST /api/receipts - Manual receipt entry (create receipt without image)
  * ⏳ PUT /api/receipts/[id] - Update receipt (merchant name, date, currency, etc.)
  * ⏳ DELETE /api/receipts/[id] - Delete/archive entire receipt
  */
@@ -68,77 +65,3 @@ export async function GET(request: NextRequest) {
   }
 }
 
-/**
- * POST /api/receipts
- * Create a new receipt with optional parsed data
- *
- * Request body (all fields optional for manual entry):
- * {
- *   merchantName?: string,
- *   receiptDate?: string (YYYY-MM-DD),
- *   receiptLines?: [{description, quantity, unitPrice, totalPrice, receiptLineType}],
- *   currency?: string,
- *   subtotal?: number,
- *   amountDue?: number
- * }
- *
- * Response:
- * {
- *   id: number,
- *   share_code: string,
- *   status: string,
- *   created_at: timestamp
- * }
- */
-export async function POST(request: NextRequest) {
-  try {
-    const body = await request.json();
-
-    // Validate request body
-    const validation = CreateReceiptRequestSchema.safeParse(body);
-
-    if (!validation.success) {
-      return NextResponse.json(
-        { error: 'Invalid request', details: validation.error.flatten() },
-        { status: 400 }
-      );
-    }
-
-    const requestData = validation.data;
-
-    // Create receipt (with or without parsed data)
-    // Check if we have all required fields for ParsedReceipt
-    let parsedData = undefined;
-
-    if (
-      requestData.receiptLines &&
-      requestData.receiptLines.length > 0 &&
-      requestData.currency &&
-      requestData.subtotal &&
-      requestData.amountDue
-    ) {
-      // All required fields present, create ParsedReceipt object
-      parsedData = {
-        merchantName: requestData.merchantName ?? null,
-        receiptDate: requestData.receiptDate ?? null,
-        receiptLines: requestData.receiptLines,
-        currency: requestData.currency,
-        subtotal: requestData.subtotal,
-        amountDue: requestData.amountDue,
-      };
-    }
-
-    const parsedReceipt = await receiptService.createReceipt(parsedData);
-
-    return NextResponse.json(parsedReceipt, { status: 201 });
-  } catch (error) {
-    console.error('Error creating receipt:', error);
-
-    const errorMessage = error instanceof Error ? error.message : 'Failed to create receipt';
-
-    return NextResponse.json(
-      { error: errorMessage },
-      { status: 500 }
-    );
-  }
-}
