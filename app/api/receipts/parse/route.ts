@@ -44,6 +44,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Upload to Vercel Blob
+    // TODO: parellelize receipt upload and receipt creation
     console.time('Vercel Receipt Upload')
     logger.log(`Uploading image: ${file.name} (${file.size} bytes)`);
     const blob = await put(`receipts/${Date.now()}-${file.name}`, file, {
@@ -51,12 +52,13 @@ export async function POST(request: NextRequest) {
       addRandomSuffix: true,
     });
     console.timeEnd('Vercel Receipt Upload')
-
     logger.log(`Image uploaded to Blob: ${blob.url}`);
 
     // Create receipt with image URI and status='PRSP'
+    console.time('Receipt creation')
     logger.log('Creating receipt with status=PRSP');
     const receipt = await receiptService.createReceipt(blob.url);
+    console.timeEnd('Receipt creation')
 
     // Update status to PRSP
     await receiptService.updateStatus(receipt.id, 'PRSP');

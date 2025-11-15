@@ -19,7 +19,8 @@ export class ReceiptService {
    * @returns Created receipt with id, share_code, status, created_at
    * @throws Error if unable to generate unique share code
    */
-  async createReceipt(imageURI?: string) {
+  async createReceipt(imageURI: string) {
+    console.time('Receipt creation')
     const maxAttempts = 5;
     let attempts = 0;
 
@@ -32,7 +33,7 @@ export class ReceiptService {
           VALUES (${shareCode}, 'DRFT', ${imageURI || null})
           RETURNING *
         `;
-
+        console.timeEnd('Receipt creation')
         if (result && result.length > 0) {
           const receiptDTO = result[0] as ReceiptDTO;
           return toReceipt(receiptDTO);
