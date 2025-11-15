@@ -6,12 +6,15 @@ import { Receipt } from '@/lib/schemas/receipt/public/Receipt';
 import { openAIService } from '@/lib/services/OpenAIService';
 import { Logger } from '@/lib/utils/Logger';
 
-const logger = new Logger('ReceiptService');
-
 /**
  * Service for managing receipts
  */
 export class ReceiptService {
+  protected _logger: Logger;
+  constructor() {
+    this._logger = new Logger(ReceiptService.name);
+  }
+
   /**
    * Create a new receipt with a unique share code
    *
@@ -60,7 +63,7 @@ export class ReceiptService {
    * @throws Error if receipt not found
    */
   async getReceipt(receiptId: number, includeLines: boolean = false): Promise<Receipt> {
-    logger.log(`Calling getReceipt for receiptId: ${receiptId}. Including lines: ${includeLines}`)
+    this._logger.log(`Calling getReceipt for receiptId: ${receiptId}. Including lines: ${includeLines}`)
     if (!includeLines) {
       // Simple query without lines
       const result = await sql`
@@ -237,12 +240,12 @@ export class ReceiptService {
    */
   async parseInBackground(receiptId: number, imageBase64: string) {
     try {
-      logger.log(`Starting background parsing for receipt ${receiptId}`);
+      this._logger.log(`Starting background parsing for receipt ${receiptId}`);
 
       // Parse receipt image with OpenAI
       const parsedReceipt = await openAIService.parseReceiptImage(imageBase64);
 
-      logger.log(`Successfully parsed, adding line items`);
+      this._logger.log(`Successfully parsed, adding line items`);
 
       // Add line items to receipt
       await this.addParsedLineItems(receiptId, parsedReceipt);
@@ -250,16 +253,16 @@ export class ReceiptService {
       // Update receipt status to DRFT (ready)
       await this.updateStatus(receiptId, 'DRFT');
 
-      logger.log(`[Receipt ${receiptId}] Parsing complete, status updated to DRFT`);
+      this._logger.log(`[Receipt ${receiptId}] Parsing complete, status updated to DRFT`);
     } catch (error) {
-      logger.error(`[Receipt ${receiptId}] Parsing failed:`, error);
+      this._logger.error(`[Receipt ${receiptId}] Parsing failed:`, error);
 
       // Update receipt status to DLTD (mark as deleted/failed)
       try {
         await this.updateStatus(receiptId, 'DLTD');
-        logger.log(`Receipt ${receiptId} status updated to DLTD (failed)`);
+        this._logger.log(`Receipt ${receiptId} status updated to DLTD (failed)`);
       } catch (updateError) {
-        logger.error(`Failed to update status for receipt ${receiptId}:`, updateError);
+        this._logger.error(`Failed to update status for receipt ${receiptId}:`, updateError);
       }
     }
   }

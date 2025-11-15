@@ -55,10 +55,8 @@ export async function POST(request: NextRequest) {
     logger.log(`Image uploaded to Blob: ${blob.url}`);
 
     // Create receipt with image URI and status='PRSP'
-    console.time('Receipt creation')
     logger.log('Creating receipt with status=PRSP');
     const receipt = await receiptService.createReceipt(blob.url);
-    console.timeEnd('Receipt creation')
 
     // Update status to PRSP
     await receiptService.updateStatus(receipt.id, 'PRSP');

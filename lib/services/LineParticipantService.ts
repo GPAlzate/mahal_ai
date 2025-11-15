@@ -1,11 +1,16 @@
 import { sql } from '@/lib/db';
 import { AssignLineParticipantRequest } from '@/lib/schemas/participant/request/AssignLineParticipantRequest';
 import { toLineParticipant, LineParticipantDTO } from '@/lib/schemas/participant/dto/LineParticipantDTO';
+import { Logger } from '@/lib/utils/Logger';
 
 /**
  * Service for managing line participant assignments
  */
 export class LineParticipantService {
+  protected _logger: Logger;
+  constructor() {
+    this._logger = new Logger(LineParticipantService.name);
+  }
   /**
    * Get all participants assigned to a receipt line
    * @param receiptLineId - ID of the receipt line
@@ -37,6 +42,7 @@ export class LineParticipantService {
     }
 
     // Verify receipt exists and is not finalized (once, not per assignment)
+    this._logger.log(`Fetching receipt for receiptId ${receiptId}.`)
     const receipt = await sql`
       SELECT id, status FROM receipts
       WHERE id = ${receiptId} AND deleted_at IS NULL
@@ -51,6 +57,7 @@ export class LineParticipantService {
     }
 
     // Build array of SQL upsert promises (using ON CONFLICT to update existing assignments)
+    this._logger.log(`Creating assignments ${JSON.stringify(assignments, null, 2)} for receipt ${receiptId}.`)
     const upsertPromises = assignments.map((assignment) =>
       sql`
         INSERT INTO line_participants (receipt_line_id, participant_id, share_quantity)
