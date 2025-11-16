@@ -63,7 +63,6 @@ export class OpenAIService {
 
       // Structured Outputs automatically validates and parses the response
       if (!response.output_parsed) {
-        this._logger.error('No parsed output received from OpenAI');
         throw new Error('No parsed output from OpenAI');
       }
 

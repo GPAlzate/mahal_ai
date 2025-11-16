@@ -1,9 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { lineParticipantService } from '@/lib/services/LineParticipantService';
 import { BatchAssignLineParticipantsRequestSchema } from '@/lib/schemas/participant/request/BatchAssignLineParticipantsRequest';
-import { Logger } from '@/lib/utils/Logger';
-
-const logger = new Logger('POST /api/line-participants');
 
 /**
  * POST /api/line-participants/batch

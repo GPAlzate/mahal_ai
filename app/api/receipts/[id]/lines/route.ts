@@ -52,7 +52,7 @@ export async function GET(
  *
  * Request body:
  * {
- *   description: string,
+ *   itemName: string,
  *   quantity: number,
  *   unitPrice: number,
  *   totalPrice: number,
@@ -63,7 +63,7 @@ export async function GET(
  * {
  *   id: number,
  *   receiptId: number,
- *   description: string,
+ *   itemName: string,
  *   quantity: number,
  *   unitPrice: number,
  *   totalPrice: number,

@@ -6,11 +6,16 @@ import { toLineParticipant, LineParticipantDTO } from '@/lib/schemas/participant
 import { ReceiptSummary } from '@/lib/schemas/receipt/public/ReceiptSummary';
 import { ParticipantSplit, LineItemSplit } from '@/lib/schemas/receipt/public/ParticipantSplit';
 import { receiptService } from './ReceiptService';
+import { Logger } from '@/lib/utils/Logger';
 
 /**
  * Service for calculating receipt summaries and participant splits
  */
 export class ReceiptSummaryService {
+  protected _logger: Logger;
+  constructor() {
+    this._logger = new Logger('ReceiptSummaryService');
+  }
   /**
    * Helper method: Calculate summary given a receipt object
    * @param receipt - Receipt object from database
@@ -18,15 +23,9 @@ export class ReceiptSummaryService {
    */
   private async calculateSummaryFromReceipt(receipt: Receipt): Promise<ReceiptSummary> {
     const receiptId = receipt.id;
-
-    // Fetch all receipt lines
-    const linesResult = await sql`
-      SELECT * FROM receipt_lines
-      WHERE receipt_id = ${receiptId} AND deleted_at IS NULL
-      ORDER BY id ASC
-    `;
-
-    const lines = (linesResult as ReceiptLineDTO[]).map(toReceiptLine);
+    if (!receipt.lines) {
+      throw new Error(`Expected receipt ${receiptId} to have lines, but none were found.`)
+    }
 
     // Fetch all participants
     const participantsResult = await sql`
@@ -48,6 +47,7 @@ export class ReceiptSummaryService {
     const assignments = (assignmentsResult as LineParticipantDTO[]).map(toLineParticipant);
 
     // Separate lines by type
+    const lines = receipt.lines;
     const purchaseLines = lines.filter((l) => l.receiptLineType === 'PRCH');
     const taxLines = lines.filter((l) => l.receiptLineType === 'TAX');
     const tipLines = lines.filter((l) => l.receiptLineType === 'TIP');
@@ -62,26 +62,59 @@ export class ReceiptSummaryService {
     const discount = discountLines.reduce((sum, l) => sum + l.unitPrice * l.quantity, 0);
     const total = subtotal + tax + tip + serviceCharge - discount;
 
+    this._logger.log(`Subtotal: ${subtotal}`)
+    this._logger.log(`Tax: ${tax}`)
+    this._logger.log(`Tip: ${tip}`)
+    this._logger.log(`Service Charge: ${serviceCharge}`)
+    this._logger.log(`Discount: ${discount}`)
+    this._logger.log(`Total: ${total}`)
+
+    // Pre-index data structures for O(1) lookups (optimization from O(N²) to O(N))
+
+    // Index purchase lines by ID
+    const purchaseLineMap = new Map(purchaseLines.map((line) => [line.id, line]));
+
+    // Group assignments by participant ID
+    const assignmentsByParticipant = new Map<number, typeof assignments>();
+    for (const assignment of assignments) {
+      if (!assignmentsByParticipant.has(assignment.participantId)) {
+        assignmentsByParticipant.set(assignment.participantId, []);
+      }
+      assignmentsByParticipant.get(assignment.participantId)!.push(assignment);
+    }
+
+    // Group assignments by line ID and calculate total shares per line
+    const assignmentsByLine = new Map<number, typeof assignments>();
+    const totalSharesByLine = new Map<number, number>();
+    for (const assignment of assignments) {
+      if (!assignmentsByLine.has(assignment.receiptLineId)) {
+        assignmentsByLine.set(assignment.receiptLineId, []);
+        totalSharesByLine.set(assignment.receiptLineId, 0);
+      }
+      assignmentsByLine.get(assignment.receiptLineId)!.push(assignment);
+      totalSharesByLine.set(
+        assignment.receiptLineId,
+        totalSharesByLine.get(assignment.receiptLineId)! + assignment.shareQuantity
+      );
+    }
+
     // Calculate splits for each participant
     const participantSplits: ParticipantSplit[] = participants.map((participant) => {
-      // Get all purchase line assignments for this participant
-      const participantAssignments = assignments.filter(
-        (a) => a.participantId === participant.id
-      );
+      this._logger.log(`===== Participant: ${participant.displayName} =====`)
+
+      // Get all assignments for this participant (O(1) lookup)
+      const participantAssignments = assignmentsByParticipant.get(participant.id) ?? [];
 
       // Calculate line item splits
       const lineItems: LineItemSplit[] = participantAssignments
         .map((assignment) => {
-          const line = purchaseLines.find((l) => l.id === assignment.receiptLineId);
+          // O(1) lookup for purchase line
+          const line = purchaseLineMap.get(assignment.receiptLineId);
           if (!line) {
-            return null;
+            return null; // Not a purchase line, skip
           }
-
-          // Calculate total shares for this line
-          const lineAssignments = assignments.filter(
-            (a) => a.receiptLineId === line.id
-          );
-          const totalShares = lineAssignments.reduce((sum, a) => sum + a.shareQuantity, 0);
+          this._logger.log(`Calculating assignment: ${JSON.stringify(assignment, null, 2)}`)
+          const totalShares = totalSharesByLine.get(line.id)!;
 
           // Calculate this participant's share amount
           const lineTotal = line.unitPrice * line.quantity;
@@ -143,7 +176,7 @@ export class ReceiptSummaryService {
    * @returns Complete receipt summary with all participant breakdowns
    */
   async calculateSummary(receiptId: number): Promise<ReceiptSummary> {
-    const receipt = await receiptService.getReceipt(receiptId);
+    const receipt = await receiptService.getReceipt(receiptId, true);
     return this.calculateSummaryFromReceipt(receipt);
   }
 

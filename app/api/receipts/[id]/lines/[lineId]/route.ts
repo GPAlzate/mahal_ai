@@ -8,7 +8,7 @@ import { UpdateReceiptLineRequestSchema } from '@/lib/schemas/receipt/request/Up
  *
  * Request body (all fields optional):
  * {
- *   description?: string,
+ *   itemName?: string,
  *   quantity?: number,
  *   unitPrice?: number,
  *   totalPrice?: number,
@@ -19,7 +19,7 @@ import { UpdateReceiptLineRequestSchema } from '@/lib/schemas/receipt/request/Up
  * {
  *   id: number,
  *   receiptId: number,
- *   description: string,
+ *   itemName: string,
  *   quantity: number,
  *   unitPrice: number,
  *   totalPrice: number,
@@ -82,7 +82,7 @@ export async function PUT(
  * {
  *   id: number,
  *   receiptId: number,
- *   description: string,
+ *   itemName: string,
  *   quantity: number,
  *   unitPrice: number,
  *   totalPrice: number,
