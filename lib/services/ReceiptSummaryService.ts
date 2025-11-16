@@ -201,7 +201,7 @@ export class ReceiptSummaryService {
       FROM receipt_lines rl
       LEFT JOIN line_participants lp ON rl.id = lp.receipt_line_id
       WHERE rl.receipt_id = ${receiptId}
-        AND rl.receipt_line_type = 'PRCH'
+        AND rl.line_type = 'PRCH'
         AND rl.deleted_at IS NULL
         AND lp.receipt_line_id IS NULL
     `;

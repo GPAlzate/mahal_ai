@@ -219,7 +219,7 @@ export default function SummaryPage({ params }: { params: Promise<{ id: string }
               </div>
 
               {/* Total Amount Owed - Prominent Display */}
-              <div className="bg-yellow-50 border-4 border-black p-4 mt-4">
+            <div className="bg-purple-200 border-4 border-black p-4 mt-4">
                 <div className="flex justify-between items-center">
                   <span className="font-bold uppercase tracking-wider text-lg">Total Amount Owed:</span>
                   <span className="text-3xl font-bold">{formatCurrency(split.total)}</span>
