@@ -1,8 +1,8 @@
 import { sql } from '@/lib/db';
 import { Receipt } from '@/lib/schemas/receipt/public/Receipt';
 import { toReceiptLine, ReceiptLineDTO } from '@/lib/schemas/receipt/dto/ReceiptLineDTO';
-import { toParticipant, ParticipantDTO } from '@/lib/schemas/participant/dto/ParticipantDTO';
-import { toLineParticipant, LineParticipantDTO } from '@/lib/schemas/participant/dto/LineParticipantDTO';
+import { toParticipant, toParticipantDTO } from '@/lib/schemas/participant/dto/ParticipantDTO';
+import { toLineParticipant, toLineParticipantDTO } from '@/lib/schemas/participant/dto/LineParticipantDTO';
 import { ReceiptSummary } from '@/lib/schemas/receipt/public/ReceiptSummary';
 import { ParticipantSplit, LineItemSplit } from '@/lib/schemas/receipt/public/ParticipantSplit';
 import { receiptService } from './ReceiptService';
@@ -34,7 +34,7 @@ export class ReceiptSummaryService {
       ORDER BY id ASC
     `;
 
-    const participants = (participantsResult as ParticipantDTO[]).map(toParticipant);
+    const participants = participantsResult.map(row => toParticipant(toParticipantDTO(row)));
 
     // Fetch all line assignments
     const assignmentsResult = await sql`
@@ -44,7 +44,7 @@ export class ReceiptSummaryService {
       )
     `;
 
-    const assignments = (assignmentsResult as LineParticipantDTO[]).map(toLineParticipant);
+    const assignments = assignmentsResult.map(row => toLineParticipant(toLineParticipantDTO(row)));
 
     // Separate lines by type
     const lines = receipt.lines;
@@ -60,7 +60,7 @@ export class ReceiptSummaryService {
     const tip = tipLines.reduce((sum, l) => sum + l.unitPrice * l.quantity, 0);
     const serviceCharge = serviceLines.reduce((sum, l) => sum + l.unitPrice * l.quantity, 0);
     const discount = discountLines.reduce((sum, l) => sum + l.unitPrice * l.quantity, 0);
-    const total = subtotal + tax + tip + serviceCharge - discount;
+    const total = subtotal + tax + tip + serviceCharge + discount;
 
     this._logger.log(`Subtotal: ${subtotal}`)
     this._logger.log(`Tax: ${tax}`)
@@ -70,53 +70,50 @@ export class ReceiptSummaryService {
     this._logger.log(`Total: ${total}`)
 
     // Pre-index data structures for O(1) lookups (optimization from O(N²) to O(N))
+    // Build lookup maps for O(1) access
+    const purchaseLineMap = new Map(purchaseLines.map(line => [line.id, line]));
 
-    // Index purchase lines by ID
-    const purchaseLineMap = new Map(purchaseLines.map((line) => [line.id, line]));
-
-    // Group assignments by participant ID
+    // Group assignments by participant and line for efficient lookup
     const assignmentsByParticipant = new Map<number, typeof assignments>();
+    const assignmentsByLine = new Map<number, typeof assignments>();
+
     for (const assignment of assignments) {
+      // Group by participant
       if (!assignmentsByParticipant.has(assignment.participantId)) {
         assignmentsByParticipant.set(assignment.participantId, []);
       }
       assignmentsByParticipant.get(assignment.participantId)!.push(assignment);
-    }
 
-    // Group assignments by line ID and calculate total shares per line
-    const assignmentsByLine = new Map<number, typeof assignments>();
-    const totalSharesByLine = new Map<number, number>();
-    for (const assignment of assignments) {
+      // Group by line
       if (!assignmentsByLine.has(assignment.receiptLineId)) {
         assignmentsByLine.set(assignment.receiptLineId, []);
-        totalSharesByLine.set(assignment.receiptLineId, 0);
       }
       assignmentsByLine.get(assignment.receiptLineId)!.push(assignment);
-      totalSharesByLine.set(
-        assignment.receiptLineId,
-        totalSharesByLine.get(assignment.receiptLineId)! + assignment.shareQuantity
-      );
+    }
+
+    // Pre-calculate total shares for each line
+    const totalSharesByLine = new Map<number, number>();
+    for (const [lineId, lineAssignments] of assignmentsByLine) {
+      const totalShares = lineAssignments.reduce((sum, a) => sum + a.shareQuantity, 0);
+      totalSharesByLine.set(lineId, totalShares);
+
+      // Debug logging
+      this._logger.log(`Line ${lineId}: ${lineAssignments.length} assignments, totalShares=${totalShares}`);
+      this._logger.log(`Assignments: ${JSON.stringify(lineAssignments.map(a => ({ participantId: a.participantId, shareQuantity: a.shareQuantity })))}`);
     }
 
     // Calculate splits for each participant
     const participantSplits: ParticipantSplit[] = participants.map((participant) => {
-      this._logger.log(`===== Participant: ${participant.displayName} =====`)
+      const participantAssignments = assignmentsByParticipant.get(participant.id) || [];
 
-      // Get all assignments for this participant (O(1) lookup)
-      const participantAssignments = assignmentsByParticipant.get(participant.id) ?? [];
-
+      this._logger.log(`====== Participant: ${participant.displayName} ======`)
       // Calculate line item splits
       const lineItems: LineItemSplit[] = participantAssignments
+        .filter(assignment => purchaseLineMap.has(assignment.receiptLineId))
         .map((assignment) => {
-          // O(1) lookup for purchase line
-          const line = purchaseLineMap.get(assignment.receiptLineId);
-          if (!line) {
-            return null; // Not a purchase line, skip
-          }
-          this._logger.log(`Calculating assignment: ${JSON.stringify(assignment, null, 2)}`)
+          const line = purchaseLineMap.get(assignment.receiptLineId)!;
           const totalShares = totalSharesByLine.get(line.id)!;
 
-          // Calculate this participant's share amount
           const lineTotal = line.unitPrice * line.quantity;
           const shareAmount = (lineTotal * assignment.shareQuantity) / totalShares;
 
@@ -128,11 +125,11 @@ export class ReceiptSummaryService {
             shareQuantity: assignment.shareQuantity,
             shareAmount,
           };
-        })
-        .filter((item): item is LineItemSplit => item !== null);
+        });
 
       // Calculate participant's subtotal
       const participantSubtotal = lineItems.reduce((sum, item) => sum + item.shareAmount, 0);
+      this._logger.log(`Line assignment for: ${JSON.stringify(lineItems, null, 2)}`)
 
       // Calculate proportional shares of misc charges
       const proportion = subtotal > 0 ? participantSubtotal / subtotal : 0;
@@ -143,7 +140,7 @@ export class ReceiptSummaryService {
 
       // Calculate participant's total
       const participantTotal =
-        participantSubtotal + taxShare + tipShare + serviceChargeShare - discountShare;
+        participantSubtotal + taxShare + tipShare + serviceChargeShare + discountShare;
 
       return {
         participantId: participant.id,
@@ -158,7 +155,7 @@ export class ReceiptSummaryService {
       };
     });
 
-    return {
+    const result: ReceiptSummary = {
       receipt,
       participantSplits,
       subtotal,
@@ -168,6 +165,9 @@ export class ReceiptSummaryService {
       discount,
       total,
     };
+    this._logger.log('Final summary result:', JSON.stringify(result, null, 2));
+
+    return result;
   }
 
   /**

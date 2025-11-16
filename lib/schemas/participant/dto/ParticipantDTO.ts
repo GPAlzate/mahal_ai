@@ -3,10 +3,13 @@ import { z } from 'zod';
 /**
  * DTO schema for Participant from database (snake_case)
  * Represents raw database row format
+ *
+ * Note: PostgreSQL BIGINT/NUMERIC columns may be returned as strings by pg driver
+ * to preserve precision. We use z.coerce.number() to convert them.
  */
 export const ParticipantDTOSchema = z.object({
-  id: z.number(),
-  receipt_id: z.number(),
+  id: z.coerce.number(),
+  receipt_id: z.coerce.number(),
   display_name: z.string(),
   created_at: z.date(),
   updated_at: z.date(),
@@ -14,6 +17,14 @@ export const ParticipantDTOSchema = z.object({
 });
 
 export type ParticipantDTO = z.infer<typeof ParticipantDTOSchema>;
+
+/**
+ * Convert raw database row to ParticipantDTO with type coercion
+ * Applies Zod schema validation to ensure BIGINT/NUMERIC strings are converted to numbers
+ */
+export function toParticipantDTO(row: any): ParticipantDTO {
+  return ParticipantDTOSchema.parse(row);
+}
 
 /**
  * Convert ParticipantDTO (snake_case) to Participant (camelCase)

@@ -1,7 +1,7 @@
 import { sql } from '@/lib/db';
 import { CreateParticipantRequest } from '@/lib/schemas/participant/request/CreateParticipantRequest';
 import { UpdateParticipantRequest } from '@/lib/schemas/participant/request/UpdateParticipantRequest';
-import { toParticipant, ParticipantDTO } from '@/lib/schemas/participant/dto/ParticipantDTO';
+import { toParticipant, toParticipantDTO } from '@/lib/schemas/participant/dto/ParticipantDTO';
 
 /**
  * Service for managing participants
@@ -20,7 +20,7 @@ export class ParticipantService {
       ORDER BY created_at ASC
     `;
 
-    return (result as ParticipantDTO[]).map(toParticipant);
+    return result.map(row => toParticipant(toParticipantDTO(row)));
   }
 
   /**
@@ -71,7 +71,7 @@ export class ParticipantService {
     RETURNING *
   `;
 
-    return result.map(r => toParticipant(r as ParticipantDTO));
+    return result.map(r => toParticipant(toParticipantDTO(r)));
   }
 
 
@@ -118,7 +118,7 @@ export class ParticipantService {
       RETURNING *
     `;
 
-    return toParticipant(result[0] as ParticipantDTO);
+    return toParticipant(toParticipantDTO(result[0]));
   }
 
   /**
@@ -159,7 +159,7 @@ export class ParticipantService {
       RETURNING *
     `;
 
-    return toParticipant(result[0] as ParticipantDTO);
+    return toParticipant(toParticipantDTO(result[0]));
   }
 }
 

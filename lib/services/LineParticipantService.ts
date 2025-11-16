@@ -1,6 +1,6 @@
 import { sql } from '@/lib/db';
 import { AssignLineParticipantRequest } from '@/lib/schemas/participant/request/AssignLineParticipantRequest';
-import { toLineParticipant, LineParticipantDTO } from '@/lib/schemas/participant/dto/LineParticipantDTO';
+import { toLineParticipant, toLineParticipantDTO } from '@/lib/schemas/participant/dto/LineParticipantDTO';
 import { Logger } from '@/lib/utils/Logger';
 
 /**
@@ -24,7 +24,7 @@ export class LineParticipantService {
       ORDER BY participant_id ASC
     `;
 
-    return (result as LineParticipantDTO[]).map(toLineParticipant);
+    return result.map(row => toLineParticipant(toLineParticipantDTO(row)));
   }
 
   /**
@@ -76,7 +76,7 @@ export class LineParticipantService {
     const results = await Promise.all(upsertPromises);
 
     // Flatten results and convert to public format
-    return results.map((result) => toLineParticipant(result[0] as LineParticipantDTO));
+    return results.map((result) => toLineParticipant(toLineParticipantDTO(result[0])));
   }
 
   /**
@@ -140,7 +140,7 @@ export class LineParticipantService {
         RETURNING *
       `;
 
-      return toLineParticipant(result[0] as LineParticipantDTO);
+      return toLineParticipant(toLineParticipantDTO(result[0]));
     }
 
     // Create new assignment
@@ -150,7 +150,7 @@ export class LineParticipantService {
       RETURNING *
     `;
 
-    return toLineParticipant(result[0] as LineParticipantDTO);
+    return toLineParticipant(toLineParticipantDTO(result[0]));
   }
 
   /**
@@ -191,7 +191,7 @@ export class LineParticipantService {
       RETURNING *
     `;
 
-    return toLineParticipant(result[0] as LineParticipantDTO);
+    return toLineParticipant(toLineParticipantDTO(result[0]));
   }
 }
 

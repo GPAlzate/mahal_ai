@@ -119,9 +119,9 @@ export default function AssignPage({ params }: { params: Promise<{ id: string }>
 
     if (unassignedLines.length > 0) {
       setError(
-        `Assign at least one participant to every item: ${unassignedLines
+        `Assign at least one participant to every item:\n${unassignedLines
           .map((line) => line.itemName)
-          .join(', ')}`
+          .join('\n')}`
       );
       return;
     }
@@ -130,14 +130,26 @@ export default function AssignPage({ params }: { params: Promise<{ id: string }>
       setSaving(true);
       setError(null);
 
-      // Convert local assignments to batch API format
-      const assignmentsList = Object.entries(assignments).flatMap(([lineId, participants]) =>
-        Object.entries(participants).map(([participantId, shareQuantity]) => ({
-          receiptLineId: Number(lineId),
+      // Convert local assignments to batch API format with proper share quantities
+      const purchaseLinesMap = new Map(purchaseLines.map(line => [+line.id, line]));
+      const assignmentsList = Object.entries(assignments).flatMap(([lineId, participants]) => {
+        const lineIdNum = +lineId;
+        const line = purchaseLinesMap.get(lineIdNum);
+
+        if (!line) {
+          console.log(`Line ${lineIdNum} not found in purchaseLines!`);
+          return [];
+        }
+
+        const participantIds = Object.keys(participants);
+        const shareQuantity = line.quantity / participantIds.length;
+
+        return participantIds.map((participantId) => ({
+          receiptLineId: lineIdNum,
           participantId: Number(participantId),
-          shareQuantity: Number(shareQuantity),
-        }))
-      );
+          shareQuantity,
+        }));
+      });
 
       // Batch persist all assignments to API
       await api.assignments.batchAssign(receiptId, assignmentsList);

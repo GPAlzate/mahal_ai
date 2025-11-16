@@ -1,7 +1,7 @@
 import { sql } from '@/lib/db';
 import { CreateReceiptLineRequest } from '@/lib/schemas/receipt/request/CreateReceiptLineRequest';
 import { UpdateReceiptLineRequest } from '@/lib/schemas/receipt/request/UpdateReceiptLineRequest';
-import { toReceiptLine, ReceiptLineDTO } from '@/lib/schemas/receipt/dto/ReceiptLineDTO';
+import { toReceiptLine, toReceiptLineDTO } from '@/lib/schemas/receipt/dto/ReceiptLineDTO';
 
 /**
  * Service for managing receipt lines
@@ -20,7 +20,7 @@ export class ReceiptLineService {
       ORDER BY created_at ASC
     `;
 
-    return (result as ReceiptLineDTO[]).map(toReceiptLine);
+    return result.map(row => toReceiptLine(toReceiptLineDTO(row)));
   }
 
   /**
@@ -63,7 +63,7 @@ export class ReceiptLineService {
       RETURNING *
     `;
 
-    return toReceiptLine(result[0] as ReceiptLineDTO);
+    return toReceiptLine(toReceiptLineDTO(result[0]));
   }
 
   /**
@@ -127,7 +127,7 @@ export class ReceiptLineService {
       const result = await sql`
         SELECT * FROM receipt_lines WHERE id = ${lineId}
       `;
-      return toReceiptLine(result[0] as ReceiptLineDTO);
+      return toReceiptLine(toReceiptLineDTO(result[0]));
     }
 
     // Always update timestamp
@@ -145,7 +145,7 @@ export class ReceiptLineService {
 
     const result = await sql(query, [...values, lineId]);
 
-    return toReceiptLine(result[0] as ReceiptLineDTO);
+    return toReceiptLine(toReceiptLineDTO(result[0]));
   }
 
   /**
@@ -186,7 +186,7 @@ export class ReceiptLineService {
       RETURNING *
     `;
 
-    return toReceiptLine(result[0] as ReceiptLineDTO);
+    return toReceiptLine(toReceiptLineDTO(result[0]));
   }
 }
 

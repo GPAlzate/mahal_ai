@@ -52,7 +52,7 @@ export function LineItemCard({
               {itemName}
             </h3>
             <p className="font-mono text-sm">
-              {qty} × ${price.toFixed(2)} = ${total.toFixed(2)}
+              {qty} × PHP{price.toFixed(2)} = PHP{total.toFixed(2)}
             </p>
           </div>
         </div>

@@ -50,7 +50,7 @@ export default function SummaryPage({ params }: { params: Promise<{ id: string }
   };
 
   const formatCurrency = (amount: number) => {
-    return `$${amount.toFixed(2)}`;
+    return `PHP${amount.toFixed(2)}`;
   };
 
   if (loading) {
@@ -117,30 +117,36 @@ export default function SummaryPage({ params }: { params: Promise<{ id: string }
               <span>Subtotal:</span>
               <span className="font-bold">{formatCurrency(summary.subtotal)}</span>
             </div>
-            {summary.tax > 0 && (
-              <div className="flex justify-between py-2 border-b-2 border-gray-200">
-                <span>Tax:</span>
-                <span className="font-bold">{formatCurrency(summary.tax)}</span>
+
+            {/* Show individual misc charge lines */}
+            {summary.receipt.lines?.filter(line => line.receiptLineType === 'TAX').map(line => (
+              <div key={line.id} className="flex justify-between py-2 border-b-2 border-gray-200">
+                <span>{line.itemName}:</span>
+                <span className="font-bold">{formatCurrency(line.totalPrice)}</span>
               </div>
-            )}
-            {summary.tip > 0 && (
-              <div className="flex justify-between py-2 border-b-2 border-gray-200">
-                <span>Tip:</span>
-                <span className="font-bold">{formatCurrency(summary.tip)}</span>
+            ))}
+
+            {summary.receipt.lines?.filter(line => line.receiptLineType === 'TIP').map(line => (
+              <div key={line.id} className="flex justify-between py-2 border-b-2 border-gray-200">
+                <span>{line.itemName}:</span>
+                <span className="font-bold">{formatCurrency(line.totalPrice)}</span>
               </div>
-            )}
-            {summary.serviceCharge > 0 && (
-              <div className="flex justify-between py-2 border-b-2 border-gray-200">
-                <span>Service Charge:</span>
-                <span className="font-bold">{formatCurrency(summary.serviceCharge)}</span>
+            ))}
+
+            {summary.receipt.lines?.filter(line => line.receiptLineType === 'SRVC').map(line => (
+              <div key={line.id} className="flex justify-between py-2 border-b-2 border-gray-200">
+                <span>{line.itemName}:</span>
+                <span className="font-bold">{formatCurrency(line.totalPrice)}</span>
               </div>
-            )}
-            {summary.discount > 0 && (
-              <div className="flex justify-between py-2 border-b-2 border-gray-200 text-green-600">
-                <span>Discount:</span>
-                <span className="font-bold">-{formatCurrency(summary.discount)}</span>
+            ))}
+
+            {summary.receipt.lines?.filter(line => line.receiptLineType === 'DSCT').map(line => (
+              <div key={line.id} className="flex justify-between py-2 border-b-2 border-gray-200 text-green-600">
+                <span>{line.itemName}:</span>
+                <span className="font-bold">{formatCurrency(line.totalPrice)}</span>
               </div>
-            )}
+            ))}
+
             <div className="flex justify-between py-3 border-t-4 border-black">
               <span className="text-xl font-bold uppercase">Total:</span>
               <span className="text-xl font-bold">{formatCurrency(summary.total)}</span>
@@ -153,62 +159,71 @@ export default function SummaryPage({ params }: { params: Promise<{ id: string }
           <h2 className="text-2xl font-bold uppercase tracking-wider">Participant Splits</h2>
           {summary.participantSplits.map((split) => (
             <Card key={split.participantId} padding="lg">
-              <div className="flex justify-between items-start mb-4">
-                <h3 className="text-xl font-bold uppercase tracking-wider">
-                  {split.displayName}
-                </h3>
-                <div className="text-right">
-                  <p className="text-sm font-mono text-gray-600">Total Owed</p>
-                  <p className="text-2xl font-bold">{formatCurrency(split.total)}</p>
-                </div>
-              </div>
+              <h3 className="text-xl font-bold uppercase tracking-wider mb-4">
+                {split.displayName}
+              </h3>
 
               {/* Line Items */}
               <div className="space-y-2 mb-4">
                 <p className="font-bold uppercase tracking-wider text-sm">Items</p>
-                {split.lineItems.map((item) => (
-                  <div
-                    key={item.receiptLineId}
-                    className="flex justify-between font-mono text-sm py-1"
-                  >
-                    <span>
-                      {item.itemName} ({item.shareQuantity}/{item.quantity})
-                    </span>
-                    <span>{formatCurrency(item.shareAmount)}</span>
-                  </div>
-                ))}
-                <div className="flex justify-between font-mono border-t-2 border-gray-200 pt-2">
+                {split.lineItems.map((item) => {
+                  // Adjust fraction so numerator is 1: divide both by shareQuantity
+                  const adjustedDenominator = item.shareQuantity > 0
+                    ? item.quantity / item.shareQuantity
+                    : item.quantity;
+
+                  return (
+                    <div
+                      key={item.receiptLineId}
+                      className="flex justify-between font-mono text-sm py-1"
+                    >
+                      <span>
+                        {item.itemName} (1/{adjustedDenominator.toFixed(0)})
+                      </span>
+                      <span>{formatCurrency(item.shareAmount)}</span>
+                    </div>
+                  );
+                })}
+                <div className="flex justify-between font-mono border-t-2 border-gray-200 pt-2 mt-2">
                   <span className="font-bold">Subtotal:</span>
                   <span className="font-bold">{formatCurrency(split.subtotal)}</span>
                 </div>
               </div>
 
               {/* Misc Charges */}
-              <div className="space-y-1 font-mono text-sm">
-                {split.taxShare > 0 && (
+              <div className="space-y-1 font-mono text-sm mb-4">
+                {split.taxShare !== 0 && (
                   <div className="flex justify-between text-gray-600">
                     <span>Tax (proportional):</span>
-                    <span>{formatCurrency(split.taxShare)}</span>
+                    <span>+{formatCurrency(split.taxShare)}</span>
                   </div>
                 )}
-                {split.tipShare > 0 && (
+                {split.tipShare !== 0 && (
                   <div className="flex justify-between text-gray-600">
                     <span>Tip (proportional):</span>
-                    <span>{formatCurrency(split.tipShare)}</span>
+                    <span>+{formatCurrency(split.tipShare)}</span>
                   </div>
                 )}
-                {split.serviceChargeShare > 0 && (
+                {split.serviceChargeShare !== 0 && (
                   <div className="flex justify-between text-gray-600">
                     <span>Service Charge (proportional):</span>
-                    <span>{formatCurrency(split.serviceChargeShare)}</span>
+                    <span>+{formatCurrency(split.serviceChargeShare)}</span>
                   </div>
                 )}
-                {split.discountShare > 0 && (
+                {split.discountShare !== 0 && (
                   <div className="flex justify-between text-green-600">
                     <span>Discount (proportional):</span>
-                    <span>-{formatCurrency(split.discountShare)}</span>
+                    <span>{formatCurrency(split.discountShare)}</span>
                   </div>
                 )}
+              </div>
+
+              {/* Total Amount Owed - Prominent Display */}
+              <div className="bg-yellow-50 border-4 border-black p-4 mt-4">
+                <div className="flex justify-between items-center">
+                  <span className="font-bold uppercase tracking-wider text-lg">Total Amount Owed:</span>
+                  <span className="text-3xl font-bold">{formatCurrency(split.total)}</span>
+                </div>
               </div>
             </Card>
           ))}

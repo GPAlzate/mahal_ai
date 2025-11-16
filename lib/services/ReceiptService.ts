@@ -1,7 +1,8 @@
 import { sql } from '@/lib/db';
 import { generateShareCode } from '@/lib/helpers/ShareCodeHelper';
 import { ParsedReceipt } from '@/lib/schemas/receipt/public/ParsedReceipt';
-import { toReceipt, ReceiptDTO } from '@/lib/schemas/receipt/dto/ReceiptDTO';
+import { toReceipt, toReceiptDTO } from '@/lib/schemas/receipt/dto/ReceiptDTO';
+import { ReceiptLineDTOSchema } from '@/lib/schemas/receipt/dto/ReceiptLineDTO';
 import { Receipt } from '@/lib/schemas/receipt/public/Receipt';
 import { openAIService } from '@/lib/services/OpenAIService';
 import { Logger } from '@/lib/utils/Logger';
@@ -38,7 +39,7 @@ export class ReceiptService {
         `;
         console.timeEnd('Receipt creation')
         if (result && result.length > 0) {
-          const receiptDTO = result[0] as ReceiptDTO;
+          const receiptDTO = toReceiptDTO(result[0]);
           return toReceipt(receiptDTO);
         }
       } catch (error: any) {
@@ -75,7 +76,7 @@ export class ReceiptService {
         throw new Error(`Receipt ${receiptId} not found`);
       }
 
-      return toReceipt(result[0] as ReceiptDTO);
+      return toReceipt(toReceiptDTO(result[0]));
     }
 
     // Query with LEFT JOIN to include lines
@@ -100,10 +101,10 @@ export class ReceiptService {
       throw new Error(`Receipt ${receiptId} not found`);
     }
 
-    // Map joined rows to ReceiptLineDTOs
+    // Map joined rows to ReceiptLineDTOs with schema validation for type coercion
     const linesDTOs = result
       .filter((row: any) => row.line_id) // Skip rows with no line (LEFT JOIN with no match)
-      .map((row: any) => ({
+      .map((row: any) => ReceiptLineDTOSchema.parse({
         id: row.line_id,
         receipt_id: row.receipt_id,
         item_name: row.item_name,
@@ -115,7 +116,7 @@ export class ReceiptService {
         deleted_at: null,
       }));
 
-    return toReceipt(result[0] as ReceiptDTO, linesDTOs);
+    return toReceipt(toReceiptDTO(result[0]), linesDTOs);
   }
 
   /**
@@ -148,10 +149,10 @@ export class ReceiptService {
       throw new Error('Receipt not found');
     }
 
-    // Map joined rows to ReceiptLineDTOs
+    // Map joined rows to ReceiptLineDTOs with schema validation for type coercion
     const linesDTOs = result
       .filter((row: any) => row.line_id) // Skip rows with no line (LEFT JOIN with no match)
-      .map((row: any) => ({
+      .map((row: any) => ReceiptLineDTOSchema.parse({
         id: row.line_id,
         receipt_id: row.receipt_id,
         item_name: row.item_name,
@@ -163,7 +164,7 @@ export class ReceiptService {
         deleted_at: null,
       }));
 
-    return toReceipt(result[0] as ReceiptDTO, linesDTOs);
+    return toReceipt(toReceiptDTO(result[0]), linesDTOs);
   }
 
   /**
@@ -184,7 +185,7 @@ export class ReceiptService {
       throw new Error('Receipt not found');
     }
 
-    return toReceipt(result[0] as ReceiptDTO);
+    return toReceipt(toReceiptDTO(result[0]));
   }
 
   /**

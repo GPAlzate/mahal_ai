@@ -4,13 +4,16 @@ import { z } from 'zod';
 /**
  * DTO schema for ReceiptLine from database (snake_case)
  * Represents raw database row format
+ *
+ * Note: PostgreSQL BIGINT/NUMERIC columns may be returned as strings by pg driver
+ * to preserve precision. We use z.coerce.number() to convert them.
  */
 export const ReceiptLineDTOSchema = z.object({
-  id: z.number(),
-  receipt_id: z.number(),
+  id: z.coerce.number(),
+  receipt_id: z.coerce.number(),
   item_name: z.string(),
-  quantity: z.number(),
-  unit_price: z.number(),
+  quantity: z.coerce.number(),
+  unit_price: z.coerce.number(),
   line_type: ReceiptLineTypeSchema,
   created_at: z.date(),
   updated_at: z.date(),
@@ -18,6 +21,14 @@ export const ReceiptLineDTOSchema = z.object({
 });
 
 export type ReceiptLineDTO = z.infer<typeof ReceiptLineDTOSchema>;
+
+/**
+ * Convert raw database row to ReceiptLineDTO with type coercion
+ * Applies Zod schema validation to ensure BIGINT/NUMERIC strings are converted to numbers
+ */
+export function toReceiptLineDTO(row: any): ReceiptLineDTO {
+  return ReceiptLineDTOSchema.parse(row);
+}
 
 /**
  * Convert ReceiptLineDTO (snake_case) to ReceiptLine (camelCase)
