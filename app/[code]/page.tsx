@@ -1,60 +1,41 @@
 'use client';
 
 import { useState, useEffect, use } from 'react';
-import { useRouter } from 'next/navigation';
-import { Button } from '@/components/Button';
 import { Card } from '@/components/Card';
 import { api } from '@/lib/client/api-client';
 import type { ReceiptSummary } from '@/lib/schemas/receipt/public/ReceiptSummary';
 
-export default function SummaryPage({ params }: { params: Promise<{ id: string }> }) {
+export default function ShareCodePage({ params }: { params: Promise<{ code: string }> }) {
   const resolvedParams = use(params);
-  const receiptId = parseInt(resolvedParams.id);
-  const router = useRouter();
+  const shareCode = resolvedParams.code.toUpperCase();
 
   const [summary, setSummary] = useState<ReceiptSummary | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [finalizing, setFinalizing] = useState(false);
   const [isReceiptExpanded, setIsReceiptExpanded] = useState(false);
 
   useEffect(() => {
     async function fetchSummary() {
       try {
-        const data = await api.receipts.getSummary(receiptId);
+        const data = await api.receipts.getByShareCode(shareCode);
 
-        // Redirect to share code page if finalized
-        if (data.receipt.status === 'FLZD') {
+        // Only show finalized receipts
+        if (data.receipt.status !== 'FLZD') {
+          setError('This receipt has not been finalized yet.');
           setLoading(false);
-          router.push(`/${data.receipt.shareCode}`);
           return;
         }
 
         setSummary(data);
         setLoading(false);
       } catch (err: any) {
-        setError(err.message || 'Failed to load summary');
+        setError(err.message || 'Failed to load receipt');
         setLoading(false);
       }
     }
 
     fetchSummary();
-  }, [receiptId, router]);
-
-  const handleFinalize = async () => {
-    try {
-      setFinalizing(true);
-      setError(null);
-
-      const finalizedSummary = await api.receipts.finalize(receiptId);
-
-      // Redirect to share code page
-      router.push(`/${finalizedSummary.receipt.shareCode}`);
-    } catch (err: any) {
-      setError(err.message || 'Failed to finalize receipt');
-      setFinalizing(false);
-    }
-  };
+  }, [shareCode]);
 
   const formatCurrency = (amount: number) => {
     return `PHP${amount.toFixed(2)}`;
@@ -65,7 +46,7 @@ export default function SummaryPage({ params }: { params: Promise<{ id: string }
       <div className="min-h-screen bg-white p-4 md:p-8">
         <div className="max-w-4xl mx-auto">
           <Card padding="lg">
-            <p className="font-mono text-center">Loading summary...</p>
+            <p className="font-mono text-center">Loading receipt...</p>
           </Card>
         </div>
       </div>
@@ -78,10 +59,7 @@ export default function SummaryPage({ params }: { params: Promise<{ id: string }
         <div className="max-w-4xl mx-auto">
           <Card padding="lg" className="border-red-600">
             <p className="font-bold uppercase tracking-wider text-red-600 mb-4">Error</p>
-            <p className="font-mono">{error || 'Failed to load summary'}</p>
-            <Button className="mt-4" onClick={() => router.back()}>
-              Go Back
-            </Button>
+            <p className="font-mono">{error || 'Failed to load receipt'}</p>
           </Card>
         </div>
       </div>
@@ -260,7 +238,7 @@ export default function SummaryPage({ params }: { params: Promise<{ id: string }
               </div>
 
               {/* Total Amount Owed - Prominent Display */}
-            <div className="bg-purple-200 border-4 border-black p-4 mt-4">
+              <div className="bg-purple-200 border-4 border-black p-4 mt-4">
                 <div className="flex justify-between items-center">
                   <span className="font-bold uppercase tracking-wider text-lg">Total Amount Owed:</span>
                   <span className="text-3xl font-bold">{formatCurrency(split.total)}</span>
@@ -268,18 +246,6 @@ export default function SummaryPage({ params }: { params: Promise<{ id: string }
               </div>
             </Card>
           ))}
-        </div>
-
-        {/* Action Buttons */}
-        <div className="space-y-4 sticky bottom-4">
-          <Button
-            fullWidth
-            size="lg"
-            onClick={handleFinalize}
-            disabled={finalizing}
-          >
-            {finalizing ? 'Finalizing...' : 'Finalize Receipt'}
-          </Button>
         </div>
       </div>
     </div>

@@ -47,6 +47,13 @@ export default function AssignPage({ params }: { params: Promise<{ id: string }>
       try {
         const splitGroup = await api.splitGroups.get(receiptId);
 
+        // Redirect to share code page if finalized
+        if (splitGroup.receipt.status === 'FLZD') {
+          setLoading(false);
+          router.push(`/${splitGroup.receipt.shareCode}`);
+          return;
+        }
+
         // Store all lines
         setAllLines(splitGroup.receipt.lines || []);
         setParticipants(splitGroup.participants);
@@ -58,7 +65,7 @@ export default function AssignPage({ params }: { params: Promise<{ id: string }>
     }
 
     fetchSplitGroup();
-  }, [receiptId]);
+  }, [receiptId, router]);
 
   // Filter lines based on current view
   const purchaseLines = allLines.filter((line) => line.receiptLineType === 'PRCH');

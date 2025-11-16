@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/Button';
 import { Card } from '@/components/Card';
+import { Input } from '@/components/Input';
 import { api } from '@/lib/client/api-client';
 
 export default function Home() {
@@ -13,6 +14,9 @@ export default function Home() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [dragActive, setDragActive] = useState(false);
+  const [shareCode, setShareCode] = useState('');
+  const [shareCodeLoading, setShareCodeLoading] = useState(false);
+  const [shareCodeError, setShareCodeError] = useState<string | null>(null);
 
   const handleFileChange = (selectedFile: File) => {
     if (!selectedFile.type.startsWith('image/')) {
@@ -81,6 +85,26 @@ export default function Home() {
     } catch (err: any) {
       setError(err.message || 'Failed to process receipt');
       setLoading(false);
+    }
+  };
+
+  const handleShareCodeSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (!shareCode.trim()) return;
+
+    setShareCodeLoading(true);
+    setShareCodeError(null);
+
+    try {
+      // Try to fetch the receipt by share code
+      await api.receipts.getByShareCode(shareCode.trim().toUpperCase());
+
+      // If successful, redirect to the share code page
+      router.push(`/${shareCode.trim().toUpperCase()}`);
+    } catch (err: any) {
+      setShareCodeError('Receipt not found');
+      setShareCodeLoading(false);
     }
   };
 
@@ -184,6 +208,42 @@ export default function Home() {
         >
           {loading ? 'Creating receipt...' : 'Continue'}
         </Button>
+
+        {/* Divider */}
+        <div className="flex items-center my-8">
+          <div className="flex-1 border-t-2 border-black"></div>
+          <span className="px-4 font-mono text-sm uppercase tracking-wider">or</span>
+          <div className="flex-1 border-t-2 border-black"></div>
+        </div>
+
+        {/* Share Code Entry */}
+        <Card padding="lg">
+          <h2 className="text-2xl font-bold uppercase tracking-wider mb-2">
+            Already have a receipt?
+          </h2>
+          <p className="font-mono text-sm mb-4">
+            Enter your share code below to view it
+          </p>
+
+          <form onSubmit={handleShareCodeSubmit}>
+            <div className="flex gap-4">
+              <Input
+                placeholder="SHARECODE"
+                value={shareCode}
+                onChange={(e) => setShareCode(e.target.value.toUpperCase())}
+                fullWidth
+                maxLength={10}
+                error={shareCodeError || undefined}
+              />
+              <Button
+                type="submit"
+                disabled={!shareCode.trim() || shareCodeLoading}
+              >
+                {shareCodeLoading ? 'Loading...' : 'View'}
+              </Button>
+            </div>
+          </form>
+        </Card>
       </div>
     </div>
   );

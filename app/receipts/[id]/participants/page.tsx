@@ -34,6 +34,13 @@ export default function ParticipantsPage({ params }: { params: Promise<{ id: str
       try {
         const receipt = await api.receipts.get(receiptId);
 
+        // Redirect to share code page if finalized
+        if (receipt.status === 'FLZD') {
+          setCheckingLines(false);
+          router.push(`/${receipt.shareCode}`);
+          return;
+        }
+
         if (receipt.status === 'DRFT') {
           // Parsing complete, receipt is ready
           setLinesReady(true);
@@ -56,7 +63,7 @@ export default function ParticipantsPage({ params }: { params: Promise<{ id: str
     };
 
     checkReceiptStatus();
-  }, [receiptId]);
+  }, [receiptId, router]);
 
   const handleAddParticipant = (e: React.FormEvent) => {
     e.preventDefault();

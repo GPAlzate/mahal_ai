@@ -28,6 +28,7 @@ export class ReceiptService {
     const maxAttempts = 5;
     let attempts = 0;
 
+    // TODO: revisit logic; should we create share code on creation? or only finalization
     while (attempts < maxAttempts) {
       const shareCode = generateShareCode();
 
