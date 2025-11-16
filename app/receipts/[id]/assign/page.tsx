@@ -404,12 +404,9 @@ export default function AssignPage({ params }: { params: Promise<{ id: string }>
             <Button
               fullWidth
               size="lg"
-              onClick={() => {
-                // TODO: Navigate to finalize/summary page
-                console.log('Finalize receipt');
-              }}
+              onClick={() => router.push(`/receipts/${receiptId}/summary`)}
             >
-              Finalize Receipt
+              Continue to Summary
             </Button>
           </div>
         </div>
