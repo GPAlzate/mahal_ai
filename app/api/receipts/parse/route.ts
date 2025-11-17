@@ -1,9 +1,13 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest, NextResponse, after } from 'next/server';
 import { put } from '@vercel/blob';
 import { receiptService } from '@/lib/services/ReceiptService';
 import { Logger } from '@/lib/utils/Logger';
 
 const logger = new Logger('POST /api/receipts/parse');
+
+// Set maximum duration for this route (5 minutes)
+// Allows background parsing to complete even after response is sent
+export const maxDuration = 300;
 
 /**
  * POST /api/receipts/parse
@@ -61,13 +65,19 @@ export async function POST(request: NextRequest) {
     // Update status to PRSP
     await receiptService.updateStatus(receipt.id, 'PRSP');
 
-    // Fire off background parsing (don't await!)
-    // Pass blob URL to parsing service
-    receiptService.parseInBackground(receipt.id, blob.url).catch((err) => {
-      logger.error(`Background parsing promise rejected for receipt ${receipt.id}:`, err);
+    // Schedule background parsing using after()
+    // This extends the serverless function lifetime until parsing completes
+    after(async () => {
+      try {
+        logger.log(`[Receipt ${receipt.id}] Starting background parsing`);
+        await receiptService.parseInBackground(receipt.id, blob.url);
+        logger.log(`[Receipt ${receipt.id}] Background parsing completed successfully`);
+      } catch (err) {
+        logger.error(`[Receipt ${receipt.id}] Background parsing failed:`, err);
+      }
     });
 
-    logger.log(`Receipt ${receipt.id} created, parsing in background`);
+    logger.log(`Receipt ${receipt.id} created, parsing scheduled in background`);
     return NextResponse.json({ receiptId: receipt.id, status: 'PRSP' }, { status: 201 });
   } catch (error) {
     logger.error('Error creating receipt:', error);
