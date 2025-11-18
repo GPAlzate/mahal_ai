@@ -15,12 +15,12 @@ export function Button({
   disabled = false,
   ...props
 }: ButtonProps) {
-  const baseStyles = 'border-4 border-black font-bold uppercase tracking-wider transition-none';
+  const baseStyles = 'border-4 border-black font-bold uppercase tracking-wider transition-none shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] active:enabled:shadow-none';
 
   const variantStyles = {
-    primary: 'bg-black text-white hover:enabled:bg-white hover:enabled:text-black active:enabled:translate-x-1 active:enabled:translate-y-1',
-    secondary: 'bg-white text-black hover:enabled:bg-black hover:enabled:text-white active:enabled:translate-x-1 active:enabled:translate-y-1',
-    danger: 'bg-white text-black border-black hover:enabled:bg-black hover:enabled:text-white active:enabled:translate-x-1 active:enabled:translate-y-1',
+    primary: 'bg-blue-300 text-black hover:enabled:bg-blue-400 active:enabled:translate-x-1 active:enabled:translate-y-1',
+    secondary: 'bg-white text-black hover:enabled:bg-gray-100 active:enabled:translate-x-1 active:enabled:translate-y-1',
+    danger: 'bg-red-300 text-black hover:enabled:bg-red-400 active:enabled:translate-x-1 active:enabled:translate-y-1',
   };
 
   const sizeStyles = {

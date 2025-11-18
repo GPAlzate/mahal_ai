@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { Image } from 'lucide-react';
 import { Button } from '@/components/Button';
 import { Card } from '@/components/Card';
 import { Input } from '@/components/Input';
@@ -110,18 +111,18 @@ export default function Home() {
 
   return (
     <div
-      className="min-h-screen bg-white p-4 md:p-8"
+      className="min-h-screen bg-yellow-50 p-4 md:p-8"
       onPaste={handlePaste}
       tabIndex={0}
     >
       <div className="max-w-2xl mx-auto">
         {/* Header */}
-        <div className="mb-8 text-center">
-          <h1 className="text-4xl md:text-6xl font-bold uppercase tracking-wider mb-4">
-            mahal ai
+        <div className="mb-8">
+          <h1 className="text-4xl md:text-6xl font-bold mb-4 p-4 bg-black text-white inline-block transform -rotate-1">
+            mahal ai &lt;3
           </h1>
-          <p className="text-lg font-mono">
-            Upload a receipt to split the bill
+          <p className="text-lg font-bold mt-6">
+            Upload a receipt, and kkp :)
           </p>
         </div>
 
@@ -130,12 +131,12 @@ export default function Home() {
           {!previewUrl ? (
             <div
               className={`
-                border-4 border-dashed border-black
+                border-4 border-black
                 p-12
                 text-center
                 cursor-pointer
                 transition-colors
-                ${dragActive ? 'bg-black text-white' : 'bg-white hover:bg-gray-50'}
+                ${dragActive ? 'bg-black text-white' : 'bg-gray-100 hover:bg-gray-200'}
               `}
               onDragEnter={handleDrag}
               onDragLeave={handleDrag}
@@ -144,25 +145,13 @@ export default function Home() {
               onClick={() => document.getElementById('file-input')?.click()}
             >
               <div className="mb-4">
-                <svg
-                  className="mx-auto h-24 w-24"
-                  stroke="currentColor"
-                  fill="none"
-                  viewBox="0 0 48 48"
-                >
-                  <path
-                    d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8m-12 4h.02"
-                    strokeWidth={4}
-                    strokeLinecap="square"
-                    strokeLinejoin="miter"
-                  />
-                </svg>
+                <Image className="mx-auto h-16 w-16" strokeWidth={2.5} />
               </div>
               <p className="text-xl font-bold uppercase tracking-wider mb-2">
                 Drop image here
               </p>
-              <p className="font-mono text-sm mb-1">or click to browse</p>
-              <p className="font-mono text-xs">Paste (Ctrl+V) also works!</p>
+              <p className="text-xs mb-1">or click to browse</p>
+              <p className="text-xs">Paste (Ctrl+V) also works!</p>
               <input
                 id="file-input"
                 type="file"
@@ -221,14 +210,14 @@ export default function Home() {
           <h2 className="text-2xl font-bold uppercase tracking-wider mb-2">
             Already have a receipt?
           </h2>
-          <p className="font-mono text-sm mb-4">
+          <p className="text-sm mb-4">
             Enter your share code below to view it
           </p>
 
           <form onSubmit={handleShareCodeSubmit}>
             <div className="flex gap-4">
               <Input
-                placeholder="SHARECODE"
+                placeholder="e.g. A1B2C"
                 value={shareCode}
                 onChange={(e) => setShareCode(e.target.value.toUpperCase())}
                 fullWidth
