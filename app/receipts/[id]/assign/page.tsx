@@ -4,7 +4,6 @@ import { useState, useEffect, use } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/Button';
 import { Card } from '@/components/Card';
-import { LineItemCard } from '@/components/LineItemCard';
 import { LineItemModal } from '@/components/LineItemModal';
 import { api } from '@/lib/client/api-client';
 
@@ -41,7 +40,6 @@ export default function AssignPage({ params }: { params: Promise<{ id: string }>
   const [activeLineId, setActiveLineId] = useState<number | null>(null);
   const [activeParticipantId, setActiveParticipantId] = useState<number | null>(null);
   const [currentView, setCurrentView] = useState<'items' | 'misc-charges'>('items');
-  const [showManualEntryModal, setShowManualEntryModal] = useState(false);
   const [showLineItemModal, setShowLineItemModal] = useState(false);
   const [lineItemModalMode, setLineItemModalMode] = useState<'create' | 'edit'>('create');
   const [editingLine, setEditingLine] = useState<ReceiptLine | null>(null);
@@ -226,29 +224,35 @@ export default function AssignPage({ params }: { params: Promise<{ id: string }>
     itemName: string;
     quantity: number;
     unitPrice: number;
+    receiptLineType?: string;
   }) => {
     try {
       if (lineItemModalMode === 'edit' && editingLine) {
         // Update existing line
-        await api.lines.update(receiptId, editingLine.id, {
+        const updateData: any = {
           itemName: data.itemName,
           quantity: data.quantity,
           unitPrice: data.unitPrice,
-        });
+        };
+        if (data.receiptLineType) {
+          updateData.receiptLineType = data.receiptLineType;
+        }
+
+        await api.lines.update(receiptId, editingLine.id, updateData);
 
         // Update local state
         setAllLines((prev) =>
           prev.map((line) =>
             line.id === editingLine.id
-              ? { ...line, ...data }
+              ? { ...line, ...data, receiptLineType: data.receiptLineType || line.receiptLineType }
               : line
           )
         );
 
-        // Clear assignments if quantity or price changed
+        // Clear assignments if quantity or price changed (only for purchase items)
         if (
-          data.quantity !== editingLine.quantity ||
-          data.unitPrice !== editingLine.unitPrice
+          editingLine.receiptLineType === 'PRCH' &&
+          (data.quantity !== editingLine.quantity || data.unitPrice !== editingLine.unitPrice)
         ) {
           setAssignments((prev) => {
             const next = { ...prev };
@@ -258,11 +262,12 @@ export default function AssignPage({ params }: { params: Promise<{ id: string }>
         }
       } else {
         // Create new line
+        const receiptLineType = data.receiptLineType || (currentView === 'items' ? 'PRCH' : 'SRVC');
         const newLine = await api.lines.create(receiptId, {
           itemName: data.itemName,
           quantity: data.quantity,
           unitPrice: data.unitPrice,
-          receiptLineType: 'PRCH',
+          receiptLineType,
         });
 
         // Add to local state
@@ -450,49 +455,56 @@ export default function AssignPage({ params }: { params: Promise<{ id: string }>
           ) : (
             // Misc charges review view
             <>
-              {miscChargeLines.length === 0 ? (
-                // Manual entry placeholder when no misc charges
-                <button
-                  type="button"
-                  onClick={() => setShowManualEntryModal(true)}
-                  className="border-4 border-dashed border-black p-8 w-full hover:bg-gray-50 transition-colors flex items-center justify-center min-h-[120px]"
-                >
-                  <div className="text-center">
-                    <div className="text-6xl mb-2">+</div>
-                    <p className="font-mono text-sm uppercase tracking-wider">Add Line Item</p>
-                  </div>
-                </button>
-              ) : (
-                // Display misc charge lines as read-only cards
-                <>
-                  {miscChargeLines.map((line) => (
-                    <LineItemCard
-                      key={line.id}
-                      itemName={line.itemName}
-                      quantity={line.quantity}
-                      unitPrice={line.unitPrice}
-                      onClick={() => setShowManualEntryModal(true)}
-                      className="cursor-pointer hover:bg-gray-50 transition-colors"
-                    >
-                      <p className="font-mono text-xs uppercase tracking-wide text-gray-500">
-                        Click to edit (coming soon)
-                      </p>
-                    </LineItemCard>
-                  ))}
-
-                  {/* Add button below existing misc charges */}
-                  <button
-                    type="button"
-                    onClick={() => setShowManualEntryModal(true)}
-                    className="border-4 border-dashed border-black p-8 w-full hover:bg-gray-50 transition-colors flex items-center justify-center min-h-[120px]"
-                  >
-                    <div className="text-center">
-                      <div className="text-6xl mb-2">+</div>
-                      <p className="font-mono text-sm uppercase tracking-wider">Add Line Item</p>
+              {miscChargeLines.map((line) => (
+                <div key={line.id} className="mb-4">
+                  <Card padding="md">
+                    <div className="flex justify-between items-start">
+                      <div className="flex-1">
+                        <h3 className="font-bold text-xl uppercase tracking-wider mb-2">
+                          {line.itemName}
+                        </h3>
+                        <p className="font-mono text-sm">
+                          {line.quantity} × PHP{line.unitPrice.toFixed(2)} = PHP
+                          {(line.quantity * line.unitPrice).toFixed(2)}
+                        </p>
+                        <p className="font-mono text-xs uppercase tracking-wide text-gray-500 mt-1">
+                          {line.receiptLineType === 'TAX' && 'Tax'}
+                          {line.receiptLineType === 'TIP' && 'Tip'}
+                          {line.receiptLineType === 'SRVC' && 'Service Charge'}
+                          {line.receiptLineType === 'DSCT' && 'Discount'}
+                        </p>
+                      </div>
+                      <div className="ml-4 flex gap-2 flex-shrink-0">
+                        <button
+                          onClick={() => handleOpenEditModal(line)}
+                          className="p-2 border-2 border-black hover:bg-black hover:text-white transition-colors"
+                          title="Edit item"
+                        >
+                          <span className="text-lg">✎</span>
+                        </button>
+                        <button
+                          onClick={() => handleDeleteLineItem(line)}
+                          className="p-2 border-2 border-red-600 text-red-600 hover:bg-red-600 hover:text-white transition-colors"
+                          title="Delete item"
+                        >
+                          <span className="text-lg">🗑</span>
+                        </button>
+                      </div>
                     </div>
-                  </button>
-                </>
-              )}
+                  </Card>
+                </div>
+              ))}
+
+              {/* Add New Misc Charge Button */}
+              <button
+                onClick={handleOpenCreateModal}
+                className="w-full border-4 border-dashed border-gray-400 bg-gray-50 p-8 hover:border-gray-600 hover:bg-gray-100 active:bg-gray-200 transition-colors text-gray-600 hover:text-gray-900"
+              >
+                <div className="flex flex-col items-center gap-2">
+                  <span className="text-4xl">+</span>
+                  <span className="font-bold uppercase tracking-wider">Add Misc Charge</span>
+                </div>
+              </button>
             </>
           )}
         </section>
@@ -611,32 +623,15 @@ export default function AssignPage({ params }: { params: Promise<{ id: string }>
                 itemName: editingLine.itemName,
                 quantity: editingLine.quantity,
                 unitPrice: editingLine.unitPrice,
+                receiptLineType: editingLine.receiptLineType,
               }
             : undefined
         }
         hasAssignments={editingLine ? hasAssignments(editingLine.id) : false}
+        showLineTypeSelector={currentView === 'misc-charges'}
         onSave={handleSaveLineItem}
         onCancel={handleCancelLineItemModal}
       />
-
-      {/* Manual entry modal */}
-      {showManualEntryModal && (
-        <div
-          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
-          onClick={() => setShowManualEntryModal(false)}
-        >
-          <div
-            className="bg-white border-4 border-black max-w-md w-full p-8"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <h2 className="text-2xl font-bold uppercase tracking-wider mb-4">Coming Soon</h2>
-            <p className="font-mono mb-6">Manual line edits coming soon!</p>
-            <Button fullWidth onClick={() => setShowManualEntryModal(false)}>
-              Close
-            </Button>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

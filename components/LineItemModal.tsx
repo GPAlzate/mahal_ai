@@ -12,10 +12,17 @@ interface LineItemModalProps {
     itemName: string;
     quantity: number;
     unitPrice: number;
+    receiptLineType?: string;
   };
-  onSave: (data: { itemName: string; quantity: number; unitPrice: number }) => Promise<void>;
+  onSave: (data: {
+    itemName: string;
+    quantity: number;
+    unitPrice: number;
+    receiptLineType?: string;
+  }) => Promise<void>;
   onCancel: () => void;
   hasAssignments?: boolean;
+  showLineTypeSelector?: boolean; // For misc charges
 }
 
 export function LineItemModal({
@@ -25,10 +32,12 @@ export function LineItemModal({
   onSave,
   onCancel,
   hasAssignments = false,
+  showLineTypeSelector = false,
 }: LineItemModalProps) {
   const [itemName, setItemName] = useState('');
   const [quantity, setQuantity] = useState('1');
   const [unitPrice, setUnitPrice] = useState('0.00');
+  const [receiptLineType, setReceiptLineType] = useState<string>('');
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
@@ -38,10 +47,12 @@ export function LineItemModal({
         setItemName(initialData.itemName);
         setQuantity(String(initialData.quantity));
         setUnitPrice(initialData.unitPrice.toFixed(2));
+        setReceiptLineType(initialData.receiptLineType || '');
       } else {
         setItemName('');
         setQuantity('1');
         setUnitPrice('0.00');
+        setReceiptLineType('');
       }
       setError(null);
       setSaving(false); // Reset saving state when modal opens
@@ -67,8 +78,22 @@ export function LineItemModal({
     }
 
     const priceNum = parseFloat(unitPrice);
-    if (isNaN(priceNum) || priceNum < 0) {
-      setError('Price must be 0 or greater');
+    if (isNaN(priceNum)) {
+      setError('Price must be a valid number');
+      return;
+    }
+
+    // Validate price based on line type
+    if (receiptLineType === 'DSCT' && priceNum >= 0) {
+      setError('Discount price must be negative (e.g., -10.00)');
+      return;
+    } else if (receiptLineType !== 'DSCT' && priceNum < 0) {
+      setError('Price cannot be negative (only discounts can be negative)');
+      return;
+    }
+
+    if (showLineTypeSelector && !receiptLineType) {
+      setError('Please select a line type');
       return;
     }
 
@@ -78,6 +103,7 @@ export function LineItemModal({
         itemName: itemName.trim(),
         quantity: qtyNum,
         unitPrice: priceNum,
+        ...(showLineTypeSelector && { receiptLineType }),
       });
       // Don't reset form here - let parent handle closing modal
     } catch (err: any) {
@@ -130,6 +156,47 @@ export function LineItemModal({
                 autoFocus
               />
 
+              {/* Line Type Selector (only for misc charges) */}
+              {showLineTypeSelector && (
+                <div>
+                  <label className="block font-bold uppercase tracking-wider text-sm mb-2">
+                    Line Type
+                  </label>
+                  <select
+                    value={receiptLineType}
+                    onChange={(e) => {
+                      const newType = e.target.value;
+                      setReceiptLineType(newType);
+
+                      // Auto-populate negative sign when discount is selected
+                      if (newType === 'DSCT') {
+                        const currentPrice = parseFloat(unitPrice);
+                        if (!isNaN(currentPrice) && currentPrice >= 0) {
+                          setUnitPrice((-Math.abs(currentPrice)).toFixed(2));
+                        } else if (unitPrice === '0.00' || unitPrice === '') {
+                          setUnitPrice('-0.00');
+                        }
+                      }
+                      // Remove negative sign when switching away from discount
+                      else if (receiptLineType === 'DSCT') {
+                        const currentPrice = parseFloat(unitPrice);
+                        if (!isNaN(currentPrice) && currentPrice < 0) {
+                          setUnitPrice(Math.abs(currentPrice).toFixed(2));
+                        }
+                      }
+                    }}
+                    disabled={saving}
+                    className="w-full border-2 border-black p-2 font-mono focus:outline-none focus:ring-2 focus:ring-black"
+                  >
+                    <option value="">Select type...</option>
+                    <option value="TAX">Tax</option>
+                    <option value="TIP">Tip</option>
+                    <option value="SRVC">Service Charge</option>
+                    <option value="DSCT">Discount</option>
+                  </select>
+                </div>
+              )}
+
               {/* Quantity */}
               <Input
                 label="Quantity"
@@ -145,13 +212,12 @@ export function LineItemModal({
 
               {/* Unit Price */}
               <Input
-                label="Unit Price (PHP)"
+                label={`Unit Price (PHP)${receiptLineType === 'DSCT' ? ' - Enter as negative' : ''}`}
                 type="number"
                 value={unitPrice}
                 onChange={(e) => setUnitPrice(e.target.value)}
-                placeholder="0.00"
+                placeholder={receiptLineType === 'DSCT' ? '-10.00' : '0.00'}
                 step="0.01"
-                min="0"
                 fullWidth
                 disabled={saving}
               />
