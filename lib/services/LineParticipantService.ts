@@ -5,6 +5,24 @@ import { Logger } from '@/lib/utils/Logger';
 
 /**
  * Service for managing line participant assignments
+ *
+ * TODO: Migrate from share_quantity to share_percentage model
+ *
+ * Current model stores share_quantity (e.g., 0.25 burgers per person)
+ * which breaks when line quantity is edited (3 burgers → 6 burgers).
+ *
+ * Future model should store share_percentage (e.g., 0.0833 = 1/12 of line)
+ * which is immune to quantity/price changes:
+ *   - shareAmount = share_percentage × line.totalPrice
+ *   - share_percentage = 1 / total_participants_assigned
+ *   - No need to sum totalShares or maintain quantity constraints
+ *
+ * Migration plan:
+ *   1. Add share_percentage column to line_participants table (nullable)
+ *   2. Backfill existing data: share_percentage = share_quantity / line.quantity
+ *   3. Update calculation in ReceiptSummaryService
+ *   4. Update frontend to use percentage-based assignment
+ *   5. Drop share_quantity column
  */
 export class LineParticipantService {
   protected _logger: Logger;

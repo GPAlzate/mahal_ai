@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { Button } from '@/components/Button';
 import { Card } from '@/components/Card';
 import { LineItemCard } from '@/components/LineItemCard';
+import { LineItemModal } from '@/components/LineItemModal';
 import { api } from '@/lib/client/api-client';
 
 interface ReceiptLine {
@@ -41,6 +42,10 @@ export default function AssignPage({ params }: { params: Promise<{ id: string }>
   const [activeParticipantId, setActiveParticipantId] = useState<number | null>(null);
   const [currentView, setCurrentView] = useState<'items' | 'misc-charges'>('items');
   const [showManualEntryModal, setShowManualEntryModal] = useState(false);
+  const [showLineItemModal, setShowLineItemModal] = useState(false);
+  const [lineItemModalMode, setLineItemModalMode] = useState<'create' | 'edit'>('create');
+  const [editingLine, setEditingLine] = useState<ReceiptLine | null>(null);
+  const [unassignedLineIds, setUnassignedLineIds] = useState<Set<number>>(new Set());
 
   useEffect(() => {
     async function fetchSplitGroup() {
@@ -89,6 +94,28 @@ export default function AssignPage({ params }: { params: Promise<{ id: string }>
         [lineId]: nextLineAssignments,
       };
     });
+
+    // Clear unassigned highlight for this line if it's being assigned
+    if (unassignedLineIds.has(lineId)) {
+      setUnassignedLineIds((prev) => {
+        const next = new Set(prev);
+        next.delete(lineId);
+        return next;
+      });
+    }
+
+    // Clear error if all lines are now assigned
+    if (error) {
+      const stillUnassigned = purchaseLines.filter(
+        (line) =>
+          line.id !== lineId &&
+          (!assignments[line.id] || Object.keys(assignments[line.id]).length === 0)
+      );
+      if (stillUnassigned.length === 0) {
+        setError(null);
+        setUnassignedLineIds(new Set());
+      }
+    }
   };
 
   const handleLineSelection = (lineId: number) => {
@@ -125,17 +152,15 @@ export default function AssignPage({ params }: { params: Promise<{ id: string }>
     );
 
     if (unassignedLines.length > 0) {
-      setError(
-        `Assign at least one participant to every item:\n${unassignedLines
-          .map((line) => line.itemName)
-          .join('\n')}`
-      );
+      setUnassignedLineIds(new Set(unassignedLines.map((line) => line.id)));
+      setError('Please assign the highlighted items in red to at least one participant.');
       return;
     }
 
     try {
       setSaving(true);
       setError(null);
+      setUnassignedLineIds(new Set());
 
       // Convert local assignments to batch API format with proper share quantities
       const purchaseLinesMap = new Map(purchaseLines.map(line => [+line.id, line]));
@@ -179,6 +204,105 @@ export default function AssignPage({ params }: { params: Promise<{ id: string }>
     return lines.reduce((count, line) => {
       return count + (assignments[line.id]?.[participantId] ? 1 : 0);
     }, 0);
+  };
+
+  const hasAssignments = (lineId: number) => {
+    return assignments[lineId] && Object.keys(assignments[lineId]).length > 0;
+  };
+
+  const handleOpenEditModal = (line: ReceiptLine) => {
+    setEditingLine(line);
+    setLineItemModalMode('edit');
+    setShowLineItemModal(true);
+  };
+
+  const handleOpenCreateModal = () => {
+    setEditingLine(null);
+    setLineItemModalMode('create');
+    setShowLineItemModal(true);
+  };
+
+  const handleSaveLineItem = async (data: {
+    itemName: string;
+    quantity: number;
+    unitPrice: number;
+  }) => {
+    try {
+      if (lineItemModalMode === 'edit' && editingLine) {
+        // Update existing line
+        await api.lines.update(receiptId, editingLine.id, {
+          itemName: data.itemName,
+          quantity: data.quantity,
+          unitPrice: data.unitPrice,
+        });
+
+        // Update local state
+        setAllLines((prev) =>
+          prev.map((line) =>
+            line.id === editingLine.id
+              ? { ...line, ...data }
+              : line
+          )
+        );
+
+        // Clear assignments if quantity or price changed
+        if (
+          data.quantity !== editingLine.quantity ||
+          data.unitPrice !== editingLine.unitPrice
+        ) {
+          setAssignments((prev) => {
+            const next = { ...prev };
+            delete next[editingLine.id];
+            return next;
+          });
+        }
+      } else {
+        // Create new line
+        const newLine = await api.lines.create(receiptId, {
+          itemName: data.itemName,
+          quantity: data.quantity,
+          unitPrice: data.unitPrice,
+          receiptLineType: 'PRCH',
+        });
+
+        // Add to local state
+        setAllLines((prev) => [...prev, newLine]);
+      }
+
+      // Close modal
+      setShowLineItemModal(false);
+      setEditingLine(null);
+    } catch (err: any) {
+      setError(err.message || 'Failed to save line item');
+      throw err;
+    }
+  };
+
+  const handleCancelLineItemModal = () => {
+    setShowLineItemModal(false);
+    setEditingLine(null);
+  };
+
+  const handleDeleteLineItem = async (line: ReceiptLine) => {
+    if (!confirm(`Delete "${line.itemName}"?\n\nThis action cannot be undone.`)) {
+      return;
+    }
+
+    try {
+      await api.lines.delete(receiptId, line.id);
+
+      // Remove from local state
+      setAllLines((prev) => prev.filter((l) => l.id !== line.id));
+
+      // Clear assignments for this line
+      setAssignments((prev) => {
+        const next = { ...prev };
+        delete next[line.id];
+        return next;
+      });
+    } catch (err: any) {
+      setError(err.message || 'Failed to delete line item');
+    }
   };
 
   if (loading) {
@@ -238,44 +362,90 @@ export default function AssignPage({ params }: { params: Promise<{ id: string }>
                 const isAssignmentMode = activeParticipantId !== null;
                 const isAssignedToSelectedParticipant =
                   activeParticipantId && assignments[line.id]?.[activeParticipantId];
+                const isUnassigned = unassignedLineIds.has(line.id);
 
                 return (
-                  <LineItemCard
-                    key={line.id}
-                    itemName={line.itemName}
-                    quantity={line.quantity}
-                    unitPrice={line.unitPrice}
-                    onClick={() => handleLineSelection(line.id)}
-                    isActive={isSelected}
-                    className={`transition-all ${
-                      isSelected
-                        ? 'border-8 border-yellow-400 bg-yellow-50'
-                        : isAssignedToSelectedParticipant
-                          ? 'border-4 border-green-400 bg-green-50'
-                          : isAssignmentMode
-                            ? 'hover:bg-purple-100 hover:border-purple-500 cursor-pointer hover:scale-[1.02]'
-                            : ''
-                    }`}
-                  >
-                    <div className="flex flex-wrap gap-2">
-                      {assignedParticipants.length === 0 ? (
-                        <span className="font-mono text-xs uppercase tracking-wide text-gray-500">
-                          Select participants below to assign this item
-                        </span>
-                      ) : (
-                        assignedParticipants.map((participant) => (
-                          <span
-                            key={participant.id}
-                            className="border-2 border-black px-3 py-1 text-sm font-bold uppercase tracking-wider"
+                  <div key={line.id} className="mb-4">
+                    <Card
+                      padding="md"
+                      className={`transition-all ${
+                        isUnassigned
+                          ? 'border-4 border-orange-600 bg-orange-50'
+                          : isSelected
+                            ? 'border-8 border-yellow-400 bg-yellow-50 shadow-[6px_6px_0_0_#000] -translate-y-1'
+                            : isAssignedToSelectedParticipant
+                              ? 'border-4 border-green-400 bg-green-50'
+                              : isAssignmentMode
+                                ? 'hover:bg-purple-100 hover:border-purple-500 cursor-pointer hover:scale-[1.02]'
+                                : ''
+                      }`}
+                    >
+                      {/* Line item header with edit button */}
+                      <div className="flex justify-between items-start">
+                        <div
+                          className="flex-1 cursor-pointer"
+                          onClick={() => handleLineSelection(line.id)}
+                        >
+                          <h3 className="font-bold text-xl uppercase tracking-wider mb-2">
+                            {line.itemName}
+                          </h3>
+                          <p className="font-mono text-sm">
+                            {line.quantity} × PHP{line.unitPrice.toFixed(2)} = PHP
+                            {(line.quantity * line.unitPrice).toFixed(2)}
+                          </p>
+
+                          {/* Assigned participants - shown inline below item details */}
+                          {assignedParticipants.length > 0 && (
+                            <div className="flex flex-wrap gap-2 mt-3">
+                              {assignedParticipants.map((participant) => (
+                                <span
+                                  key={participant.id}
+                                  className="border-2 border-black px-3 py-1 text-sm font-bold uppercase tracking-wider"
+                                >
+                                  {participant.displayName}
+                                </span>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                        <div className="ml-4 flex gap-2 flex-shrink-0">
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleOpenEditModal(line);
+                            }}
+                            className="p-2 border-2 border-black hover:bg-black hover:text-white transition-colors"
+                            title="Edit item"
                           >
-                            {participant.displayName}
-                          </span>
-                        ))
-                      )}
-                    </div>
-                  </LineItemCard>
+                            <span className="text-lg">✎</span>
+                          </button>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleDeleteLineItem(line);
+                            }}
+                            className="p-2 border-2 border-red-600 text-red-600 hover:bg-red-600 hover:text-white transition-colors"
+                            title="Delete item"
+                          >
+                            <span className="text-lg">🗑</span>
+                          </button>
+                        </div>
+                      </div>
+                    </Card>
+                  </div>
                 );
               })}
+
+              {/* Add New Item Button */}
+              <button
+                onClick={handleOpenCreateModal}
+                className="w-full border-4 border-dashed border-gray-400 bg-gray-50 p-8 hover:border-gray-600 hover:bg-gray-100 active:bg-gray-200 transition-colors text-gray-600 hover:text-gray-900"
+              >
+                <div className="flex flex-col items-center gap-2">
+                  <span className="text-4xl">+</span>
+                  <span className="font-bold uppercase tracking-wider">Add Item</span>
+                </div>
+              </button>
             </>
           ) : (
             // Misc charges review view
@@ -430,6 +600,24 @@ export default function AssignPage({ params }: { params: Promise<{ id: string }>
           </div>
         </div>
       )}
+
+      {/* Line Item Modal (for both create and edit) */}
+      <LineItemModal
+        isOpen={showLineItemModal}
+        mode={lineItemModalMode}
+        initialData={
+          editingLine
+            ? {
+                itemName: editingLine.itemName,
+                quantity: editingLine.quantity,
+                unitPrice: editingLine.unitPrice,
+              }
+            : undefined
+        }
+        hasAssignments={editingLine ? hasAssignments(editingLine.id) : false}
+        onSave={handleSaveLineItem}
+        onCancel={handleCancelLineItemModal}
+      />
 
       {/* Manual entry modal */}
       {showManualEntryModal && (

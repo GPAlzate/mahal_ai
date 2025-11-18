@@ -57,7 +57,6 @@ export class ReceiptLineService {
         ${lineData.itemName},
         ${lineData.quantity},
         ${lineData.unitPrice},
-        ${lineData.totalPrice},
         ${lineData.receiptLineType}
       )
       RETURNING *
