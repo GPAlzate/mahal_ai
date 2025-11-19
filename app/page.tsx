@@ -121,13 +121,12 @@ export default function Home() {
           <h1 className="text-4xl md:text-6xl font-bold mb-4 p-4 bg-black text-white inline-block transform -rotate-1">
             mahal ai &lt;3
           </h1>
-          <p className="text-lg font-bold mt-6">
-            Upload a receipt, and kkp :)
-          </p>
         </div>
 
         {/* Upload Area */}
         <Card padding="lg" className="mb-6">
+          <h2 className="text-2xl font-bold mb-4">Upload a receipt 😀</h2>
+
           {!previewUrl ? (
             <div
               className={`
@@ -207,7 +206,7 @@ export default function Home() {
 
         {/* Share Code Entry */}
         <Card padding="lg">
-          <h2 className="text-2xl font-bold uppercase tracking-wider mb-2">
+          <h2 className="text-2xl font-bold tracking-wider mb-2">
             Already have a receipt?
           </h2>
           <p className="text-sm mb-4">

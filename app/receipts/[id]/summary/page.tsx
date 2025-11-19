@@ -62,7 +62,7 @@ export default function SummaryPage({ params }: { params: Promise<{ id: string }
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-white p-4 md:p-8">
+      <div className="min-h-screen bg-yellow-50 p-4 md:p-8">
         <div className="max-w-4xl mx-auto">
           <Card padding="lg">
             <p className="font-mono text-center">Loading summary...</p>
@@ -74,7 +74,7 @@ export default function SummaryPage({ params }: { params: Promise<{ id: string }
 
   if (error || !summary) {
     return (
-      <div className="min-h-screen bg-white p-4 md:p-8">
+      <div className="min-h-screen bg-yellow-50 p-4 md:p-8">
         <div className="max-w-4xl mx-auto">
           <Card padding="lg" className="border-red-600">
             <p className="font-bold uppercase tracking-wider text-red-600 mb-4">Error</p>
@@ -89,17 +89,17 @@ export default function SummaryPage({ params }: { params: Promise<{ id: string }
   }
 
   return (
-    <div className="min-h-screen bg-white p-4 md:p-8">
+    <div className="min-h-screen bg-yellow-50 p-4 md:p-8">
       <div className="max-w-4xl mx-auto space-y-6">
         {/* Header */}
-        <div className="text-center">
-          <h1 className="text-4xl md:text-6xl font-bold uppercase tracking-wider mb-4">
-            Receipt Summary
+        <div className="mb-8">
+          <h1 className="text-4xl md:text-6xl font-bold mb-4 p-4 bg-black text-white inline-block transform -rotate-1">
+            mahal ai &lt;3
           </h1>
         </div>
 
         {/* Share Code */}
-        <Card padding="lg" className="bg-yellow-50">
+        <Card padding="lg" className="bg-green-300">
           <div className="text-center">
             <p className="font-mono text-sm uppercase tracking-wider mb-2">Share Code</p>
             <p className="text-4xl md:text-5xl font-bold uppercase tracking-widest">
@@ -117,7 +117,7 @@ export default function SummaryPage({ params }: { params: Promise<{ id: string }
           <h2 className="text-2xl font-bold uppercase tracking-wider mb-4">Receipt</h2>
 
           {/* Total - always visible */}
-          <div className="flex justify-between items-center py-3 mb-4 font-mono">
+          <div className="flex justify-between items-center py-3 font-mono">
             <span className="text-xl font-bold uppercase">Total:</span>
             <span className="text-2xl font-bold">{formatCurrency(summary.total)}</span>
           </div>

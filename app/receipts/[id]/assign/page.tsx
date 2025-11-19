@@ -2,6 +2,7 @@
 
 import { useState, useEffect, use } from 'react';
 import { useRouter } from 'next/navigation';
+import { X } from 'lucide-react';
 import { Button } from '@/components/Button';
 import { Card } from '@/components/Card';
 import { LineItemModal } from '@/components/LineItemModal';
@@ -312,7 +313,7 @@ export default function AssignPage({ params }: { params: Promise<{ id: string }>
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-white p-4 md:p-8">
+      <div className="min-h-screen bg-yellow-50 p-4 md:p-8">
         <div className="max-w-4xl mx-auto">
           <Card padding="lg">
             <p className="font-mono text-center">Loading receipt...</p>
@@ -323,18 +324,13 @@ export default function AssignPage({ params }: { params: Promise<{ id: string }>
   }
 
   return (
-    <div className="h-screen flex flex-col bg-white">
+    <div className="h-screen flex flex-col bg-yellow-50">
       {/* Header - fixed */}
-      <div className="p-4 md:p-8 border-b-4 border-black">
-        <div className="max-w-5xl mx-auto">
-          <h1 className="text-4xl md:text-6xl font-bold uppercase tracking-wider mb-3">
-            {currentView === 'items' ? 'Assign Items' : 'Review Misc Charges'}
+      <div className="p-4 md:p-8">
+        <div className="max-w-5xl mx-auto mb-8">
+          <h1 className="text-4xl md:text-6xl font-bold p-4 bg-black text-white inline-block transform -rotate-1">
+            mahal ai &lt;3
           </h1>
-          <p className="text-lg font-mono">
-            {currentView === 'items'
-              ? 'Tap a line and a participant to pair them. Repeat to split items together.'
-              : 'Review tax, tip, service charges, and discounts. Add or edit as needed.'}
-          </p>
         </div>
       </div>
 
@@ -350,17 +346,18 @@ export default function AssignPage({ params }: { params: Promise<{ id: string }>
       )}
 
       {/* Items list - scrollable */}
-      <div className="flex-1 overflow-y-auto p-4 md:p-8">
+      <div className="flex-1 overflow-y-auto px-4 md:px-8">
         <section className="space-y-4 max-w-5xl mx-auto">
           {currentView === 'items' ? (
             // Items assignment view
-            <>
+            <Card padding="lg" className="mb-6">
+              <h2 className="text-2xl font-bold mb-6">Tap an item or a person to pair them</h2>
+
               {purchaseLines.length === 0 && (
-                <Card padding="md">
-                  <p className="font-mono text-center">No purchase lines found for this receipt.</p>
-                </Card>
+                <p className="font-mono text-center py-4">No purchase lines found for this receipt.</p>
               )}
 
+              <div className="space-y-4">
               {purchaseLines.map((line) => {
                 const assignedParticipants = getAssignedParticipants(line.id);
                 const isSelected = activeLineId === line.id;
@@ -370,27 +367,26 @@ export default function AssignPage({ params }: { params: Promise<{ id: string }>
                 const isUnassigned = unassignedLineIds.has(line.id);
 
                 return (
-                  <div key={line.id} className="mb-4">
-                    <Card
-                      padding="md"
-                      className={`transition-all ${
-                        isUnassigned
-                          ? 'border-4 border-orange-600 bg-orange-50'
-                          : isSelected
-                            ? 'border-8 border-yellow-400 bg-yellow-50 shadow-[6px_6px_0_0_#000] -translate-y-1'
-                            : isAssignedToSelectedParticipant
-                              ? 'border-4 border-green-400 bg-green-50'
-                              : isAssignmentMode
-                                ? 'hover:bg-purple-100 hover:border-purple-500 cursor-pointer hover:scale-[1.02]'
-                                : ''
-                      }`}
+                  <div
+                    key={line.id}
+                    className={`p-4 border-4 border-black transition-all ${
+                      isUnassigned
+                        ? 'border-orange-600 bg-orange-50'
+                        : isSelected
+                          ? 'border-8 border-yellow-400 bg-yellow-50 -translate-y-1'
+                          : isAssignedToSelectedParticipant
+                            ? 'border-green-400 bg-green-50'
+                            : isAssignmentMode
+                              ? 'hover:bg-purple-100 hover:border-purple-500 cursor-pointer hover:scale-[1.02] bg-white'
+                              : 'bg-white'
+                    }`}
+                  >
+                    <div
+                      className="cursor-pointer"
+                      onClick={() => handleLineSelection(line.id)}
                     >
-                      {/* Line item header with edit button */}
                       <div className="flex justify-between items-start">
-                        <div
-                          className="flex-1 cursor-pointer"
-                          onClick={() => handleLineSelection(line.id)}
-                        >
+                        <div className="flex-1">
                           <h3 className="font-bold text-xl uppercase tracking-wider mb-2">
                             {line.itemName}
                           </h3>
@@ -432,11 +428,11 @@ export default function AssignPage({ params }: { params: Promise<{ id: string }>
                             className="p-2 border-2 border-red-600 text-red-600 hover:bg-red-600 hover:text-white transition-colors"
                             title="Delete item"
                           >
-                            <span className="text-lg">🗑</span>
+                            <X className="w-5 h-5" />
                           </button>
                         </div>
                       </div>
-                    </Card>
+                    </div>
                   </div>
                 );
               })}
@@ -451,47 +447,52 @@ export default function AssignPage({ params }: { params: Promise<{ id: string }>
                   <span className="font-bold uppercase tracking-wider">Add Item</span>
                 </div>
               </button>
-            </>
+              </div>
+            </Card>
           ) : (
             // Misc charges review view
-            <>
+            <Card padding="lg" className="mb-6">
+              <h2 className="text-2xl font-bold mb-4">Review Misc Charges</h2>
+              <p className="text-sm mb-6">
+                Review tax, tip, service charges, and discounts. Add or edit as needed.
+              </p>
+
+              <div className="space-y-4">
               {miscChargeLines.map((line) => (
-                <div key={line.id} className="mb-4">
-                  <Card padding="md">
-                    <div className="flex justify-between items-start">
-                      <div className="flex-1">
-                        <h3 className="font-bold text-xl uppercase tracking-wider mb-2">
-                          {line.itemName}
-                        </h3>
-                        <p className="font-mono text-sm">
-                          {line.quantity} × PHP{line.unitPrice.toFixed(2)} = PHP
-                          {(line.quantity * line.unitPrice).toFixed(2)}
-                        </p>
-                        <p className="font-mono text-xs uppercase tracking-wide text-gray-500 mt-1">
-                          {line.receiptLineType === 'TAX' && 'Tax'}
-                          {line.receiptLineType === 'TIP' && 'Tip'}
-                          {line.receiptLineType === 'SRVC' && 'Service Charge'}
-                          {line.receiptLineType === 'DSCT' && 'Discount'}
-                        </p>
-                      </div>
-                      <div className="ml-4 flex gap-2 flex-shrink-0">
-                        <button
-                          onClick={() => handleOpenEditModal(line)}
-                          className="p-2 border-2 border-black hover:bg-black hover:text-white transition-colors"
-                          title="Edit item"
-                        >
-                          <span className="text-lg">✎</span>
-                        </button>
-                        <button
-                          onClick={() => handleDeleteLineItem(line)}
-                          className="p-2 border-2 border-red-600 text-red-600 hover:bg-red-600 hover:text-white transition-colors"
-                          title="Delete item"
-                        >
-                          <span className="text-lg">🗑</span>
-                        </button>
-                      </div>
+                <div key={line.id} className="relative p-4 border-4 border-black bg-white">
+                  {/* Delete button - top right corner */}
+                  <button
+                    onClick={() => handleDeleteLineItem(line)}
+                    className="absolute top-2 right-2 p-1 hover:text-red-600"
+                    title="Delete item"
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
+
+                  <div className="flex justify-between items-start pr-8">
+                    <div className="flex-1">
+                      <h3 className="font-bold text-xl uppercase tracking-wider mb-2">
+                        {line.itemName}
+                      </h3>
+                      <p className="font-mono text-sm">
+                        {line.quantity} × PHP{line.unitPrice.toFixed(2)} = PHP
+                        {(line.quantity * line.unitPrice).toFixed(2)}
+                      </p>
+                      <p className="font-mono text-xs uppercase tracking-wide text-gray-500 mt-1">
+                        {line.receiptLineType === 'TAX' && 'Tax'}
+                        {line.receiptLineType === 'TIP' && 'Tip'}
+                        {line.receiptLineType === 'SRVC' && 'Service Charge'}
+                        {line.receiptLineType === 'DSCT' && 'Discount'}
+                      </p>
                     </div>
-                  </Card>
+                    <button
+                      onClick={() => handleOpenEditModal(line)}
+                      className="p-2 border-2 border-black hover:bg-black hover:text-white transition-colors flex-shrink-0"
+                      title="Edit item"
+                    >
+                      <span className="text-lg">✎</span>
+                    </button>
+                  </div>
                 </div>
               ))}
 
@@ -505,7 +506,8 @@ export default function AssignPage({ params }: { params: Promise<{ id: string }>
                   <span className="font-bold uppercase tracking-wider">Add Misc Charge</span>
                 </div>
               </button>
-            </>
+              </div>
+            </Card>
           )}
         </section>
       </div>

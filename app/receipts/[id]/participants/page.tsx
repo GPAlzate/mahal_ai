@@ -2,10 +2,9 @@
 
 import { useState, use, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import { Plus, X } from 'lucide-react';
 import { Button } from '@/components/Button';
 import { Card } from '@/components/Card';
-import { Input } from '@/components/Input';
-import { ParticipantPill } from '@/components/ParticipantPill';
 import { api } from '@/lib/client/api-client';
 
 interface LocalParticipant {
@@ -103,58 +102,56 @@ export default function ParticipantsPage({ params }: { params: Promise<{ id: str
   };
 
   return (
-    <div className="min-h-screen bg-white p-4 md:p-8">
+    <div className="min-h-screen bg-yellow-50 p-4 md:p-8">
       <div className="max-w-2xl mx-auto">
         {/* Header */}
         <div className="mb-8">
-          <h1 className="text-4xl md:text-6xl font-bold uppercase tracking-wider mb-4">
-            Add Participants
+          <h1 className="text-4xl md:text-6xl font-bold mb-4 p-4 bg-black text-white inline-block transform -rotate-1">
+            mahal ai &lt;3
           </h1>
-          <p className="text-lg font-mono">
-            Who&apos;s splitting this receipt? Add everyone now.
-          </p>
         </div>
 
-        {/* Add Participant Form */}
+        {/* Add Participant Form and List */}
         <Card padding="lg" className="mb-6">
-          <form onSubmit={handleAddParticipant}>
-            <div className="flex gap-4">
-              <Input
-                placeholder="Enter name"
+          <h2 className="text-2xl font-bold mb-4">Who&apos;s splitting the bill?</h2>
+
+          <form onSubmit={handleAddParticipant} className="mb-6">
+            <div className="flex gap-2">
+              <input
+                type="text"
                 value={participantName}
                 onChange={(e) => setParticipantName(e.target.value)}
-                fullWidth
+                className="flex-1 p-3 border-4 border-black focus:outline-none focus:ring-0 focus:border-black"
+                placeholder="Enter name"
               />
-              <Button type="submit" disabled={!participantName.trim()}>
-                Add
-              </Button>
+              <button
+                type="submit"
+                disabled={!participantName.trim()}
+                className="p-4 border-4 border-black bg-green-300 hover:enabled:bg-green-400 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <Plus className="w-6 h-6" />
+              </button>
             </div>
           </form>
-        </Card>
 
-        {/* Participants List */}
-        {participants.length > 0 ? (
-          <Card padding="lg" className="mb-6">
-            <h2 className="font-bold text-2xl uppercase tracking-wider mb-4">
-              Participants ({participants.length})
-            </h2>
-            <div className="flex flex-wrap gap-3">
-              {participants.map((participant) => (
-                <ParticipantPill
-                  key={participant.tempId}
-                  name={participant.displayName}
-                  onRemove={() => handleRemoveParticipant(participant.tempId)}
-                />
-              ))}
-            </div>
-          </Card>
-        ) : (
-          <Card padding="lg" className="mb-6">
-            <p className="font-mono text-center">
-              No participants yet. Add someone to get started!
-            </p>
-          </Card>
-        )}
+          {/* Participants List */}
+          <div className="space-y-2">
+            {participants.map((participant) => (
+              <div
+                key={participant.tempId}
+                className="flex items-center justify-between p-3 border-4 border-black bg-white"
+              >
+                <span className="font-bold">{participant.displayName}</span>
+                <button
+                  onClick={() => handleRemoveParticipant(participant.tempId)}
+                  className="p-1 hover:text-red-600"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+            ))}
+          </div>
+        </Card>
 
         {/* Error Message */}
         {error && (
