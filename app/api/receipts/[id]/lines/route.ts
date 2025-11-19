@@ -79,7 +79,7 @@ export async function POST(
 ) {
   try {
     const { id } = await params;
-    const receiptId = parseInt(id, 10);
+    const receiptId = +id;
 
     if (isNaN(receiptId)) {
       return NextResponse.json({ error: 'Invalid receipt ID' }, { status: 400 });

@@ -204,8 +204,7 @@ export function LineItemModal({
                 value={quantity}
                 onChange={(e) => setQuantity(e.target.value)}
                 placeholder="1"
-                step="0.01"
-                min="0.01"
+                step="1"
                 fullWidth
                 disabled={saving}
               />
@@ -217,7 +216,7 @@ export function LineItemModal({
                 value={unitPrice}
                 onChange={(e) => setUnitPrice(e.target.value)}
                 placeholder={receiptLineType === 'DSCT' ? '-10.00' : '0.00'}
-                step="0.01"
+                step="0.5"
                 fullWidth
                 disabled={saving}
               />

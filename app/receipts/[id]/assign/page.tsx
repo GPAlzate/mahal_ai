@@ -2,7 +2,7 @@
 
 import { useState, useEffect, use } from 'react';
 import { useRouter } from 'next/navigation';
-import { X } from 'lucide-react';
+import { X, Pencil } from 'lucide-react';
 import { Button } from '@/components/Button';
 import { Card } from '@/components/Card';
 import { LineItemModal } from '@/components/LineItemModal';
@@ -354,8 +354,19 @@ export default function AssignPage({ params }: { params: Promise<{ id: string }>
               <h2 className="text-2xl font-bold mb-6">Tap an item or a person to pair them</h2>
 
               {purchaseLines.length === 0 && (
-                <p className="font-mono text-center py-4">No purchase lines found for this receipt.</p>
+                <p className="text-center font-bold py-4">No receipt lines yet! Add an item below</p>
               )}
+
+              {/* Add New Item Button */}
+              <button
+                onClick={handleOpenCreateModal}
+                className="w-full border-4 border-dashed border-gray-400 bg-gray-50 p-4 hover:border-gray-600 hover:bg-gray-100 active:bg-gray-200 transition-colors text-gray-600 hover:text-gray-900 mb-4"
+              >
+                <div className="flex items-center justify-center gap-2">
+                  <span className="text-2xl">+</span>
+                  <span className="font-bold uppercase tracking-wider">Add Item</span>
+                </div>
+              </button>
 
               <div className="space-y-4">
               {purchaseLines.map((line) => {
@@ -418,7 +429,7 @@ export default function AssignPage({ params }: { params: Promise<{ id: string }>
                             className="p-2 border-2 border-black hover:bg-black hover:text-white transition-colors"
                             title="Edit item"
                           >
-                            <span className="text-lg">✎</span>
+                            <Pencil className="w-5 h-5" />
                           </button>
                           <button
                             onClick={(e) => {
@@ -436,17 +447,6 @@ export default function AssignPage({ params }: { params: Promise<{ id: string }>
                   </div>
                 );
               })}
-
-              {/* Add New Item Button */}
-              <button
-                onClick={handleOpenCreateModal}
-                className="w-full border-4 border-dashed border-gray-400 bg-gray-50 p-8 hover:border-gray-600 hover:bg-gray-100 active:bg-gray-200 transition-colors text-gray-600 hover:text-gray-900"
-              >
-                <div className="flex flex-col items-center gap-2">
-                  <span className="text-4xl">+</span>
-                  <span className="font-bold uppercase tracking-wider">Add Item</span>
-                </div>
-              </button>
               </div>
             </Card>
           ) : (
@@ -490,7 +490,7 @@ export default function AssignPage({ params }: { params: Promise<{ id: string }>
                       className="p-2 border-2 border-black hover:bg-black hover:text-white transition-colors flex-shrink-0"
                       title="Edit item"
                     >
-                      <span className="text-lg">✎</span>
+                      <Pencil className="w-5 h-5" />
                     </button>
                   </div>
                 </div>
