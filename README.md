@@ -20,3 +20,5 @@
   - Currently share code URL shows finalized receipt
   - Add ability to view receipt summary without finalizing
   - Consider adding preview mode for share code URLs
+
+### Change `share_quantity` to be percentage based
