@@ -46,6 +46,23 @@ export class LineParticipantService {
   }
 
   /**
+   * Get all assignments for a receipt (across all lines)
+   * @param receiptId - ID of the receipt
+   * @returns Array of all line participant assignments for the receipt
+   */
+  async getAssignmentsByReceipt(receiptId: number) {
+    const result = await sql`
+      SELECT lp.*
+      FROM line_participants lp
+      INNER JOIN receipt_lines rl ON lp.receipt_line_id = rl.id
+      WHERE rl.receipt_id = ${receiptId} AND rl.deleted_at IS NULL
+      ORDER BY rl.id ASC, lp.participant_id ASC
+    `;
+
+    return result.map(row => toLineParticipant(toLineParticipantDTO(row)));
+  }
+
+  /**
    * Batch assign participants to receipt lines
    * @param receiptId - ID of the receipt (for validation)
    * @param assignments - Array of assignments to create

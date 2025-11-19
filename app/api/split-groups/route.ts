@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { receiptService } from '@/lib/services/ReceiptService';
 import { participantService } from '@/lib/services/ParticipantService';
+import { lineParticipantService } from '@/lib/services/LineParticipantService';
 import { SplitGroup } from '@/lib/schemas/receipt/public/SplitGroup';
 
 /**
@@ -31,15 +32,17 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Invalid receipt ID' }, { status: 400 });
     }
 
-    // Fetch receipt with lines and participants in parallel
-    const [receipt, participants] = await Promise.all([
+    // Fetch receipt with lines, participants, and assignments in parallel
+    const [receipt, participants, assignments] = await Promise.all([
       receiptService.getReceipt(receiptId, true), // includeLines = true
       participantService.getParticipants(receiptId),
+      lineParticipantService.getAssignmentsByReceipt(receiptId),
     ]);
 
     const splitGroup: SplitGroup = {
       receipt,
       participants,
+      assignments,
     };
 
     return NextResponse.json(splitGroup, { status: 200 });

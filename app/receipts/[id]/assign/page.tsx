@@ -59,8 +59,20 @@ export default function AssignPage({ params }: { params: Promise<{ id: string }>
         }
 
         // Store all lines
-        setAllLines(splitGroup.receipt.lines || []);
+        const lines = splitGroup.receipt.lines || [];
+        setAllLines(lines);
         setParticipants(splitGroup.participants);
+
+        // Build assignments data from the response
+        const assignmentsData: LineAssignments = {};
+        splitGroup.assignments.forEach((assignment) => {
+          if (!assignmentsData[assignment.receiptLineId]) {
+            assignmentsData[assignment.receiptLineId] = {};
+          }
+          assignmentsData[assignment.receiptLineId][assignment.participantId] = assignment.shareQuantity;
+        });
+
+        setAssignments(assignmentsData);
         setLoading(false);
       } catch (err: any) {
         setError(err.message);
@@ -358,6 +370,17 @@ export default function AssignPage({ params }: { params: Promise<{ id: string }>
               )}
 
               <div className="space-y-4">
+              {/* Add New Item Button */}
+              <button
+                onClick={handleOpenCreateModal}
+                className="w-full border-4 border-dashed border-gray-400 bg-gray-50 p-4 hover:border-gray-600 hover:bg-gray-100 active:bg-gray-200 transition-colors text-gray-600 hover:text-gray-900"
+              >
+                <div className="flex items-center justify-center gap-2">
+                  <span className="text-2xl">+</span>
+                  <span className="font-bold uppercase tracking-wider">Add Item</span>
+                </div>
+              </button>
+
               {purchaseLines.map((line) => {
                 const assignedParticipants = getAssignedParticipants(line.id);
                 const isSelected = activeLineId === line.id;
@@ -436,17 +459,6 @@ export default function AssignPage({ params }: { params: Promise<{ id: string }>
                   </div>
                 );
               })}
-
-              {/* Add New Item Button */}
-              <button
-                onClick={handleOpenCreateModal}
-                className="w-full border-4 border-dashed border-gray-400 bg-gray-50 p-4 hover:border-gray-600 hover:bg-gray-100 active:bg-gray-200 transition-colors text-gray-600 hover:text-gray-900"
-              >
-                <div className="flex items-center justify-center gap-2">
-                  <span className="text-2xl">+</span>
-                  <span className="font-bold uppercase tracking-wider">Add Item</span>
-                </div>
-              </button>
               </div>
             </Card>
           ) : (
@@ -458,6 +470,17 @@ export default function AssignPage({ params }: { params: Promise<{ id: string }>
               </p>
 
               <div className="space-y-4">
+              {/* Add New Item Button */}
+              <button
+                onClick={handleOpenCreateModal}
+                className="w-full border-4 border-dashed border-gray-400 bg-gray-50 p-4 hover:border-gray-600 hover:bg-gray-100 active:bg-gray-200 transition-colors text-gray-600 hover:text-gray-900"
+              >
+                <div className="flex items-center justify-center gap-2">
+                  <span className="text-2xl">+</span>
+                  <span className="font-bold uppercase tracking-wider">Add Item</span>
+                </div>
+              </button>
+
               {miscChargeLines.map((line) => (
                 <div key={line.id} className="relative p-4 border-4 border-black bg-white">
                   {/* Delete button - top right corner */}
@@ -495,17 +518,6 @@ export default function AssignPage({ params }: { params: Promise<{ id: string }>
                   </div>
                 </div>
               ))}
-
-              {/* Add New Item Button */}
-              <button
-                onClick={handleOpenCreateModal}
-                className="w-full border-4 border-dashed border-gray-400 bg-gray-50 p-4 hover:border-gray-600 hover:bg-gray-100 active:bg-gray-200 transition-colors text-gray-600 hover:text-gray-900"
-              >
-                <div className="flex items-center justify-center gap-2">
-                  <span className="text-2xl">+</span>
-                  <span className="font-bold uppercase tracking-wider">Add Item</span>
-                </div>
-              </button>
               </div>
             </Card>
           )}
