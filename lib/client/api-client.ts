@@ -70,12 +70,11 @@ export const api = {
       return data as { receiptId: number; status: string };
     },
 
-    // TODO: Implement manual receipt entry flow
-    // create: (data: any) =>
-    //   fetchAPI<Receipt>('/api/receipts', {
-    //     method: 'POST',
-    //     body: JSON.stringify(data),
-    //   }),
+    create: (data: { title: string; receiptTime?: string }) =>
+      fetchAPI<{ receiptId: number }>('/api/receipts', {
+        method: 'POST',
+        body: JSON.stringify(data),
+      }),
 
     get: (id: number, includeLines?: boolean) =>
       fetchAPI<Receipt>(`/api/receipts/${id}${includeLines ? '?includeLines=true' : ''}`),

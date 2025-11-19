@@ -1,5 +1,5 @@
+import { ReceiptStatusSchema } from '@/lib/schemas/receipt/public/Receipt';
 import { z } from 'zod';
-import { CreateReceiptLineRequestSchema } from './CreateReceiptLineRequest';
 
 /**
  * Schema for POST /api/receipts request
@@ -8,12 +8,10 @@ import { CreateReceiptLineRequestSchema } from './CreateReceiptLineRequest';
  * - Creating receipts with parsed data
  */
 export const CreateReceiptRequestSchema = z.object({
-  merchantName: z.string().nullable().optional(),
-  receiptDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Date must be in YYYY-MM-DD format').nullable().optional(),
-  receiptLines: z.array(CreateReceiptLineRequestSchema).optional(),
-  currency: z.string().optional(),
-  subtotal: z.number().nonnegative().optional(),
-  amountDue: z.number().nonnegative().optional(),
+  imageURI: z.string().nullable().optional(),
+  title: z.string().nullable().optional(),
+  receiptTime: z.string().nullable().optional(), // Can be YYYY-MM-DD or ISO timestamp
+  status: ReceiptStatusSchema, // Required: PRSP for parse, DRFT for manual
 });
 
 export type CreateReceiptRequest = z.infer<typeof CreateReceiptRequestSchema>;

@@ -357,17 +357,6 @@ export default function AssignPage({ params }: { params: Promise<{ id: string }>
                 <p className="text-center font-bold py-4">No receipt lines yet! Add an item below</p>
               )}
 
-              {/* Add New Item Button */}
-              <button
-                onClick={handleOpenCreateModal}
-                className="w-full border-4 border-dashed border-gray-400 bg-gray-50 p-4 hover:border-gray-600 hover:bg-gray-100 active:bg-gray-200 transition-colors text-gray-600 hover:text-gray-900 mb-4"
-              >
-                <div className="flex items-center justify-center gap-2">
-                  <span className="text-2xl">+</span>
-                  <span className="font-bold uppercase tracking-wider">Add Item</span>
-                </div>
-              </button>
-
               <div className="space-y-4">
               {purchaseLines.map((line) => {
                 const assignedParticipants = getAssignedParticipants(line.id);
@@ -447,6 +436,17 @@ export default function AssignPage({ params }: { params: Promise<{ id: string }>
                   </div>
                 );
               })}
+
+              {/* Add New Item Button */}
+              <button
+                onClick={handleOpenCreateModal}
+                className="w-full border-4 border-dashed border-gray-400 bg-gray-50 p-4 hover:border-gray-600 hover:bg-gray-100 active:bg-gray-200 transition-colors text-gray-600 hover:text-gray-900"
+              >
+                <div className="flex items-center justify-center gap-2">
+                  <span className="text-2xl">+</span>
+                  <span className="font-bold uppercase tracking-wider">Add Item</span>
+                </div>
+              </button>
               </div>
             </Card>
           ) : (
@@ -496,14 +496,14 @@ export default function AssignPage({ params }: { params: Promise<{ id: string }>
                 </div>
               ))}
 
-              {/* Add New Misc Charge Button */}
+              {/* Add New Item Button */}
               <button
                 onClick={handleOpenCreateModal}
-                className="w-full border-4 border-dashed border-gray-400 bg-gray-50 p-8 hover:border-gray-600 hover:bg-gray-100 active:bg-gray-200 transition-colors text-gray-600 hover:text-gray-900"
+                className="w-full border-4 border-dashed border-gray-400 bg-gray-50 p-4 hover:border-gray-600 hover:bg-gray-100 active:bg-gray-200 transition-colors text-gray-600 hover:text-gray-900"
               >
-                <div className="flex flex-col items-center gap-2">
-                  <span className="text-4xl">+</span>
-                  <span className="font-bold uppercase tracking-wider">Add Misc Charge</span>
+                <div className="flex items-center justify-center gap-2">
+                  <span className="text-2xl">+</span>
+                  <span className="font-bold uppercase tracking-wider">Add Item</span>
                 </div>
               </button>
               </div>

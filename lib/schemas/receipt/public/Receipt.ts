@@ -20,6 +20,8 @@ export const ReceiptSchema = z.object({
   id: z.number(),
   shareCode: z.string(),
   status: ReceiptStatusSchema,
+  title: z.string().nullable(),
+  receiptTime: z.date(),
   imageURI: z.string().nullable().optional(),
   createdAt: z.date(),
   updatedAt: z.date(),

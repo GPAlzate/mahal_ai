@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { receiptSummaryService } from '@/lib/services/ReceiptSummaryService';
+import { receiptService } from '@/lib/services/ReceiptService';
 import { FindReceiptByShareCodeRequestSchema } from '@/lib/schemas/receipt/request/FindReceiptByShareCodeRequest';
+import { CreateReceiptRequestSchema } from '@/lib/schemas/receipt/request/CreateReceiptRequest';
+import { ReceiptStatusSchema } from '@/lib/schemas/receipt/public/Receipt';
 
 /**
  * Receipts API
@@ -8,9 +11,9 @@ import { FindReceiptByShareCodeRequestSchema } from '@/lib/schemas/receipt/reque
  * Implemented:
  * ✅ GET /api/receipts?shareCode=XXXXX - Get receipt summary by share code
  * ✅ POST /api/receipts/parse - Parse receipt image and create receipt
+ * ✅ POST /api/receipts - Manual receipt entry (create receipt without image)
  *
  * Pending:
- * ⏳ POST /api/receipts - Manual receipt entry (create receipt without image)
  * ⏳ PUT /api/receipts/[id] - Update receipt (merchant name, date, currency, etc.)
  * ⏳ DELETE /api/receipts/[id] - Delete/archive entire receipt
  */
@@ -62,6 +65,51 @@ export async function GET(request: NextRequest) {
     const status = errorMessage.includes('not found') ? 404 : 500;
 
     return NextResponse.json({ error: errorMessage }, { status });
+  }
+}
+
+/**
+ * POST /api/receipts
+ * Create a manual receipt (without image)
+ *
+ * Request body:
+ * {
+ *   title?: string,
+ *   receiptTime?: string (YYYY-MM-DD or ISO timestamp)
+ * }
+ *
+ * Response:
+ * {
+ *   receiptId: number
+ * }
+ */
+export async function POST(request: NextRequest) {
+  try {
+    const body = await request.json();
+
+    // Validate request body
+    const createReceiptRequest = CreateReceiptRequestSchema.safeParse({
+      ...body,
+      status: ReceiptStatusSchema.Enum.DRFT
+    });
+
+    if (!createReceiptRequest.success) {
+      return NextResponse.json(
+        { error: 'Invalid request', details: createReceiptRequest.error.flatten() },
+        { status: 400 }
+      );
+    }
+
+    // Create receipt with title and receiptTime
+    const receipt = await receiptService.createReceipt(createReceiptRequest.data);
+
+    return NextResponse.json({ receiptId: receipt.id }, { status: 201 });
+  } catch (error) {
+    console.error('Error creating manual receipt:', error);
+
+    const errorMessage = error instanceof Error ? error.message : 'Failed to create receipt';
+
+    return NextResponse.json({ error: errorMessage }, { status: 500 });
   }
 }
 

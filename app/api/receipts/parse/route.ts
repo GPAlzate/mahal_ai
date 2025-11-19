@@ -2,6 +2,7 @@ import { NextRequest, NextResponse, after } from 'next/server';
 import { put } from '@vercel/blob';
 import { receiptService } from '@/lib/services/ReceiptService';
 import { Logger } from '@/lib/utils/Logger';
+import { ReceiptStatusSchema } from '@/lib/schemas/receipt/public/Receipt';
 
 const logger = new Logger('POST /api/receipts/parse');
 
@@ -60,10 +61,10 @@ export async function POST(request: NextRequest) {
 
     // Create receipt with image URI and status='PRSP'
     logger.log('Creating receipt with status=PRSP');
-    const receipt = await receiptService.createReceipt(blob.url);
-
-    // Update status to PRSP
-    await receiptService.updateStatus(receipt.id, 'PRSP');
+    const receipt = await receiptService.createReceipt({
+      imageURI: blob.url,
+      status: ReceiptStatusSchema.Enum.PRSP,
+    });
 
     // Schedule background parsing using after()
     // This extends the serverless function lifetime until parsing completes

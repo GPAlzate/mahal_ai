@@ -18,6 +18,9 @@ export default function Home() {
   const [shareCode, setShareCode] = useState('');
   const [shareCodeLoading, setShareCodeLoading] = useState(false);
   const [shareCodeError, setShareCodeError] = useState<string | null>(null);
+  const [receiptTitle, setReceiptTitle] = useState('');
+  const [manualLoading, setManualLoading] = useState(false);
+  const [manualError, setManualError] = useState<string | null>(null);
 
   const handleFileChange = (selectedFile: File) => {
     if (!selectedFile.type.startsWith('image/')) {
@@ -109,6 +112,28 @@ export default function Home() {
     }
   };
 
+  const handleManualReceiptSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (!receiptTitle.trim()) return;
+
+    setManualLoading(true);
+    setManualError(null);
+
+    try {
+      // Create manual receipt via API client
+      const data = await api.receipts.create({
+        title: receiptTitle.trim()
+      });
+
+      // Navigate to participants page
+      router.push(`/receipts/${data.receiptId}/participants`);
+    } catch (err: any) {
+      setManualError(err.message || 'Failed to create receipt');
+      setManualLoading(false);
+    }
+  };
+
   return (
     <div
       className="min-h-screen bg-yellow-50 p-4 md:p-8"
@@ -196,6 +221,40 @@ export default function Home() {
         >
           {loading ? 'Creating receipt...' : 'Continue'}
         </Button>
+
+        {/* Divider */}
+        <div className="flex items-center my-8">
+          <div className="flex-1 border-t-2 border-black"></div>
+          <span className="px-4 font-mono text-sm uppercase tracking-wider">or</span>
+          <div className="flex-1 border-t-2 border-black"></div>
+        </div>
+
+        {/* Manual Receipt Entry */}
+        <Card padding="lg" className="mb-6">
+          <h2 className="text-2xl font-bold tracking-wider mb-2">
+            Create manually
+          </h2>
+          <p className="text-sm mb-4">
+            Name your receipt!
+          </p>
+          <form onSubmit={handleManualReceiptSubmit}>
+            <div className="flex gap-4">
+              <Input
+                placeholder="e.g. Dinner at Chipotle"
+                value={receiptTitle}
+                onChange={(e) => setReceiptTitle(e.target.value)}
+                fullWidth
+                error={manualError || undefined}
+              />
+              <Button
+                type="submit"
+                disabled={!receiptTitle.trim() || manualLoading}
+              >
+                {manualLoading ? 'Creating...' : 'Create'}
+              </Button>
+            </div>
+          </form>
+        </Card>
 
         {/* Divider */}
         <div className="flex items-center my-8">

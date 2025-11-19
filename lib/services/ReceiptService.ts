@@ -3,7 +3,8 @@ import { generateShareCode } from '@/lib/helpers/ShareCodeHelper';
 import { ParsedReceipt } from '@/lib/schemas/receipt/public/ParsedReceipt';
 import { toReceipt, toReceiptDTO } from '@/lib/schemas/receipt/dto/ReceiptDTO';
 import { ReceiptLineDTOSchema } from '@/lib/schemas/receipt/dto/ReceiptLineDTO';
-import { Receipt } from '@/lib/schemas/receipt/public/Receipt';
+import { Receipt, ReceiptStatusSchema } from '@/lib/schemas/receipt/public/Receipt';
+import { CreateReceiptRequest } from '@/lib/schemas/receipt/request/CreateReceiptRequest';
 import { openAIService } from '@/lib/services/OpenAIService';
 import { Logger } from '@/lib/utils/Logger';
 
@@ -19,14 +20,17 @@ export class ReceiptService {
   /**
    * Create a new receipt with a unique share code
    *
-   * @param imageURI - Optional Vercel Blob URL for the receipt image
+   * @param request - CreateReceiptRequest
    * @returns Created receipt with id, share_code, status, created_at
    * @throws Error if unable to generate unique share code
    */
-  async createReceipt(imageURI: string) {
+  async createReceipt(request: CreateReceiptRequest) {
     console.time('Receipt creation')
     const maxAttempts = 5;
     let attempts = 0;
+
+    // Convert receiptTime string to Date object if provided
+    const receiptTimeValue = request.receiptTime ? new Date(request.receiptTime) : new Date();
 
     // TODO: revisit logic; should we create share code on creation? or only finalization
     while (attempts < maxAttempts) {
@@ -34,8 +38,14 @@ export class ReceiptService {
 
       try {
         const result = await sql`
-          INSERT INTO receipts (share_code, status, image_uri)
-          VALUES (${shareCode}, 'DRFT', ${imageURI || null})
+          INSERT INTO receipts (share_code, status, image_uri, title, receipt_time)
+          VALUES (
+            ${shareCode},
+            ${request.status},
+            ${request.imageURI || null},
+            ${request.title || null},
+            ${receiptTimeValue}
+          )
           RETURNING *
         `;
         console.timeEnd('Receipt creation')
@@ -237,6 +247,7 @@ export class ReceiptService {
   /**
    * Parse receipt image in background
    * Updates receipt status to 'DRFT' on success or 'DLTD' on error
+   * Also updates title and receipt_time from parsed data
    * @param receiptId - ID of the receipt
    * @param imageBase64 - Base64 encoded image data URI
    */
@@ -247,13 +258,23 @@ export class ReceiptService {
       // Parse receipt image with OpenAI
       const parsedReceipt = await openAIService.parseReceiptImage(imageBase64);
 
-      this._logger.log(`Successfully parsed, adding line items`);
+      this._logger.log(`Successfully parsed, adding line items and metadata`);
 
       // Add line items to receipt
       await this.addParsedLineItems(receiptId, parsedReceipt);
 
-      // Update receipt status to DRFT (ready)
-      await this.updateStatus(receiptId, 'DRFT');
+      // Update receipt with parsed title and receipt_time
+      const receiptTimeValue = parsedReceipt.receiptDate ? new Date(parsedReceipt.receiptDate) : null;
+
+      await sql`
+        UPDATE receipts
+        SET
+          title = ${parsedReceipt.merchantName || null},
+          receipt_time = COALESCE(${receiptTimeValue}, receipt_time),
+          status = ${ReceiptStatusSchema.Enum.DRFT},
+          updated_at = NOW()
+        WHERE id = ${receiptId} AND deleted_at IS NULL
+      `;
 
       this._logger.log(`[Receipt ${receiptId}] Parsing complete, status updated to DRFT`);
     } catch (error) {
