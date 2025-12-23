@@ -153,37 +153,65 @@ export default function Home() {
           <h2 className="text-2xl font-bold mb-4">Upload a receipt 😀</h2>
 
           {!previewUrl ? (
-            <div
-              className={`
-                border-4 border-black
-                p-12
-                text-center
-                cursor-pointer
-                transition-colors
-                ${dragActive ? 'bg-black text-white' : 'bg-gray-100 hover:bg-gray-200'}
-              `}
-              onDragEnter={handleDrag}
-              onDragLeave={handleDrag}
-              onDragOver={handleDrag}
-              onDrop={handleDrop}
-              onClick={() => document.getElementById('file-input')?.click()}
-            >
-              <div className="mb-4">
-                <Image className="mx-auto h-16 w-16" strokeWidth={2.5} />
+            <>
+              <div
+                className={`
+                  border-4 border-black
+                  p-12
+                  text-center
+                  cursor-pointer
+                  transition-colors
+                  ${dragActive ? 'bg-black text-white' : 'bg-gray-100 hover:bg-gray-200'}
+                `}
+                onDragEnter={handleDrag}
+                onDragLeave={handleDrag}
+                onDragOver={handleDrag}
+                onDrop={handleDrop}
+                onClick={() => document.getElementById('file-input')?.click()}
+              >
+                <div className="mb-4">
+                  <Image className="mx-auto h-16 w-16" strokeWidth={2.5} />
+                </div>
+                <p className="text-xl font-bold uppercase tracking-wider mb-2">
+                  Drop image here
+                </p>
+                <p className="text-xs mb-1">or click to browse</p>
+                <p className="text-xs">Paste (Ctrl+V) also works!</p>
+                <input
+                  id="file-input"
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={(e) => e.target.files && handleFileChange(e.target.files[0])}
+                />
               </div>
-              <p className="text-xl font-bold uppercase tracking-wider mb-2">
-                Drop image here
-              </p>
-              <p className="text-xs mb-1">or click to browse</p>
-              <p className="text-xs">Paste (Ctrl+V) also works!</p>
-              <input
-                id="file-input"
-                type="file"
-                accept="image/*"
-                className="hidden"
-                onChange={(e) => e.target.files && handleFileChange(e.target.files[0])}
-              />
-            </div>
+
+              {/* Divider inside card */}
+              <div className="flex items-center my-6">
+                <div className="flex-1 border-t-2 border-black"></div>
+                <span className="px-4 font-mono text-sm uppercase tracking-wider">or</span>
+                <div className="flex-1 border-t-2 border-black"></div>
+              </div>
+
+              {/* Manual Receipt Entry inside same card */}
+              <form onSubmit={handleManualReceiptSubmit}>
+                <div className="flex gap-4">
+                  <Input
+                    placeholder="e.g. Dinner at Chipotle"
+                    value={receiptTitle}
+                    onChange={(e) => setReceiptTitle(e.target.value)}
+                    fullWidth
+                    error={manualError || undefined}
+                  />
+                  <Button
+                    type="submit"
+                    disabled={!receiptTitle.trim() || manualLoading}
+                  >
+                    {manualLoading ? 'Creating...' : 'Create'}
+                  </Button>
+                </div>
+              </form>
+            </>
           ) : (
             <div>
               <img
@@ -212,59 +240,20 @@ export default function Home() {
           </Card>
         )}
 
-        {/* Submit Button */}
-        <Button
-          fullWidth
-          size="lg"
-          onClick={handleSubmit}
-          disabled={!file || loading}
-        >
-          {loading ? 'Creating receipt...' : 'Continue'}
-        </Button>
-
-        {/* Divider */}
-        <div className="flex items-center my-8">
-          <div className="flex-1 border-t-2 border-black"></div>
-          <span className="px-4 font-mono text-sm uppercase tracking-wider">or</span>
-          <div className="flex-1 border-t-2 border-black"></div>
-        </div>
-
-        {/* Manual Receipt Entry */}
-        <Card padding="lg" className="mb-6">
-          <h2 className="text-2xl font-bold tracking-wider mb-2">
-            Create manually
-          </h2>
-          <p className="text-sm mb-4">
-            Name your receipt!
-          </p>
-          <form onSubmit={handleManualReceiptSubmit}>
-            <div className="flex gap-4">
-              <Input
-                placeholder="e.g. Dinner at Chipotle"
-                value={receiptTitle}
-                onChange={(e) => setReceiptTitle(e.target.value)}
-                fullWidth
-                error={manualError || undefined}
-              />
-              <Button
-                type="submit"
-                disabled={!receiptTitle.trim() || manualLoading}
-              >
-                {manualLoading ? 'Creating...' : 'Create'}
-              </Button>
-            </div>
-          </form>
-        </Card>
-
-        {/* Divider */}
-        <div className="flex items-center my-8">
-          <div className="flex-1 border-t-2 border-black"></div>
-          <span className="px-4 font-mono text-sm uppercase tracking-wider">or</span>
-          <div className="flex-1 border-t-2 border-black"></div>
-        </div>
+        {/* Submit Button - only show when file is selected */}
+        {file && (
+          <Button
+            fullWidth
+            size="lg"
+            onClick={handleSubmit}
+            disabled={loading}
+          >
+            {loading ? 'Creating receipt...' : 'Continue'}
+          </Button>
+        )}
 
         {/* Share Code Entry */}
-        <Card padding="lg">
+        {/* <Card padding="lg">
           <h2 className="text-2xl font-bold tracking-wider mb-2">
             Already have a receipt?
           </h2>
@@ -290,7 +279,7 @@ export default function Home() {
               </Button>
             </div>
           </form>
-        </Card>
+        </Card> */}
       </div>
     </div>
   );
