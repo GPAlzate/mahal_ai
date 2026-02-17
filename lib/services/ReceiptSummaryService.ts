@@ -72,6 +72,7 @@ export class ReceiptSummaryService {
     // Pre-index data structures for O(1) lookups (optimization from O(N²) to O(N))
     // Build lookup maps for O(1) access
     const purchaseLineMap = new Map(purchaseLines.map(line => [line.id, line]));
+    const discountLineMap = new Map(discountLines.map(line => [line.id, line]));
 
     // Group assignments by participant and line for efficient lookup
     const assignmentsByParticipant = new Map<number, typeof assignments>();
@@ -102,12 +103,21 @@ export class ReceiptSummaryService {
       this._logger.log(`Assignments: ${JSON.stringify(lineAssignments.map(a => ({ participantId: a.participantId, shareQuantity: a.shareQuantity })))}`);
     }
 
+    // Determine which discount lines are assigned (have at least one assignment)
+    const assignedDiscountTotal = discountLines
+      .filter(line => assignmentsByLine.has(line.id))
+      .reduce((sum, line) => sum + line.unitPrice * line.quantity, 0);
+    const unassignedDiscountTotal = discount - assignedDiscountTotal;
+
+    this._logger.log(`Assigned discount total: ${assignedDiscountTotal}`);
+    this._logger.log(`Unassigned discount total: ${unassignedDiscountTotal}`);
+
     // Calculate splits for each participant
     const participantSplits: ParticipantSplit[] = participants.map((participant) => {
       const participantAssignments = assignmentsByParticipant.get(participant.id) || [];
 
       this._logger.log(`====== Participant: ${participant.displayName} ======`)
-      // Calculate line item splits
+      // Calculate purchase line item splits
       const lineItems: LineItemSplit[] = participantAssignments
         .filter(assignment => purchaseLineMap.has(assignment.receiptLineId))
         .map((assignment) => {
@@ -127,8 +137,33 @@ export class ReceiptSummaryService {
           };
         });
 
-      // Calculate participant's subtotal
-      const participantSubtotal = lineItems.reduce((sum, item) => sum + item.shareAmount, 0);
+      // Calculate assigned discount line item splits
+      const discountLineItems: LineItemSplit[] = participantAssignments
+        .filter(assignment => discountLineMap.has(assignment.receiptLineId))
+        .map((assignment) => {
+          const line = discountLineMap.get(assignment.receiptLineId)!;
+          const totalShares = totalSharesByLine.get(line.id)!;
+
+          const lineTotal = line.unitPrice * line.quantity;
+          const shareAmount = (lineTotal * assignment.shareQuantity) / totalShares;
+
+          return {
+            receiptLineId: line.id,
+            itemName: line.itemName,
+            quantity: line.quantity,
+            unitPrice: line.unitPrice,
+            shareQuantity: assignment.shareQuantity,
+            shareAmount,
+          };
+        });
+
+      // Add discount line items to the full line items list
+      lineItems.push(...discountLineItems);
+
+      // Calculate participant's subtotal (purchase items only)
+      const participantSubtotal = lineItems
+        .filter(item => purchaseLineMap.has(item.receiptLineId))
+        .reduce((sum, item) => sum + item.shareAmount, 0);
       this._logger.log(`Line assignment for: ${JSON.stringify(lineItems, null, 2)}`)
 
       // Calculate proportional shares of misc charges
@@ -136,7 +171,11 @@ export class ReceiptSummaryService {
       const taxShare = tax * proportion;
       const tipShare = tip * proportion;
       const serviceChargeShare = serviceCharge * proportion;
-      const discountShare = discount * proportion;
+
+      // Discount share = assigned discounts + proportional share of unassigned discounts
+      const assignedDiscountShare = discountLineItems.reduce((sum, item) => sum + item.shareAmount, 0);
+      const proportionalDiscountShare = unassignedDiscountTotal * proportion;
+      const discountShare = assignedDiscountShare + proportionalDiscountShare;
 
       // Calculate participant's total
       const participantTotal =

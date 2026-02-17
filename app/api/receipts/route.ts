@@ -90,7 +90,7 @@ export async function POST(request: NextRequest) {
     // Validate request body
     const createReceiptRequest = CreateReceiptRequestSchema.safeParse({
       ...body,
-      status: ReceiptStatusSchema.Enum.DRFT
+      status: ReceiptStatusSchema.enum.DRFT
     });
 
     if (!createReceiptRequest.success) {

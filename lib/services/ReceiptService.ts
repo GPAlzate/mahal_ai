@@ -271,7 +271,7 @@ export class ReceiptService {
         SET
           title = ${parsedReceipt.merchantName || null},
           receipt_time = COALESCE(${receiptTimeValue}, receipt_time),
-          status = ${ReceiptStatusSchema.Enum.DRFT},
+          status = ${ReceiptStatusSchema.enum.DRFT},
           updated_at = NOW()
         WHERE id = ${receiptId} AND deleted_at IS NULL
       `;

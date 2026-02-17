@@ -63,7 +63,7 @@ export async function POST(request: NextRequest) {
     logger.log('Creating receipt with status=PRSP');
     const receipt = await receiptService.createReceipt({
       imageURI: blob.url,
-      status: ReceiptStatusSchema.Enum.PRSP,
+      status: ReceiptStatusSchema.enum.PRSP,
     });
 
     // Schedule background parsing using after()

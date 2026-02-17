@@ -142,7 +142,7 @@ export class ReceiptLineService {
       RETURNING *
     `;
 
-    const result = await sql(query, [...values, lineId]);
+    const result = await sql.query(query, [...values, lineId]);
 
     return toReceiptLine(toReceiptLineDTO(result[0]));
   }

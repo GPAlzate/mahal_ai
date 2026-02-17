@@ -11,7 +11,7 @@ import { ReceiptLineTypeSchema } from '@/lib/schemas/receipt/public/ReceiptLineT
 export const UpdateReceiptLineRequestSchema = z.object({
   itemName: z.string().min(1, 'Item name cannot be empty').optional(),
   quantity: z.number().positive('Quantity must be positive').optional(),
-  unitPrice: z.number({ invalid_type_error: 'Unit price must be a number' }).optional(),
+  unitPrice: z.number({ error: 'Unit price must be a number' }).optional(),
   receiptLineType: ReceiptLineTypeSchema.optional(),
 });
 

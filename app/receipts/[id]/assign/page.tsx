@@ -40,7 +40,7 @@ export default function AssignPage({ params }: { params: Promise<{ id: string }>
   const [saving, setSaving] = useState(false);
   const [activeLineId, setActiveLineId] = useState<number | null>(null);
   const [activeParticipantId, setActiveParticipantId] = useState<number | null>(null);
-  const [currentView, setCurrentView] = useState<'items' | 'misc-charges'>('items');
+  const [currentView, setCurrentView] = useState<'items' | 'discounts' | 'misc-charges'>('items');
   const [showLineItemModal, setShowLineItemModal] = useState(false);
   const [lineItemModalMode, setLineItemModalMode] = useState<'create' | 'edit'>('create');
   const [editingLine, setEditingLine] = useState<ReceiptLine | null>(null);
@@ -85,8 +85,9 @@ export default function AssignPage({ params }: { params: Promise<{ id: string }>
 
   // Filter lines based on current view
   const purchaseLines = allLines.filter((line) => line.receiptLineType === 'PRCH');
-  const miscChargeLines = allLines.filter((line) => line.receiptLineType !== 'PRCH');
-  const lines = currentView === 'items' ? purchaseLines : miscChargeLines;
+  const discountLines = allLines.filter((line) => line.receiptLineType === 'DSCT');
+  const miscChargeLines = allLines.filter((line) => line.receiptLineType !== 'PRCH' && line.receiptLineType !== 'DSCT');
+  const lines = currentView === 'items' ? purchaseLines : currentView === 'discounts' ? discountLines : miscChargeLines;
 
   const toggleAssignment = (lineId: number, participantId: number) => {
     setAssignments((prev) => {
@@ -158,51 +159,92 @@ export default function AssignPage({ params }: { params: Promise<{ id: string }>
   };
 
   const handleContinue = async () => {
-    const unassignedLines = purchaseLines.filter(
-      (line) => !assignments[line.id] || Object.keys(assignments[line.id]).length === 0
-    );
+    if (currentView === 'items') {
+      // Validate all purchase lines are assigned
+      const unassignedLines = purchaseLines.filter(
+        (line) => !assignments[line.id] || Object.keys(assignments[line.id]).length === 0
+      );
 
-    if (unassignedLines.length > 0) {
-      setUnassignedLineIds(new Set(unassignedLines.map((line) => line.id)));
-      setError('Please assign the highlighted items in red to at least one participant.');
-      return;
-    }
+      if (unassignedLines.length > 0) {
+        setUnassignedLineIds(new Set(unassignedLines.map((line) => line.id)));
+        setError('Please assign the highlighted items in red to at least one participant.');
+        return;
+      }
 
-    try {
-      setSaving(true);
-      setError(null);
-      setUnassignedLineIds(new Set());
+      try {
+        setSaving(true);
+        setError(null);
+        setUnassignedLineIds(new Set());
 
-      // Convert local assignments to batch API format with proper share quantities
-      const purchaseLinesMap = new Map(purchaseLines.map(line => [+line.id, line]));
-      const assignmentsList = Object.entries(assignments).flatMap(([lineId, participants]) => {
-        const lineIdNum = +lineId;
-        const line = purchaseLinesMap.get(lineIdNum);
+        // Convert purchase assignments to batch API format with proper share quantities
+        const purchaseLinesMap = new Map(purchaseLines.map(line => [+line.id, line]));
+        const assignmentsList = Object.entries(assignments).flatMap(([lineId, participants]) => {
+          const lineIdNum = +lineId;
+          const line = purchaseLinesMap.get(lineIdNum);
 
-        if (!line) {
-          console.log(`Line ${lineIdNum} not found in purchaseLines!`);
-          return [];
+          if (!line) return [];
+
+          const participantIds = Object.keys(participants);
+          const shareQuantity = line.quantity / participantIds.length;
+
+          return participantIds.map((participantId) => ({
+            receiptLineId: lineIdNum,
+            participantId: Number(participantId),
+            shareQuantity,
+          }));
+        });
+
+        // Batch persist purchase assignments to API
+        await api.assignments.batchAssign(receiptId, assignmentsList);
+
+        // Move to discounts view (or skip to misc-charges if no discount lines)
+        setActiveLineId(null);
+        setActiveParticipantId(null);
+        setCurrentView(discountLines.length > 0 ? 'discounts' : 'misc-charges');
+        setSaving(false);
+      } catch (err: any) {
+        setError(err.message || 'Unable to save assignments');
+        setSaving(false);
+      }
+    } else if (currentView === 'discounts') {
+      // Discount assignments are optional — save any that exist and move on
+      try {
+        setSaving(true);
+        setError(null);
+
+        // Build discount assignment list (only for lines that have assignments)
+        const discountLinesMap = new Map(discountLines.map(line => [+line.id, line]));
+        const discountAssignmentsList = Object.entries(assignments).flatMap(([lineId, participants]) => {
+          const lineIdNum = +lineId;
+          const line = discountLinesMap.get(lineIdNum);
+
+          if (!line) return [];
+
+          const participantIds = Object.keys(participants);
+          if (participantIds.length === 0) return [];
+
+          const shareQuantity = 1 / participantIds.length;
+
+          return participantIds.map((participantId) => ({
+            receiptLineId: lineIdNum,
+            participantId: Number(participantId),
+            shareQuantity,
+          }));
+        });
+
+        // Save discount assignments if any
+        if (discountAssignmentsList.length > 0) {
+          await api.assignments.batchAssign(receiptId, discountAssignmentsList);
         }
 
-        const participantIds = Object.keys(participants);
-        const shareQuantity = line.quantity / participantIds.length;
-
-        return participantIds.map((participantId) => ({
-          receiptLineId: lineIdNum,
-          participantId: Number(participantId),
-          shareQuantity,
-        }));
-      });
-
-      // Batch persist all assignments to API
-      await api.assignments.batchAssign(receiptId, assignmentsList);
-
-      // Switch to misc charges view instead of navigating
-      setCurrentView('misc-charges');
-      setSaving(false);
-    } catch (err: any) {
-      setError(err.message || 'Unable to save assignments');
-      setSaving(false);
+        setActiveLineId(null);
+        setActiveParticipantId(null);
+        setCurrentView('misc-charges');
+        setSaving(false);
+      } catch (err: any) {
+        setError(err.message || 'Unable to save assignments');
+        setSaving(false);
+      }
     }
   };
 
@@ -360,7 +402,7 @@ export default function AssignPage({ params }: { params: Promise<{ id: string }>
       {/* Items list - scrollable */}
       <div className="flex-1 overflow-y-auto px-4 md:px-8">
         <section className="space-y-4 max-w-5xl mx-auto">
-          {currentView === 'items' ? (
+          {currentView === 'items' && (
             // Items assignment view
             <Card padding="lg" className="mb-6">
               <h2 className="text-2xl font-bold mb-6">Tap an item or a person to pair them</h2>
@@ -461,12 +503,101 @@ export default function AssignPage({ params }: { params: Promise<{ id: string }>
               })}
               </div>
             </Card>
-          ) : (
+          )}
+
+          {currentView === 'discounts' && (
+            // Discounts assignment view
+            <Card padding="lg" className="mb-6">
+              <h2 className="text-2xl font-bold mb-4">Assign Discounts (Optional)</h2>
+              <p className="text-sm mb-6">
+                Tap a discount and a person to assign it. Unassigned discounts will be split proportionally.
+              </p>
+
+              <div className="space-y-4">
+              {discountLines.map((line) => {
+                const assignedParticipants = getAssignedParticipants(line.id);
+                const isSelected = activeLineId === line.id;
+                const isAssignmentMode = activeParticipantId !== null;
+                const isAssignedToSelectedParticipant =
+                  activeParticipantId && assignments[line.id]?.[activeParticipantId];
+
+                return (
+                  <div
+                    key={line.id}
+                    className={`p-4 border-4 border-black transition-all ${
+                      isSelected
+                        ? 'border-8 border-yellow-400 bg-yellow-50 -translate-y-1'
+                        : isAssignedToSelectedParticipant
+                          ? 'border-green-400 bg-green-50'
+                          : isAssignmentMode
+                            ? 'hover:bg-purple-100 hover:border-purple-500 cursor-pointer hover:scale-[1.02] bg-white'
+                            : 'bg-white'
+                    }`}
+                  >
+                    <div
+                      className="cursor-pointer"
+                      onClick={() => handleLineSelection(line.id)}
+                    >
+                      <div className="flex justify-between items-start">
+                        <div className="flex-1">
+                          <h3 className="font-bold text-xl uppercase tracking-wider mb-2 text-green-700">
+                            {line.itemName}
+                          </h3>
+                          <p className="font-mono text-sm text-green-600">
+                            PHP{(line.quantity * line.unitPrice).toFixed(2)}
+                          </p>
+
+                          {/* Assigned participants */}
+                          {assignedParticipants.length > 0 && (
+                            <div className="flex flex-wrap gap-2 mt-3">
+                              {assignedParticipants.map((participant) => (
+                                <span
+                                  key={participant.id}
+                                  className="border-2 border-black px-3 py-1 text-sm font-bold uppercase tracking-wider"
+                                >
+                                  {participant.displayName}
+                                </span>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                        <div className="ml-4 flex gap-2 flex-shrink-0">
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleOpenEditModal(line);
+                            }}
+                            className="p-2 border-2 border-black hover:bg-black hover:text-white transition-colors"
+                            title="Edit discount"
+                          >
+                            <Pencil className="w-5 h-5" />
+                          </button>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleDeleteLineItem(line);
+                            }}
+                            className="p-2 border-2 border-red-600 text-red-600 hover:bg-red-600 hover:text-white transition-colors"
+                            title="Delete discount"
+                          >
+                            <X className="w-5 h-5" />
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+              </div>
+            </Card>
+          )}
+
+          {currentView === 'misc-charges' && (
             // Misc charges review view
             <Card padding="lg" className="mb-6">
               <h2 className="text-2xl font-bold mb-4">Review Misc Charges</h2>
               <p className="text-sm mb-6">
-                Review tax, tip, service charges, and discounts. Add or edit as needed.
+                Review tax, tip, and service charges. Add or edit as needed.
               </p>
 
               <div className="space-y-4">
@@ -505,7 +636,6 @@ export default function AssignPage({ params }: { params: Promise<{ id: string }>
                         {line.receiptLineType === 'TAX' && 'Tax'}
                         {line.receiptLineType === 'TIP' && 'Tip'}
                         {line.receiptLineType === 'SRVC' && 'Service Charge'}
-                        {line.receiptLineType === 'DSCT' && 'Discount'}
                       </p>
                     </div>
                     <button
@@ -524,8 +654,8 @@ export default function AssignPage({ params }: { params: Promise<{ id: string }>
         </section>
       </div>
 
-      {/* Participants - fixed at bottom with horizontal scroll (only show in items view) */}
-      {currentView === 'items' && (
+      {/* Participants - fixed at bottom with horizontal scroll (show in items and discounts views) */}
+      {(currentView === 'items' || currentView === 'discounts') && (
         <div className="border-t-4 border-black bg-white">
           {/* Status indicators */}
           {(activeLineId || activeParticipantId) && (
@@ -535,7 +665,7 @@ export default function AssignPage({ params }: { params: Promise<{ id: string }>
                   <span>
                     Assigning to:{' '}
                     <strong>
-                      {purchaseLines.find((line) => line.id === activeLineId)?.itemName ||
+                      {lines.find((line) => line.id === activeLineId)?.itemName ||
                         'Select a line'}
                     </strong>
                   </span>
@@ -605,7 +735,11 @@ export default function AssignPage({ params }: { params: Promise<{ id: string }>
           <div className="p-4 border-t-4 border-black bg-white">
             <div className="max-w-5xl mx-auto">
               <Button fullWidth size="lg" onClick={handleContinue} disabled={saving}>
-                {saving ? 'Continuing...' : 'Continue to Misc Charges'}
+                {saving
+                  ? 'Continuing...'
+                  : currentView === 'items'
+                    ? 'Continue to Discounts'
+                    : 'Continue to Misc Charges'}
               </Button>
             </div>
           </div>
@@ -642,7 +776,7 @@ export default function AssignPage({ params }: { params: Promise<{ id: string }>
             : undefined
         }
         hasAssignments={editingLine ? hasAssignments(editingLine.id) : false}
-        showLineTypeSelector={currentView === 'misc-charges'}
+        showLineTypeSelector={currentView === 'misc-charges' || currentView === 'discounts'}
         onSave={handleSaveLineItem}
         onCancel={handleCancelLineItemModal}
       />

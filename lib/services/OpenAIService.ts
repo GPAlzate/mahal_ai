@@ -38,7 +38,7 @@ export class OpenAIService {
 
       console.time('Receipt Parsing')
       const response = await this.client.responses.parse({
-        model: 'gpt-4o-mini',
+        model: 'gpt-5.1',
         input: [
           {
             role: 'user',

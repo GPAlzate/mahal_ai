@@ -17,6 +17,19 @@ export default function SummaryPage({ params }: { params: Promise<{ id: string }
   const [error, setError] = useState<string | null>(null);
   const [finalizing, setFinalizing] = useState(false);
   const [isReceiptExpanded, setIsReceiptExpanded] = useState(false);
+  const [expandedParticipants, setExpandedParticipants] = useState<Set<number>>(new Set());
+
+  const toggleParticipantExpanded = (participantId: number) => {
+    setExpandedParticipants((prev) => {
+      const next = new Set(prev);
+      if (next.has(participantId)) {
+        next.delete(participantId);
+      } else {
+        next.add(participantId);
+      }
+      return next;
+    });
+  };
 
   useEffect(() => {
     async function fetchSummary() {
@@ -99,7 +112,7 @@ export default function SummaryPage({ params }: { params: Promise<{ id: string }
         </div>
 
         {/* Share Code */}
-        <Card padding="lg" className="bg-green-300">
+        {/* <Card padding="lg" className="bg-green-300">
           <div className="text-center">
             <p className="font-mono text-sm uppercase tracking-wider mb-2">Share Code</p>
             <p className="text-4xl md:text-5xl font-bold uppercase tracking-widest">
@@ -109,7 +122,7 @@ export default function SummaryPage({ params }: { params: Promise<{ id: string }
               Share this code with others to view the split
             </p>
           </div>
-        </Card>
+        </Card> */}
 
         {/* Itemized Receipt */}
         <Card padding="lg">
@@ -127,7 +140,7 @@ export default function SummaryPage({ params }: { params: Promise<{ id: string }
             onClick={() => setIsReceiptExpanded(!isReceiptExpanded)}
             className="w-full flex items-center justify-center gap-2 py-2 text-sm font-mono text-gray-600 hover:text-black transition-colors"
           >
-            <span>{isReceiptExpanded ? 'Hide Details' : 'Show Item Details'}</span>
+            <span>{isReceiptExpanded ? 'Hide Details' : 'Show Details'}</span>
             <span className="text-lg">{isReceiptExpanded ? '▲' : '▼'}</span>
           </button>
 
@@ -198,76 +211,110 @@ export default function SummaryPage({ params }: { params: Promise<{ id: string }
         {/* Participant Splits */}
         <div className="space-y-4">
           <h2 className="text-2xl font-bold uppercase tracking-wider">Participant Splits</h2>
-          {summary.participantSplits.map((split) => (
-            <Card key={split.participantId} padding="lg">
-              <h3 className="text-xl font-bold uppercase tracking-wider mb-4">
-                {split.displayName}
-              </h3>
+          {summary.participantSplits.map((split) => {
+            const isExpanded = expandedParticipants.has(split.participantId);
 
-              {/* Line Items */}
-              <div className="space-y-2 mb-4">
-                <p className="font-bold uppercase tracking-wider text-sm">Items</p>
-                {split.lineItems.map((item) => {
-                  // Adjust fraction so numerator is 1: divide both by shareQuantity
-                  const adjustedDenominator = item.shareQuantity > 0
-                    ? item.quantity / item.shareQuantity
-                    : item.quantity;
+            return (
+            <Card key={split.participantId} padding={isExpanded ? 'lg' : 'md'}>
+              <div
+                className="flex justify-between items-center cursor-pointer"
+                onClick={() => toggleParticipantExpanded(split.participantId)}
+              >
+                <h3 className={`font-bold uppercase tracking-wider ${isExpanded ? 'text-xl' : 'text-base'}`}>
+                  {split.displayName}
+                </h3>
+                <div className="flex items-center gap-3">
+                  <span className={`font-mono font-bold ${isExpanded ? 'text-2xl' : 'text-lg'}`}>
+                    {formatCurrency(split.total)}
+                  </span>
+                  <span className="text-gray-400 text-sm">{isExpanded ? '▲' : '▼'}</span>
+                </div>
+              </div>
 
-                  return (
-                    <div
-                      key={item.receiptLineId}
-                      className="flex justify-between font-mono text-sm py-1"
-                    >
-                      <span>
-                        {item.itemName} (1/{adjustedDenominator.toFixed(0)})
-                      </span>
-                      <span>{formatCurrency(item.shareAmount)}</span>
+              {isExpanded && (
+                <>
+                  {/* Line Items */}
+                  <div className="space-y-2 mb-4 mt-4 pt-4 border-t-2 border-gray-200">
+                    <p className="font-bold uppercase tracking-wider text-sm">Items</p>
+                    {split.lineItems.map((item) => {
+                      const isDiscount = item.shareAmount < 0;
+                      const adjustedDenominator = item.shareQuantity > 0
+                        ? item.quantity / item.shareQuantity
+                        : item.quantity;
+
+                      return (
+                        <div
+                          key={item.receiptLineId}
+                          className={`flex justify-between font-mono text-sm py-1 ${isDiscount ? 'text-green-600' : ''}`}
+                        >
+                          <span>
+                            {item.itemName} (1/{adjustedDenominator.toFixed(0)})
+                          </span>
+                          <span>{formatCurrency(item.shareAmount)}</span>
+                        </div>
+                      );
+                    })}
+                    <div className="flex justify-between font-mono border-t-2 border-gray-200 pt-2 mt-2">
+                      <span className="font-bold">Subtotal:</span>
+                      <span className="font-bold">{formatCurrency(split.subtotal)}</span>
                     </div>
-                  );
-                })}
-                <div className="flex justify-between font-mono border-t-2 border-gray-200 pt-2 mt-2">
-                  <span className="font-bold">Subtotal:</span>
-                  <span className="font-bold">{formatCurrency(split.subtotal)}</span>
-                </div>
-              </div>
+                  </div>
 
-              {/* Misc Charges */}
-              <div className="space-y-1 font-mono text-sm mb-4">
-                {split.taxShare !== 0 && (
-                  <div className="flex justify-between text-gray-600">
-                    <span>Tax (proportional):</span>
-                    <span>+{formatCurrency(split.taxShare)}</span>
-                  </div>
-                )}
-                {split.tipShare !== 0 && (
-                  <div className="flex justify-between text-gray-600">
-                    <span>Tip (proportional):</span>
-                    <span>+{formatCurrency(split.tipShare)}</span>
-                  </div>
-                )}
-                {split.serviceChargeShare !== 0 && (
-                  <div className="flex justify-between text-gray-600">
-                    <span>Service Charge (proportional):</span>
-                    <span>+{formatCurrency(split.serviceChargeShare)}</span>
-                  </div>
-                )}
-                {split.discountShare !== 0 && (
-                  <div className="flex justify-between text-green-600">
-                    <span>Discount (proportional):</span>
-                    <span>{formatCurrency(split.discountShare)}</span>
-                  </div>
-                )}
-              </div>
+                  {/* Misc Charges */}
+                  <div className="space-y-1 font-mono text-sm mb-4">
+                    {split.taxShare !== 0 && (
+                      <div className="flex justify-between text-gray-600">
+                        <span>Tax (proportional):</span>
+                        <span>+{formatCurrency(split.taxShare)}</span>
+                      </div>
+                    )}
+                    {split.tipShare !== 0 && (
+                      <div className="flex justify-between text-gray-600">
+                        <span>Tip (proportional):</span>
+                        <span>+{formatCurrency(split.tipShare)}</span>
+                      </div>
+                    )}
+                    {split.serviceChargeShare !== 0 && (
+                      <div className="flex justify-between text-gray-600">
+                        <span>Service Charge (proportional):</span>
+                        <span>+{formatCurrency(split.serviceChargeShare)}</span>
+                      </div>
+                    )}
+                    {split.discountShare !== 0 && (() => {
+                      const assignedDiscountAmount = split.lineItems
+                        .filter(item => item.shareAmount < 0)
+                        .reduce((sum, item) => sum + item.shareAmount, 0);
+                      const proportionalDiscountAmount = split.discountShare - assignedDiscountAmount;
 
-              {/* Total Amount Owed - Prominent Display */}
-            <div className="bg-purple-200 border-4 border-black p-4 mt-4">
-                <div className="flex justify-between items-center">
-                  <span className="font-bold uppercase tracking-wider text-lg">Total Amount Owed:</span>
-                  <span className="text-3xl font-bold">{formatCurrency(split.total)}</span>
-                </div>
-              </div>
+                      return (
+                        <>
+                          {assignedDiscountAmount !== 0 && (
+                            <div className="flex justify-between text-green-600">
+                              <span>Discount (assigned):</span>
+                              <span>{formatCurrency(assignedDiscountAmount)}</span>
+                            </div>
+                          )}
+                          {proportionalDiscountAmount !== 0 && (
+                            <div className="flex justify-between text-green-600">
+                              <span>Discount (proportional):</span>
+                              <span>{formatCurrency(proportionalDiscountAmount)}</span>
+                            </div>
+                          )}
+                        </>
+                      );
+                    })()}
+                  </div>
+
+                  {/* Total repeated at bottom of breakdown */}
+                  <div className="flex justify-between py-3 border-t-4 border-black mt-2 font-mono">
+                    <span className="text-xl font-bold uppercase">Total:</span>
+                    <span className="text-xl font-bold">{formatCurrency(split.total)}</span>
+                  </div>
+                </>
+              )}
             </Card>
-          ))}
+            );
+          })}
         </div>
 
         {/* Action Buttons */}

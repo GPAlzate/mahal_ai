@@ -1,6 +1,4 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import "tailwindcss";
 
 :root {
   --background: #ffffff;
@@ -12,14 +10,8 @@ body {
   background: var(--background);
 }
 
-@layer utilities {
-  .text-balance {
-    text-wrap: balance;
-  }
-
-  .animate-fade-in-out {
-    animation: fadeInOut 5s ease-in-out forwards;
-  }
+@utility animate-fade-in-out {
+  animation: fadeInOut 5s ease-in-out forwards;
 }
 
 @keyframes fadeInOut {
