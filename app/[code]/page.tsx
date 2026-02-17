@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, use } from 'react';
+import { X, Eye } from 'lucide-react';
 import { Card } from '@/components/Card';
 import { api } from '@/lib/client/api-client';
 import type { ReceiptSummary } from '@/lib/schemas/receipt/public/ReceiptSummary';
@@ -14,6 +15,7 @@ export default function ShareCodePage({ params }: { params: Promise<{ code: stri
   const [error, setError] = useState<string | null>(null);
   const [isReceiptExpanded, setIsReceiptExpanded] = useState(false);
   const [expandedParticipants, setExpandedParticipants] = useState<Set<number>>(new Set());
+  const [showReceiptImage, setShowReceiptImage] = useState(false);
 
   const toggleParticipantExpanded = (participantId: number) => {
     setExpandedParticipants((prev) => {
@@ -83,24 +85,25 @@ export default function ShareCodePage({ params }: { params: Promise<{ code: stri
     <div className="min-h-screen bg-yellow-50 p-4 md:p-8">
       <div className="max-w-4xl mx-auto space-y-6">
         {/* Header */}
-        <div className="mb-8">
+        <div className="mb-8 flex items-start justify-between">
           <h1 className="text-4xl md:text-6xl font-bold mb-4 p-4 bg-black text-white inline-block transform -rotate-1">
             mahal ai &lt;3
           </h1>
+          {summary.receipt.imageURI && (
+            <button
+              onClick={() => setShowReceiptImage(true)}
+              className="mt-1 border-4 border-black bg-white w-14 h-14 font-bold hover:bg-black hover:text-white transition-colors flex items-center justify-center flex-shrink-0 rotate-2"
+              style={{ borderRadius: '60% 40% 55% 45% / 45% 55% 40% 60%' }}
+            >
+              <Eye className="w-5 h-5" />
+                          </button>
+          )}
         </div>
 
         {/* Share Code */}
-        <Card padding="lg" className="bg-green-300">
-          <div className="text-center">
-            <p className="font-mono text-sm uppercase tracking-wider mb-2">Share Code</p>
-            <p className="text-4xl md:text-5xl font-bold uppercase tracking-widest">
-              {summary.receipt.shareCode}
-            </p>
-            <p className="font-mono text-xs mt-2 text-gray-600">
-              Share this code with others to view the split
-            </p>
-          </div>
-        </Card>
+        <div className="text-center font-mono text-sm text-gray-500 bg-green-100 border-2 border-green-300 px-4 py-2">
+          URL Share Code: <span className="font-bold tracking-widest text-black">{summary.receipt.shareCode}</span>
+        </div>
 
         {/* Itemized Receipt */}
         <Card padding="lg">
@@ -185,6 +188,8 @@ export default function ShareCodePage({ params }: { params: Promise<{ code: stri
             </div>
           )}
         </Card>
+
+        <hr className="border-t border-gray-300 my-4" />
 
         {/* Participant Splits */}
         <div className="space-y-4">
@@ -295,6 +300,33 @@ export default function ShareCodePage({ params }: { params: Promise<{ code: stri
           })}
         </div>
       </div>
+
+      {/* Receipt Image Modal */}
+      {showReceiptImage && summary.receipt.imageURI && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/70"
+          onClick={() => setShowReceiptImage(false)}
+        >
+          <div
+            className="relative max-w-lg w-full mx-4 max-h-[90vh] flex flex-col"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button
+              onClick={() => setShowReceiptImage(false)}
+              className="absolute -top-3 -right-3 z-10 bg-white border-4 border-black p-2 hover:bg-red-100 transition-colors"
+            >
+              <X className="w-5 h-5" />
+            </button>
+            <div className="overflow-auto bg-white border-4 border-black">
+              <img
+                src={summary.receipt.imageURI}
+                alt="Original receipt"
+                className="w-full h-auto"
+              />
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

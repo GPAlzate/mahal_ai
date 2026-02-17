@@ -2,7 +2,7 @@
 
 import { useState, useEffect, use } from 'react';
 import { useRouter } from 'next/navigation';
-import { X, Pencil } from 'lucide-react';
+import { X, Pencil, Eye } from 'lucide-react';
 import { Button } from '@/components/Button';
 import { Card } from '@/components/Card';
 import { LineItemModal } from '@/components/LineItemModal';
@@ -45,6 +45,8 @@ export default function AssignPage({ params }: { params: Promise<{ id: string }>
   const [lineItemModalMode, setLineItemModalMode] = useState<'create' | 'edit'>('create');
   const [editingLine, setEditingLine] = useState<ReceiptLine | null>(null);
   const [unassignedLineIds, setUnassignedLineIds] = useState<Set<number>>(new Set());
+  const [receiptImageURI, setReceiptImageURI] = useState<string | null>(null);
+  const [showReceiptImage, setShowReceiptImage] = useState(false);
 
   useEffect(() => {
     async function fetchSplitGroup() {
@@ -58,10 +60,11 @@ export default function AssignPage({ params }: { params: Promise<{ id: string }>
           return;
         }
 
-        // Store all lines
+        // Store all lines and image URI
         const lines = splitGroup.receipt.lines || [];
         setAllLines(lines);
         setParticipants(splitGroup.participants);
+        setReceiptImageURI(splitGroup.receipt.imageURI || null);
 
         // Build assignments data from the response
         const assignmentsData: LineAssignments = {};
@@ -381,10 +384,19 @@ export default function AssignPage({ params }: { params: Promise<{ id: string }>
     <div className="h-screen flex flex-col bg-yellow-50">
       {/* Header - fixed */}
       <div className="p-4 md:p-8">
-        <div className="max-w-5xl mx-auto mb-8">
+        <div className="max-w-5xl mx-auto mb-8 flex items-start justify-between">
           <h1 className="text-4xl md:text-6xl font-bold p-4 bg-black text-white inline-block transform -rotate-1">
             mahal ai &lt;3
           </h1>
+          {receiptImageURI && (
+            <button
+              onClick={() => setShowReceiptImage(true)}
+              className="border-4 border-black bg-white w-14 h-14 font-bold hover:bg-black hover:text-white transition-colors flex items-center justify-center flex-shrink-0 rotate-2"
+              style={{ borderRadius: '60% 40% 55% 45% / 45% 55% 40% 60%' }}
+            >
+              <Eye className="w-5 h-5" />
+                          </button>
+          )}
         </div>
       </div>
 
@@ -780,6 +792,33 @@ export default function AssignPage({ params }: { params: Promise<{ id: string }>
         onSave={handleSaveLineItem}
         onCancel={handleCancelLineItemModal}
       />
+
+      {/* Receipt Image Modal */}
+      {showReceiptImage && receiptImageURI && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/70"
+          onClick={() => setShowReceiptImage(false)}
+        >
+          <div
+            className="relative max-w-lg w-full mx-4 max-h-[90vh] flex flex-col"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button
+              onClick={() => setShowReceiptImage(false)}
+              className="absolute -top-3 -right-3 z-10 bg-white border-4 border-black p-2 hover:bg-red-100 transition-colors"
+            >
+              <X className="w-5 h-5" />
+            </button>
+            <div className="overflow-auto bg-white border-4 border-black">
+              <img
+                src={receiptImageURI}
+                alt="Original receipt"
+                className="w-full h-auto"
+              />
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

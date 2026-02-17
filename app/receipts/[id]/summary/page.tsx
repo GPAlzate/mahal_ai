@@ -2,6 +2,7 @@
 
 import { useState, useEffect, use } from 'react';
 import { useRouter } from 'next/navigation';
+import { X, Eye } from 'lucide-react';
 import { Button } from '@/components/Button';
 import { Card } from '@/components/Card';
 import { api } from '@/lib/client/api-client';
@@ -18,6 +19,7 @@ export default function SummaryPage({ params }: { params: Promise<{ id: string }
   const [finalizing, setFinalizing] = useState(false);
   const [isReceiptExpanded, setIsReceiptExpanded] = useState(false);
   const [expandedParticipants, setExpandedParticipants] = useState<Set<number>>(new Set());
+  const [showReceiptImage, setShowReceiptImage] = useState(false);
 
   const toggleParticipantExpanded = (participantId: number) => {
     setExpandedParticipants((prev) => {
@@ -105,10 +107,19 @@ export default function SummaryPage({ params }: { params: Promise<{ id: string }
     <div className="min-h-screen bg-yellow-50 p-4 md:p-8">
       <div className="max-w-4xl mx-auto space-y-6">
         {/* Header */}
-        <div className="mb-8">
+        <div className="mb-8 flex items-start justify-between">
           <h1 className="text-4xl md:text-6xl font-bold mb-4 p-4 bg-black text-white inline-block transform -rotate-1">
             mahal ai &lt;3
           </h1>
+          {summary.receipt.imageURI && (
+            <button
+              onClick={() => setShowReceiptImage(true)}
+              className="border-4 border-black bg-white w-14 h-14 font-bold hover:bg-black hover:text-white transition-colors flex items-center justify-center flex-shrink-0 rotate-2"
+              style={{ borderRadius: '60% 40% 55% 45% / 45% 55% 40% 60%' }}
+            >
+              <Eye className="w-5 h-5" />
+                          </button>
+          )}
         </div>
 
         {/* Share Code */}
@@ -329,6 +340,33 @@ export default function SummaryPage({ params }: { params: Promise<{ id: string }
           </Button>
         </div>
       </div>
+
+      {/* Receipt Image Modal */}
+      {showReceiptImage && summary.receipt.imageURI && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/70"
+          onClick={() => setShowReceiptImage(false)}
+        >
+          <div
+            className="relative max-w-lg w-full mx-4 max-h-[90vh] flex flex-col"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button
+              onClick={() => setShowReceiptImage(false)}
+              className="absolute -top-3 -right-3 z-10 bg-white border-4 border-black p-2 hover:bg-red-100 transition-colors"
+            >
+              <X className="w-5 h-5" />
+            </button>
+            <div className="overflow-auto bg-white border-4 border-black">
+              <img
+                src={summary.receipt.imageURI}
+                alt="Original receipt"
+                className="w-full h-auto"
+              />
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
