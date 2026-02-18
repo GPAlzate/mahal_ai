@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { upload } from '@vercel/blob/client';
 import { Image } from 'lucide-react';
 import { Button } from '@/components/Button';
 import { Card } from '@/components/Card';
@@ -81,10 +82,20 @@ export default function Home() {
     setError(null);
 
     try {
-      // Upload file directly to API (no Base64 conversion needed)
-      const { receiptId } = await api.receipts.parse(file);
+      console.time('🕐 total');
 
-      // Navigate to participants page immediately
+      console.time('🕐 blob upload (client → CDN)');
+      const blob = await upload(`receipts/${file.name}`, file, {
+        access: 'public',
+        handleUploadUrl: '/api/blob-upload',
+      });
+      console.timeEnd('🕐 blob upload (client → CDN)');
+
+      console.time('🕐 create receipt');
+      const { receiptId } = await api.receipts.parse(blob.url);
+      console.timeEnd('🕐 create receipt');
+
+      console.timeEnd('🕐 total');
       router.push(`/receipts/${receiptId}/participants`);
     } catch (err: any) {
       setError(err.message || 'Failed to process receipt');
@@ -195,7 +206,7 @@ export default function Home() {
 
               {/* Manual Receipt Entry inside same card */}
               <form onSubmit={handleManualReceiptSubmit}>
-                <div className="flex gap-4">
+                <div className="flex flex-col sm:flex-row gap-3">
                   <Input
                     placeholder="e.g. Dinner at Chipotle"
                     value={receiptTitle}

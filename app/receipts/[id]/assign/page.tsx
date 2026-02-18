@@ -2,7 +2,7 @@
 
 import { useState, useEffect, use } from 'react';
 import { useRouter } from 'next/navigation';
-import { X, Pencil, Eye } from 'lucide-react';
+import { X, Pencil, Eye, ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/Button';
 import { Card } from '@/components/Card';
 import { LineItemModal } from '@/components/LineItemModal';
@@ -384,7 +384,15 @@ export default function AssignPage({ params }: { params: Promise<{ id: string }>
     <div className="h-screen flex flex-col bg-yellow-50">
       {/* Header - fixed */}
       <div className="p-4 md:p-8">
-        <div className="max-w-5xl mx-auto mb-8 flex items-start justify-between">
+        <div className="max-w-5xl mx-auto mb-8">
+          <button
+            onClick={() => router.push(`/receipts/${receiptId}/participants`)}
+            className="flex items-center gap-1 text-sm font-mono uppercase tracking-wider text-gray-600 hover:text-black mb-4 transition-colors"
+          >
+            <ArrowLeft className="w-4 h-4" />
+            Back
+          </button>
+          <div className="flex items-start justify-between">
           <h1 className="text-4xl md:text-6xl font-bold p-4 bg-black text-white inline-block transform -rotate-1">
             mahal ai &lt;3
           </h1>
@@ -397,6 +405,7 @@ export default function AssignPage({ params }: { params: Promise<{ id: string }>
               <Eye className="w-5 h-5" />
                           </button>
           )}
+          </div>
         </div>
       </div>
 

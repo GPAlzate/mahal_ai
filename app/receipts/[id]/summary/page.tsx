@@ -2,7 +2,7 @@
 
 import { useState, useEffect, use } from 'react';
 import { useRouter } from 'next/navigation';
-import { X, Eye } from 'lucide-react';
+import { X, Eye, ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/Button';
 import { Card } from '@/components/Card';
 import { api } from '@/lib/client/api-client';
@@ -107,7 +107,15 @@ export default function SummaryPage({ params }: { params: Promise<{ id: string }
     <div className="min-h-screen bg-yellow-50 p-4 md:p-8">
       <div className="max-w-4xl mx-auto space-y-6">
         {/* Header */}
-        <div className="mb-8 flex items-start justify-between">
+        <div className="mb-8">
+          <button
+            onClick={() => router.push(`/receipts/${receiptId}/assign`)}
+            className="flex items-center gap-1 text-sm font-mono uppercase tracking-wider text-gray-600 hover:text-black mb-4 transition-colors"
+          >
+            <ArrowLeft className="w-4 h-4" />
+            Back
+          </button>
+          <div className="flex items-start justify-between">
           <h1 className="text-4xl md:text-6xl font-bold mb-4 p-4 bg-black text-white inline-block transform -rotate-1">
             mahal ai &lt;3
           </h1>
@@ -120,6 +128,7 @@ export default function SummaryPage({ params }: { params: Promise<{ id: string }
               <Eye className="w-5 h-5" />
                           </button>
           )}
+          </div>
         </div>
 
         {/* Share Code */}
@@ -329,7 +338,7 @@ export default function SummaryPage({ params }: { params: Promise<{ id: string }
         </div>
 
         {/* Action Buttons */}
-        <div className="space-y-4 sticky bottom-4">
+        <div className="space-y-3 sticky bottom-4">
           <Button
             fullWidth
             size="lg"
@@ -337,6 +346,13 @@ export default function SummaryPage({ params }: { params: Promise<{ id: string }
             disabled={finalizing}
           >
             {finalizing ? 'Finalizing...' : 'Finalize Receipt'}
+          </Button>
+          <Button
+            fullWidth
+            variant="secondary"
+            onClick={() => router.push('/')}
+          >
+            Create New Receipt
           </Button>
         </div>
       </div>

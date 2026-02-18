@@ -47,28 +47,11 @@ async function fetchAPI<T>(
 
 export const api = {
   receipts: {
-    parse: async (imageFile: File) => {
-      const formData = new FormData();
-      formData.append('image', imageFile);
-
-      const response = await fetch('/api/receipts/parse', {
+    parse: (imageUrl: string) =>
+      fetchAPI<{ receiptId: number; status: string }>('/api/receipts/parse', {
         method: 'POST',
-        body: formData,
-        // Don't set Content-Type header - browser will set it with boundary
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new APIError(
-          data.error || 'An error occurred',
-          response.status,
-          data.details
-        );
-      }
-
-      return data as { receiptId: number; status: string };
-    },
+        body: JSON.stringify({ imageUrl }),
+      }),
 
     create: (data: { title: string; receiptTime?: string }) =>
       fetchAPI<{ receiptId: number }>('/api/receipts', {

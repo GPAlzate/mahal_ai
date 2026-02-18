@@ -2,7 +2,7 @@
 
 import { useState, use, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Plus, X } from 'lucide-react';
+import { Plus, X, ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/Button';
 import { Card } from '@/components/Card';
 import { api } from '@/lib/client/api-client';
@@ -106,6 +106,13 @@ export default function ParticipantsPage({ params }: { params: Promise<{ id: str
       <div className="max-w-2xl mx-auto">
         {/* Header */}
         <div className="mb-8">
+          <button
+            onClick={() => router.push('/')}
+            className="flex items-center gap-1 text-sm font-mono uppercase tracking-wider text-gray-600 hover:text-black mb-4 transition-colors"
+          >
+            <ArrowLeft className="w-4 h-4" />
+            Back
+          </button>
           <h1 className="text-4xl md:text-6xl font-bold mb-4 p-4 bg-black text-white inline-block transform -rotate-1">
             mahal ai &lt;3
           </h1>

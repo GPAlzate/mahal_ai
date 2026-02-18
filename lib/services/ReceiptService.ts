@@ -254,18 +254,24 @@ export class ReceiptService {
   async parseInBackground(receiptId: number, imageBase64: string) {
     try {
       this._logger.log(`Starting background parsing for receipt ${receiptId}`);
+      console.time(`🕐 [background ${receiptId}] total`);
 
       // Parse receipt image with OpenAI
+      console.time(`🕐 [background ${receiptId}] openai parse`);
       const parsedReceipt = await openAIService.parseReceiptImage(imageBase64);
+      console.timeEnd(`🕐 [background ${receiptId}] openai parse`);
 
       this._logger.log(`Successfully parsed, adding line items and metadata`);
 
       // Add line items to receipt
+      console.time(`🕐 [background ${receiptId}] add line items`);
       await this.addParsedLineItems(receiptId, parsedReceipt);
+      console.timeEnd(`🕐 [background ${receiptId}] add line items`);
 
       // Update receipt with parsed title and receipt_time
       const receiptTimeValue = parsedReceipt.receiptDate ? new Date(parsedReceipt.receiptDate) : null;
 
+      console.time(`🕐 [background ${receiptId}] update receipt status`);
       await sql`
         UPDATE receipts
         SET
@@ -275,7 +281,9 @@ export class ReceiptService {
           updated_at = NOW()
         WHERE id = ${receiptId} AND deleted_at IS NULL
       `;
+      console.timeEnd(`🕐 [background ${receiptId}] update receipt status`);
 
+      console.timeEnd(`🕐 [background ${receiptId}] total`);
       this._logger.log(`[Receipt ${receiptId}] Parsing complete, status updated to DRFT`);
     } catch (error) {
       this._logger.error(`[Receipt ${receiptId}] Parsing failed:`, error);
