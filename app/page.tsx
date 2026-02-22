@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { upload } from '@vercel/blob/client';
 import { Image } from 'lucide-react';
@@ -8,6 +8,7 @@ import { Button } from '@/components/Button';
 import { Card } from '@/components/Card';
 import { Input } from '@/components/Input';
 import { api } from '@/lib/client/api-client';
+import { uploadState } from '@/lib/client/uploadState';
 
 export default function Home() {
   const router = useRouter();
@@ -16,12 +17,21 @@ export default function Home() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [dragActive, setDragActive] = useState(false);
-  const [shareCode, setShareCode] = useState('');
-  const [shareCodeLoading, setShareCodeLoading] = useState(false);
-  const [shareCodeError, setShareCodeError] = useState<string | null>(null);
   const [receiptTitle, setReceiptTitle] = useState('');
   const [manualLoading, setManualLoading] = useState(false);
   const [manualError, setManualError] = useState<string | null>(null);
+
+  // Tracks the in-progress blob upload so handleSubmit can reuse it rather than
+  // re-uploading. The AbortController lets us cancel if the user swaps images.
+  const blobPromiseRef = useRef<Promise<{ url: string }> | null>(null);
+  const uploadAbortRef = useRef<AbortController | null>(null);
+
+  // TODO: Consider starting receipt creation + AI parsing here on file select
+  // (in addition to the blob upload) once we have funnel data. If most users
+  // who select an image do click Continue, pre-running the full pipeline would
+  // make the participants page appear with parsing already complete. The tradeoff
+  // is orphaned receipts for users who swap images — manageable with a cleanup
+  // job that deletes PRSP receipts older than N minutes with no participants.
 
   const handleFileChange = (selectedFile: File) => {
     if (!selectedFile.type.startsWith('image/')) {
@@ -29,8 +39,22 @@ export default function Home() {
       return;
     }
 
+    // Cancel any in-progress upload from a previously selected image
+    uploadAbortRef.current?.abort();
+
     setFile(selectedFile);
     setError(null);
+
+    // Start the blob upload immediately so it runs while the user reviews the
+    // preview and decides to continue. By the time they click Continue the upload
+    // will likely already be done, meaning (b) only waits for the AI response.
+    const controller = new AbortController();
+    uploadAbortRef.current = controller;
+    blobPromiseRef.current = upload(`receipts/${selectedFile.name}`, selectedFile, {
+      access: 'public',
+      handleUploadUrl: '/api/blob-upload',
+      abortSignal: controller.signal,
+    });
 
     // Create preview
     const reader = new FileReader();
@@ -76,50 +100,30 @@ export default function Home() {
   };
 
   const handleSubmit = async () => {
-    if (!file) return;
+    if (!file || !blobPromiseRef.current) return;
 
     setLoading(true);
     setError(null);
 
     try {
-      console.time('🕐 total');
+      console.time('🕐 total (to navigation)');
 
-      console.time('🕐 blob upload (client → CDN)');
-      const blob = await upload(`receipts/${file.name}`, file, {
-        access: 'public',
-        handleUploadUrl: '/api/blob-upload',
-      });
-      console.timeEnd('🕐 blob upload (client → CDN)');
+      // Create the receipt record (fast DB insert ~300ms). The blob upload is
+      // already in flight from handleFileChange, so we run both in parallel.
+      console.time('🕐 create receipt (DB only)');
+      const { receiptId } = await api.receipts.create({ status: 'PRSP' });
+      console.timeEnd('🕐 create receipt (DB only)');
 
-      console.time('🕐 create receipt');
-      const { receiptId } = await api.receipts.parse(blob.url);
-      console.timeEnd('🕐 create receipt');
+      // Hand the already-in-progress upload promise to the participants page.
+      // If the upload finished while the user was on this page, awaiting it
+      // there will resolve immediately.
+      uploadState.set(receiptId, blobPromiseRef.current);
 
-      console.timeEnd('🕐 total');
+      console.timeEnd('🕐 total (to navigation)');
       router.push(`/receipts/${receiptId}/participants`);
     } catch (err: any) {
       setError(err.message || 'Failed to process receipt');
       setLoading(false);
-    }
-  };
-
-  const handleShareCodeSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-
-    if (!shareCode.trim()) return;
-
-    setShareCodeLoading(true);
-    setShareCodeError(null);
-
-    try {
-      // Try to fetch the receipt by share code
-      await api.receipts.getByShareCode(shareCode.trim().toUpperCase());
-
-      // If successful, redirect to the share code page
-      router.push(`/${shareCode.trim().toUpperCase()}`);
-    } catch (err: any) {
-      setShareCodeError('Receipt not found');
-      setShareCodeLoading(false);
     }
   };
 
@@ -134,7 +138,8 @@ export default function Home() {
     try {
       // Create manual receipt via API client
       const data = await api.receipts.create({
-        title: receiptTitle.trim()
+        status: 'DRFT',
+        title: receiptTitle.trim(),
       });
 
       // Navigate to participants page
@@ -234,6 +239,9 @@ export default function Home() {
                 variant="secondary"
                 fullWidth
                 onClick={() => {
+                  uploadAbortRef.current?.abort();
+                  uploadAbortRef.current = null;
+                  blobPromiseRef.current = null;
                   setFile(null);
                   setPreviewUrl(null);
                 }}

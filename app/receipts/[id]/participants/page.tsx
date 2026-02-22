@@ -6,6 +6,7 @@ import { Plus, X, ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/Button';
 import { Card } from '@/components/Card';
 import { api } from '@/lib/client/api-client';
+import { uploadState } from '@/lib/client/uploadState';
 
 interface LocalParticipant {
   tempId: string;
@@ -48,20 +49,38 @@ export default function ParticipantsPage({ params }: { params: Promise<{ id: str
           // Parsing failed (marked as deleted)
           setError('Failed to parse receipt. Please try uploading again.');
           setCheckingLines(false);
-        } else if (receipt.status === 'PRSP') {
-          // Still parsing (status='PRSP'), check again in 2 seconds
-          setTimeout(checkReceiptStatus, 3000);
         } else {
-          // Unknown status, try again
-          setTimeout(checkReceiptStatus, 3000);
+          // Still parsing (PRSP or unknown), check again in 1 second
+          setTimeout(checkReceiptStatus, 1000);
         }
       } catch (err) {
         // Error fetching receipt, try again
-        setTimeout(checkReceiptStatus, 3000);
+        setTimeout(checkReceiptStatus, 1000);
       }
     };
 
-    checkReceiptStatus();
+    const startFlow = async () => {
+      // If this receipt was created via the optimistic-navigation path, there will
+      // be a pending blob upload promise in the module store. Await it, then trigger
+      // AI parsing before we start polling — otherwise the receipt stays in DRFT
+      // (no lines) until parsing is triggered.
+      const blobPromise = uploadState.get(receiptId);
+      if (blobPromise) {
+        uploadState.delete(receiptId);
+        try {
+          const blob = await blobPromise;
+          await api.receipts.triggerParse(receiptId, blob.url);
+        } catch (err: any) {
+          setError(err.message || 'Failed to upload receipt image. Please try again.');
+          setCheckingLines(false);
+          return;
+        }
+      }
+
+      checkReceiptStatus();
+    };
+
+    startFlow();
   }, [receiptId, router]);
 
   const handleAddParticipant = (e: React.FormEvent) => {

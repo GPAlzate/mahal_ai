@@ -2,7 +2,7 @@
  * Type-safe API client for frontend
  */
 
-import type { Receipt } from '@/lib/schemas/receipt/public/Receipt';
+import type { Receipt, ReceiptStatus } from '@/lib/schemas/receipt/public/Receipt';
 import type { ReceiptLine } from '@/lib/schemas/receipt/public/ReceiptLine';
 import type { Participant } from '@/lib/schemas/participant/public/Participant';
 import type { LineParticipant } from '@/lib/schemas/participant/public/LineParticipant';
@@ -53,7 +53,16 @@ export const api = {
         body: JSON.stringify({ imageUrl }),
       }),
 
-    create: (data: { title: string; receiptTime?: string }) =>
+    // Attaches a blob URL to an existing receipt, sets status=PRSP, and triggers
+    // background AI parsing. Called from the participants page once the blob upload
+    // promise (stored in uploadState) resolves.
+    triggerParse: (id: number, imageUrl: string) =>
+      fetchAPI<{ status: string }>(`/api/receipts/${id}/parse`, {
+        method: 'POST',
+        body: JSON.stringify({ imageUrl }),
+      }),
+
+    create: (data: { status: ReceiptStatus; title?: string; receiptTime?: string }) =>
       fetchAPI<{ receiptId: number }>('/api/receipts', {
         method: 'POST',
         body: JSON.stringify(data),

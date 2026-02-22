@@ -245,6 +245,27 @@ export class ReceiptService {
   }
 
   /**
+   * Attach an image URI to an existing receipt.
+   * Called when the client-side blob upload completes after the receipt was
+   * already created (the "optimistic navigation" flow).
+   *
+   * @param receiptId - ID of the receipt to update
+   * @param imageURI - Public Vercel Blob URL for the receipt image
+   */
+  async attachImageURI(receiptId: number, imageURI: string) {
+    const result = await sql`
+      UPDATE receipts
+      SET image_uri = ${imageURI}, updated_at = NOW()
+      WHERE id = ${receiptId} AND deleted_at IS NULL
+      RETURNING id
+    `;
+
+    if (!result || result.length === 0) {
+      throw new Error(`Receipt ${receiptId} not found`);
+    }
+  }
+
+  /**
    * Parse receipt image in background
    * Updates receipt status to 'DRFT' on success or 'DLTD' on error
    * Also updates title and receipt_time from parsed data

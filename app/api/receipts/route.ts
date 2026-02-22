@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { z } from 'zod';
 import { receiptSummaryService } from '@/lib/services/ReceiptSummaryService';
 import { receiptService } from '@/lib/services/ReceiptService';
 import { FindReceiptByShareCodeRequestSchema } from '@/lib/schemas/receipt/request/FindReceiptByShareCodeRequest';
 import { CreateReceiptRequestSchema } from '@/lib/schemas/receipt/request/CreateReceiptRequest';
-import { ReceiptStatusSchema } from '@/lib/schemas/receipt/public/Receipt';
 
 /**
  * Receipts API
@@ -47,7 +47,7 @@ export async function GET(request: NextRequest) {
 
     if (!validation.success) {
       return NextResponse.json(
-        { error: 'Invalid request', details: validation.error.flatten() },
+        { error: 'Invalid request', details: z.flattenError(validation.error) },
         { status: 400 }
       );
     }
@@ -88,14 +88,11 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
 
     // Validate request body
-    const createReceiptRequest = CreateReceiptRequestSchema.safeParse({
-      ...body,
-      status: ReceiptStatusSchema.enum.DRFT
-    });
+    const createReceiptRequest = CreateReceiptRequestSchema.safeParse(body);
 
     if (!createReceiptRequest.success) {
       return NextResponse.json(
-        { error: 'Invalid request', details: createReceiptRequest.error.flatten() },
+        { error: 'Invalid request', details: z.flattenError(createReceiptRequest.error) },
         { status: 400 }
       );
     }
