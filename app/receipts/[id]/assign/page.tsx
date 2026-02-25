@@ -2,7 +2,8 @@
 
 import { useState, useEffect, use } from 'react';
 import { useRouter } from 'next/navigation';
-import { X, Pencil, Eye, ArrowLeft } from 'lucide-react';
+import { X, Pencil } from 'lucide-react';
+import { PageHeader } from '@/components/PageHeader';
 import { Button } from '@/components/Button';
 import { Card } from '@/components/Card';
 import { LineItemModal } from '@/components/LineItemModal';
@@ -381,31 +382,14 @@ export default function AssignPage({ params }: { params: Promise<{ id: string }>
   }
 
   return (
-    <div className="h-screen flex flex-col bg-yellow-50">
+    <div className="h-dvh flex flex-col bg-yellow-50">
       {/* Header - fixed */}
       <div className="p-4 md:p-8">
         <div className="max-w-5xl mx-auto mb-8">
-          <button
-            onClick={() => router.push(`/receipts/${receiptId}/participants`)}
-            className="flex items-center gap-1 text-sm font-mono uppercase tracking-wider text-gray-600 hover:text-black mb-4 transition-colors"
-          >
-            <ArrowLeft className="w-4 h-4" />
-            Back
-          </button>
-          <div className="flex items-start justify-between">
-          <h1 className="text-4xl md:text-6xl font-bold p-4 bg-black text-white inline-block transform -rotate-1">
-            mahal ai &lt;3
-          </h1>
-          {receiptImageURI && (
-            <button
-              onClick={() => setShowReceiptImage(true)}
-              className="border-4 border-black bg-white w-14 h-14 font-bold hover:bg-black hover:text-white transition-colors flex items-center justify-center flex-shrink-0 rotate-2"
-              style={{ borderRadius: '60% 40% 55% 45% / 45% 55% 40% 60%' }}
-            >
-              <Eye className="w-5 h-5" />
-                          </button>
-          )}
-          </div>
+          <PageHeader
+            onBack={() => router.push(`/receipts/${receiptId}/participants`)}
+            onViewReceipt={receiptImageURI ? () => setShowReceiptImage(true) : undefined}
+          />
         </div>
       </div>
 
@@ -706,13 +690,13 @@ export default function AssignPage({ params }: { params: Promise<{ id: string }>
 
           {/* Participants horizontal scroll */}
           <div className="overflow-x-auto">
-            <div className="p-4">
+            <div className="p-3">
               {participants.length === 0 ? (
-                <div className="text-center font-mono text-gray-500">
+                <div className="text-center font-mono text-gray-500 text-sm">
                   No participants yet. Add them first to start assigning.
                 </div>
               ) : (
-                <div className="flex gap-4 pb-2">
+                <div className="flex gap-3 pb-1">
                   {participants.map((participant: Participant) => {
                     const isActive = activeParticipantId === participant.id;
                     const assignedCount = getParticipantAssignmentCount(participant.id);
@@ -726,8 +710,8 @@ export default function AssignPage({ params }: { params: Promise<{ id: string }>
                         type="button"
                         onClick={() => handleParticipantSelection(participant.id)}
                         className={`
-                          border-4 px-4 py-3 flex flex-col gap-1
-                          uppercase tracking-wider text-left min-w-[160px]
+                          border-4 px-3 py-2 flex flex-col gap-0.5
+                          uppercase tracking-wider text-left min-w-[100px]
                           transition-all flex-shrink-0
                           ${
                             isActive
@@ -738,7 +722,7 @@ export default function AssignPage({ params }: { params: Promise<{ id: string }>
                           }
                         `}
                       >
-                        <span className="font-bold">{participant.displayName}</span>
+                        <span className="font-bold text-sm">{participant.displayName}</span>
                         <span className="font-mono text-xs">
                           {assignedCount > 0
                             ? `${assignedCount} item${assignedCount > 1 ? 's' : ''}`

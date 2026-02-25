@@ -2,7 +2,8 @@
 
 import { useState, useEffect, use } from 'react';
 import { useRouter } from 'next/navigation';
-import { X, Eye, ArrowLeft } from 'lucide-react';
+import { X } from 'lucide-react';
+import { PageHeader } from '@/components/PageHeader';
 import { Button } from '@/components/Button';
 import { Card } from '@/components/Card';
 import { api } from '@/lib/client/api-client';
@@ -108,27 +109,10 @@ export default function SummaryPage({ params }: { params: Promise<{ id: string }
       <div className="max-w-4xl mx-auto space-y-6">
         {/* Header */}
         <div className="mb-8">
-          <button
-            onClick={() => router.push(`/receipts/${receiptId}/assign`)}
-            className="flex items-center gap-1 text-sm font-mono uppercase tracking-wider text-gray-600 hover:text-black mb-4 transition-colors"
-          >
-            <ArrowLeft className="w-4 h-4" />
-            Back
-          </button>
-          <div className="flex items-start justify-between">
-          <h1 className="text-4xl md:text-6xl font-bold mb-4 p-4 bg-black text-white inline-block transform -rotate-1">
-            mahal ai &lt;3
-          </h1>
-          {summary.receipt.imageURI && (
-            <button
-              onClick={() => setShowReceiptImage(true)}
-              className="border-4 border-black bg-white w-14 h-14 font-bold hover:bg-black hover:text-white transition-colors flex items-center justify-center flex-shrink-0 rotate-2"
-              style={{ borderRadius: '60% 40% 55% 45% / 45% 55% 40% 60%' }}
-            >
-              <Eye className="w-5 h-5" />
-                          </button>
-          )}
-          </div>
+          <PageHeader
+            onBack={() => router.push(`/receipts/${receiptId}/assign`)}
+            onViewReceipt={summary.receipt.imageURI ? () => setShowReceiptImage(true) : undefined}
+          />
         </div>
 
         {/* Share Code */}

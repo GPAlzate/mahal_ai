@@ -7,6 +7,7 @@ import { Image } from 'lucide-react';
 import { Button } from '@/components/Button';
 import { Card } from '@/components/Card';
 import { Input } from '@/components/Input';
+import { PageHeader } from '@/components/PageHeader';
 import { api } from '@/lib/client/api-client';
 import { uploadState } from '@/lib/client/uploadState';
 
@@ -152,17 +153,12 @@ export default function Home() {
 
   return (
     <div
-      className="min-h-screen bg-yellow-50 p-4 md:p-8"
+      className="min-h-screen bg-yellow-50"
       onPaste={handlePaste}
       tabIndex={0}
     >
-      <div className="max-w-2xl mx-auto">
-        {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-4xl md:text-6xl font-bold mb-4 p-4 bg-black text-white inline-block transform -rotate-1">
-            mahal ai &lt;3
-          </h1>
-        </div>
+      <div className="max-w-2xl mx-auto p-4 md:p-8">
+        <PageHeader />
 
         {/* Upload Area */}
         <Card padding="lg" className="mb-6">
