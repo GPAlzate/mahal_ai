@@ -201,14 +201,27 @@ export default function AssignPage({ params }: { params: Promise<{ id: string }>
         // Batch persist purchase assignments to API
         await api.assignments.batchAssign(receiptId, assignmentsList);
 
-        // Move to discounts view (or skip to misc-charges if no discount lines)
         setActiveLineId(null);
         setActiveParticipantId(null);
-        setCurrentView(discountLines.length > 0 ? 'discounts' : 'misc-charges');
+        if (miscChargeLines.length > 0) {
+          setCurrentView('misc-charges');
+        } else if (discountLines.length > 0) {
+          setCurrentView('discounts');
+        } else {
+          router.push(`/receipts/${receiptId}/summary`);
+        }
         setSaving(false);
       } catch (err: any) {
         setError(err.message || 'Unable to save assignments');
         setSaving(false);
+      }
+    } else if (currentView === 'misc-charges') {
+      setActiveLineId(null);
+      setActiveParticipantId(null);
+      if (discountLines.length > 0) {
+        setCurrentView('discounts');
+      } else {
+        router.push(`/receipts/${receiptId}/summary`);
       }
     } else if (currentView === 'discounts') {
       // Discount assignments are optional — save any that exist and move on
@@ -236,15 +249,13 @@ export default function AssignPage({ params }: { params: Promise<{ id: string }>
           }));
         });
 
-        // Save discount assignments if any
         if (discountAssignmentsList.length > 0) {
           await api.assignments.batchAssign(receiptId, discountAssignmentsList);
         }
 
         setActiveLineId(null);
         setActiveParticipantId(null);
-        setCurrentView('misc-charges');
-        setSaving(false);
+        router.push(`/receipts/${receiptId}/summary`);
       } catch (err: any) {
         setError(err.message || 'Unable to save assignments');
         setSaving(false);
@@ -743,25 +754,18 @@ export default function AssignPage({ params }: { params: Promise<{ id: string }>
                 {saving
                   ? 'Continuing...'
                   : currentView === 'items'
-                    ? 'Continue to Discounts'
-                    : 'Continue to Misc Charges'}
+                    ? miscChargeLines.length > 0
+                      ? 'Continue to Misc Charges'
+                      : discountLines.length > 0
+                        ? 'Continue to Discounts'
+                        : 'Continue to Summary'
+                    : currentView === 'misc-charges'
+                      ? discountLines.length > 0
+                        ? 'Continue to Discounts'
+                        : 'Continue to Summary'
+                      : 'Continue to Summary'}
               </Button>
             </div>
-          </div>
-        </div>
-      )}
-
-      {/* Finalize button (only show in misc charges view) */}
-      {currentView === 'misc-charges' && (
-        <div className="border-t-4 border-black bg-white p-4">
-          <div className="max-w-5xl mx-auto">
-            <Button
-              fullWidth
-              size="lg"
-              onClick={() => router.push(`/receipts/${receiptId}/summary`)}
-            >
-              Continue to Summary
-            </Button>
           </div>
         </div>
       )}
