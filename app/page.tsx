@@ -207,6 +207,9 @@ export default function Home() {
 
               {/* Manual Receipt Entry inside same card */}
               <form onSubmit={handleManualReceiptSubmit}>
+                <label className="block font-mono text-xs font-bold uppercase tracking-widest mb-1">
+                  Receipt name
+                </label>
                 <div className="flex flex-col sm:flex-row gap-3">
                   <Input
                     placeholder="e.g. Dinner at Chipotle"
@@ -229,7 +232,7 @@ export default function Home() {
               <img
                 src={previewUrl}
                 alt="Receipt preview"
-                className="w-full border-4 border-black mb-4"
+                className="w-full max-h-64 object-contain border-4 border-black mb-4"
               />
               <Button
                 variant="secondary"
