@@ -2,10 +2,7 @@
 
 import { useState, use, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Plus, X } from 'lucide-react';
-import { PageHeader } from '@/components/PageHeader';
-import { Button } from '@/components/Button';
-import { Card } from '@/components/Card';
+import { ArrowLeft, Plus, X } from 'lucide-react';
 import { api } from '@/lib/client/api-client';
 import { uploadState } from '@/lib/client/uploadState';
 
@@ -14,9 +11,6 @@ interface LocalParticipant {
   displayName: string;
 }
 
-/**
- * TODO: make ui like the CLEAR app
- */
 export default function ParticipantsPage({ params }: { params: Promise<{ id: string }> }) {
   const resolvedParams = use(params);
   const receiptId = parseInt(resolvedParams.id);
@@ -43,11 +37,9 @@ export default function ParticipantsPage({ params }: { params: Promise<{ id: str
         }
 
         if (receipt.status === 'DRFT') {
-          // Parsing complete, receipt is ready
           setLinesReady(true);
           setCheckingLines(false);
         } else if (receipt.status === 'DLTD') {
-          // Parsing failed (marked as deleted)
           setError('Failed to parse receipt. Please try uploading again.');
           setCheckingLines(false);
         } else {
@@ -55,7 +47,6 @@ export default function ParticipantsPage({ params }: { params: Promise<{ id: str
           setTimeout(checkReceiptStatus, 1000);
         }
       } catch (err) {
-        // Error fetching receipt, try again
         setTimeout(checkReceiptStatus, 1000);
       }
     };
@@ -86,16 +77,8 @@ export default function ParticipantsPage({ params }: { params: Promise<{ id: str
 
   const handleAddParticipant = (e: React.FormEvent) => {
     e.preventDefault();
-
     if (!participantName.trim()) return;
-
-    // Add participant to local state only
-    const newParticipant: LocalParticipant = {
-      tempId: `temp-${Date.now()}`,
-      displayName: participantName.trim(),
-    };
-
-    setParticipants((prev) => [...prev, newParticipant]);
+    setParticipants((prev) => [...prev, { tempId: `temp-${Date.now()}`, displayName: participantName.trim() }]);
     setParticipantName('');
   };
 
@@ -105,15 +88,10 @@ export default function ParticipantsPage({ params }: { params: Promise<{ id: str
 
   const handleContinue = async () => {
     if (participants.length === 0) return;
-
     setSaving(true);
     setError(null);
-
     try {
-      // Batch create all participants with single API call
       await api.participants.create(receiptId, participants);
-
-      // Navigate to assignment page
       router.push(`/receipts/${receiptId}/assign`);
     } catch (err: any) {
       setError(err.message || 'Failed to save participants');
@@ -121,77 +99,96 @@ export default function ParticipantsPage({ params }: { params: Promise<{ id: str
     }
   };
 
+  const canContinue = participants.length > 0 && linesReady && !saving;
+
   return (
-    <div className="min-h-screen bg-yellow-50 p-4 md:p-8">
-      <div className="max-w-2xl mx-auto">
-        <PageHeader onBack={() => router.push('/')} />
+    <div className="min-h-screen bg-[#fff9ef] p-4">
+      <div className="max-w-lg mx-auto">
 
-        {/* Add Participant Form and List */}
-        <Card padding="lg" className="mb-6">
-          <h2 className="text-2xl font-bold mb-4">Who&apos;s splitting the bill?</h2>
+        {/* Header */}
+        <div className="mb-4">
+          <button
+            onClick={() => router.push('/')}
+            className="flex items-center gap-1 font-dm-mono text-xs font-bold uppercase tracking-widest text-[#4d4732] hover:text-black transition-colors mb-3"
+          >
+            <ArrowLeft className="w-4 h-4" />
+            Back
+          </button>
+          <h1 className="font-dm-sans text-2xl font-black uppercase px-3 py-2 bg-black text-white inline-block -rotate-1">
+            mahal ai &lt;3
+          </h1>
+        </div>
 
-          <form onSubmit={handleAddParticipant} className="mb-6">
-            <div className="flex gap-2">
-              <input
-                type="text"
-                value={participantName}
-                onChange={(e) => setParticipantName(e.target.value)}
-                className="flex-1 p-3 border-4 border-black focus:outline-none focus:ring-0 focus:border-black"
-                placeholder="Enter name"
-              />
-              <button
-                type="submit"
-                disabled={!participantName.trim()}
-                className="p-4 border-4 border-black bg-green-300 hover:enabled:bg-green-400 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                <Plus className="w-6 h-6" />
-              </button>
-            </div>
+        {/* Main card */}
+        <div className="bg-white border-4 border-black shadow-[4px_4px_0px_0px_#000] rounded-xl p-5 flex flex-col gap-4">
+
+          <h2 className="font-dm-sans font-bold text-2xl">Who&apos;s splitting the bill?</h2>
+
+          {/* Add participant form */}
+          <form onSubmit={handleAddParticipant} className="flex gap-2">
+            <input
+              type="text"
+              value={participantName}
+              onChange={(e) => setParticipantName(e.target.value)}
+              placeholder="Enter name"
+              className="flex-1 h-12 border-2 border-black rounded-lg px-4 font-dm-mono text-base focus:border-[4px] focus:outline-none focus:bg-[#cee7f0] bg-white placeholder:text-[#7e775f] transition-all"
+            />
+            <button
+              type="submit"
+              disabled={!participantName.trim()}
+              className="h-12 w-12 border-[4px] border-black rounded-lg bg-[#98FB98] shadow-[2px_2px_0px_0px_#000] hover:bg-[#7de87d] active:translate-x-[2px] active:translate-y-[2px] active:shadow-none transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center flex-shrink-0"
+            >
+              <Plus className="w-5 h-5" strokeWidth={2.5} />
+            </button>
           </form>
 
-          {/* Participants List */}
-          <div className="space-y-2">
-            {participants.map((participant) => (
-              <div
-                key={participant.tempId}
-                className="flex items-center justify-between p-3 border-4 border-black bg-white"
-              >
-                <span className="font-bold">{participant.displayName}</span>
-                <button
-                  onClick={() => handleRemoveParticipant(participant.tempId)}
-                  className="p-1 hover:text-red-600"
+          {/* Participants list */}
+          {participants.length > 0 && (
+            <div className="flex flex-col border-2 border-black rounded-lg overflow-hidden">
+              {participants.map((participant, index) => (
+                <div
+                  key={participant.tempId}
+                  className={`flex items-center justify-between px-4 py-3 bg-white ${index > 0 ? 'border-t-2 border-black' : ''}`}
                 >
-                  <X className="w-5 h-5" />
-                </button>
-              </div>
-            ))}
-          </div>
-        </Card>
+                  <span className="font-dm-mono font-bold text-sm">{participant.displayName}</span>
+                  <button
+                    onClick={() => handleRemoveParticipant(participant.tempId)}
+                    className="w-7 h-7 flex items-center justify-center border-2 border-black rounded bg-white shadow-[2px_2px_0px_0px_#000] hover:bg-red-50 active:translate-x-[2px] active:translate-y-[2px] active:shadow-none transition-all"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
 
-        {/* Error Message */}
+        </div>
+
+        {/* Error */}
         {error && (
-          <Card padding="md" className="mb-6 border-red-600">
-            <p className="font-bold uppercase tracking-wider text-red-600">{error}</p>
-          </Card>
+          <div className="mt-4 border-2 border-red-600 bg-red-50 px-4 py-3 rounded-lg">
+            <p className="font-dm-mono text-xs font-bold uppercase tracking-wider text-red-600">{error}</p>
+          </div>
         )}
 
-        {/* Continue Button */}
-        <Button
-          fullWidth
-          size="lg"
+        {/* Continue button */}
+        <button
+          type="button"
           onClick={handleContinue}
-          disabled={participants.length === 0 || !linesReady || saving}
+          disabled={!canContinue}
+          className="w-full mt-4 h-14 border-[4px] border-black rounded-lg font-dm-mono font-bold text-base uppercase bg-[#FFD700] text-black shadow-[4px_4px_0px_0px_#000] hover:bg-[#FFE44D] active:translate-x-[2px] active:translate-y-[2px] active:shadow-none transition-all disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {saving && 'Saving participants...'}
           {!saving && checkingLines && (
             <span className="flex items-center gap-2 justify-center">
-              <div className="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full" />
+              <div className="animate-spin h-4 w-4 border-2 border-black border-t-transparent rounded-full" />
               Parsing receipt...
             </span>
           )}
           {!saving && !checkingLines && participants.length === 0 && 'Add participants to continue'}
           {!saving && !checkingLines && participants.length > 0 && 'View Receipt →'}
-        </Button>
+        </button>
+
       </div>
     </div>
   );

@@ -105,8 +105,8 @@ export function LineItemModal({
 
   const totalPrice = (parseFloat(quantity) || 0) * (parseFloat(unitPrice) || 0);
 
-  const inputClass = "w-full h-12 border-2 border-black rounded-lg px-4 font-['Space_Grotesk'] text-base focus:border-[4px] focus:outline-none focus:bg-[#cee7f0] bg-white placeholder:text-[#7e775f] transition-all disabled:opacity-50";
-  const labelClass = "font-['Space_Grotesk'] text-[10px] uppercase font-bold tracking-widest text-[#4d4732]";
+  const inputClass = "w-full h-12 border-2 border-black rounded-lg px-4 font-dm-mono text-base focus:border-[4px] focus:outline-none focus:bg-[#cee7f0] bg-white placeholder:text-[#7e775f] transition-all disabled:opacity-50";
+  const labelClass = "font-dm-mono text-[10px] uppercase font-bold tracking-widest text-[#4d4732]";
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
@@ -116,7 +116,7 @@ export function LineItemModal({
 
         {/* Header */}
         <div className="flex justify-between items-center">
-          <h2 className="font-['Epilogue'] font-bold text-2xl uppercase tracking-tight">
+          <h2 className="font-dm-sans font-bold text-2xl uppercase tracking-tight">
             {mode === 'create' ? 'Add Item' : 'Edit Item'}
           </h2>
           <button
@@ -133,7 +133,7 @@ export function LineItemModal({
         {mode === 'edit' && hasAssignments && (
           <div className="bg-[#FFD700] border-[4px] border-black p-2 flex items-center gap-2">
             <span className="text-base">⚠</span>
-            <span className="font-['Space_Grotesk'] text-xs font-bold">Editing qty or price clears assignments</span>
+            <span className="font-dm-mono text-xs font-bold">Editing qty or price clears assignments</span>
           </div>
         )}
 
@@ -159,7 +159,7 @@ export function LineItemModal({
                 value={receiptLineType}
                 onChange={(e) => handleLineTypeChange(e.target.value)}
                 disabled={saving}
-                className="w-full h-12 border-2 border-black rounded-lg px-4 font-['Space_Grotesk'] text-base focus:border-[4px] focus:outline-none bg-white disabled:opacity-50 transition-all"
+                className="w-full h-12 border-2 border-black rounded-lg px-4 font-dm-mono text-base focus:border-[4px] focus:outline-none bg-white disabled:opacity-50 transition-all"
               >
                 <option value="">Select type...</option>
                 <option value="TAX">Tax</option>
@@ -202,7 +202,7 @@ export function LineItemModal({
 
           {/* Total preview */}
           <div className="bg-[#eeeeee] border-2 border-black rounded-lg p-2 flex justify-center items-center">
-            <span className="font-['Epilogue'] font-bold text-lg">
+            <span className="font-dm-sans font-bold text-lg">
               {quantity} × PHP{unitPrice} = PHP{totalPrice.toFixed(2)}
             </span>
           </div>
@@ -210,7 +210,7 @@ export function LineItemModal({
           {/* Error */}
           {error && (
             <div className="border-2 border-red-600 bg-red-50 px-4 py-3 rounded-lg">
-              <p className="font-['Space_Grotesk'] text-xs font-bold uppercase tracking-wider text-red-600">{error}</p>
+              <p className="font-dm-mono text-xs font-bold uppercase tracking-wider text-red-600">{error}</p>
             </div>
           )}
 
@@ -220,14 +220,14 @@ export function LineItemModal({
               type="button"
               onClick={handleCancel}
               disabled={saving}
-              className="flex-1 h-12 border-2 border-black rounded font-['Space_Grotesk'] font-bold text-sm uppercase bg-white shadow-[2px_2px_0px_0px_#000] hover:bg-[#f3f3f3] active:translate-x-[2px] active:translate-y-[2px] active:shadow-none transition-all disabled:opacity-50"
+              className="flex-1 h-12 border-2 border-black rounded font-dm-mono font-bold text-sm uppercase bg-white shadow-[2px_2px_0px_0px_#000] hover:bg-[#f3f3f3] active:translate-x-[2px] active:translate-y-[2px] active:shadow-none transition-all disabled:opacity-50"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={saving}
-              className="flex-1 h-12 border-[4px] border-black rounded font-['Space_Grotesk'] font-bold text-sm uppercase bg-[#FFD700] text-black shadow-[4px_4px_0px_0px_#000] hover:bg-[#FFE44D] active:translate-x-[2px] active:translate-y-[2px] active:shadow-none transition-all disabled:opacity-50"
+              className="flex-1 h-12 border-[4px] border-black rounded font-dm-mono font-bold text-sm uppercase bg-[#FFD700] text-black shadow-[4px_4px_0px_0px_#000] hover:bg-[#FFE44D] active:translate-x-[2px] active:translate-y-[2px] active:shadow-none transition-all disabled:opacity-50"
             >
               {saving ? 'Saving...' : mode === 'create' ? 'Add Item' : 'Save Changes'}
             </button>

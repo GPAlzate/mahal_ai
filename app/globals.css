@@ -1,5 +1,10 @@
 @import "tailwindcss";
 
+@theme {
+  --font-dm-sans: 'DM Sans', sans-serif;
+  --font-dm-mono: 'DM Mono', monospace;
+}
+
 :root {
   --background: #ffffff;
   --foreground: #000000;
@@ -8,6 +13,7 @@
 body {
   color: var(--foreground);
   background: var(--background);
+  font-family: var(--font-dm-sans), 'DM Sans', sans-serif;
 }
 
 @utility animate-fade-in-out {

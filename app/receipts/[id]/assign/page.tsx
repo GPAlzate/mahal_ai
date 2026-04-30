@@ -268,8 +268,8 @@ export default function AssignPage({ params }: { params: Promise<{ id: string }>
   const stepLabels = [
     { num: '01', label: 'Assign', view: 'items' as const },
     { num: '02', label: 'Misc', view: 'misc-charges' as const },
-    { num: '03', label: 'Disc', view: 'discounts' as const },
-    { num: '04', label: 'Sum', view: null },
+    { num: '03', label: 'Discount', view: 'discounts' as const },
+    { num: '04', label: 'Summary', view: null },
   ];
 
   const PARTICIPANT_COLORS = ['#ffd9de', '#cee7f0', '#ffe16d', '#b5ead7', '#e2d1f9', '#fce1a4', '#b8e0ff'];
@@ -402,7 +402,7 @@ export default function AssignPage({ params }: { params: Promise<{ id: string }>
             >
               <ArrowLeft className="w-4 h-4" />
             </button>
-            <h1 className="font-['Epilogue'] font-black text-xl tracking-tight uppercase">
+            <h1 className="font-dm-sans font-black text-xl tracking-tight uppercase">
               {currentView === 'items' ? 'Assign Items' : currentView === 'discounts' ? 'Assign Discounts' : 'Misc Charges'}
             </h1>
           </div>
@@ -420,7 +420,7 @@ export default function AssignPage({ params }: { params: Promise<{ id: string }>
                   {receiptImageURI && (
                     <button
                       onClick={() => { setShowReceiptImage(true); setShowKebabMenu(false); }}
-                      className="flex items-center gap-2 px-4 py-3 border-b-2 border-black font-['Space_Grotesk'] text-[11px] font-bold uppercase tracking-wide hover:bg-[#FFD700] transition-colors text-left"
+                      className="flex items-center gap-2 px-4 py-3 border-b-2 border-black font-dm-mono text-[11px] font-bold uppercase tracking-wide hover:bg-[#FFD700] transition-colors text-left"
                     >
                       <Eye className="w-4 h-4 flex-shrink-0" />
                       View Receipt
@@ -439,7 +439,7 @@ export default function AssignPage({ params }: { params: Promise<{ id: string }>
             const isPast = i < currentStepIndex;
             return (
               <React.Fragment key={step.num}>
-                <div className="flex items-center gap-1 font-['Space_Grotesk'] text-[11px] font-bold whitespace-nowrap">
+                <div className="flex items-center gap-1 font-dm-mono text-[11px] font-bold whitespace-nowrap">
                   <span className={`px-1 ${isActive ? 'bg-black text-white' : isPast ? 'bg-[#e2e2e2] text-[#1b1b1b]' : 'text-[#7e7576]'}`}>
                     {step.num}
                   </span>
@@ -460,7 +460,7 @@ export default function AssignPage({ params }: { params: Promise<{ id: string }>
       {error && (
         <div className="px-4 pt-3 max-w-2xl mx-auto w-full">
           <div className="border-4 border-red-600 bg-red-50 p-3">
-            <p className="font-bold uppercase tracking-wider text-red-600 font-['Space_Grotesk'] text-xs">{error}</p>
+            <p className="font-bold uppercase tracking-wider text-red-600 font-dm-mono text-xs">{error}</p>
           </div>
         </div>
       )}
@@ -472,7 +472,7 @@ export default function AssignPage({ params }: { params: Promise<{ id: string }>
         {currentView === 'items' && (
           <>
             {purchaseLines.length === 0 && (
-              <p className="text-center font-bold py-4 font-['Epilogue'] text-sm">No items yet — add one below.</p>
+              <p className="text-center font-bold py-4 font-dm-sans text-sm">No items yet — add one below.</p>
             )}
 
             {/* Add Item Button */}
@@ -483,7 +483,7 @@ export default function AssignPage({ params }: { params: Promise<{ id: string }>
               <div className="p-1 bg-black text-white rounded-full group-hover:scale-110 transition-transform flex items-center justify-center">
                 <Plus className="w-4 h-4" />
               </div>
-              <span className="font-['Epilogue'] font-bold uppercase text-sm">ADD ITEM</span>
+              <span className="font-dm-sans font-bold uppercase text-sm">ADD ITEM</span>
             </button>
 
             {purchaseLines.map((line) => {
@@ -506,7 +506,7 @@ export default function AssignPage({ params }: { params: Promise<{ id: string }>
                 >
                   {/* Row 1: name + edit/delete */}
                   <div className="flex items-center gap-2">
-                    <h2 className="font-['Epilogue'] font-bold text-[16px] uppercase leading-tight flex-1 truncate">{line.itemName}</h2>
+                    <h2 className="font-dm-sans font-bold text-[16px] uppercase leading-tight flex-1 truncate">{line.itemName}</h2>
                     <button
                       onClick={(e) => { e.stopPropagation(); handleOpenEditModal(line); }}
                       className="p-1 border-2 border-black bg-white rounded shadow-[1px_1px_0px_0px_#000] active:shadow-none active:translate-x-[1px] active:translate-y-[1px] transition-all flex-shrink-0"
@@ -524,7 +524,7 @@ export default function AssignPage({ params }: { params: Promise<{ id: string }>
                   {/* Row 2: price pill + participant circles */}
                   <div className="flex justify-between items-end">
                     <div className="bg-[#e2e2e2] border-2 border-black rounded-full px-2 py-0.5 flex items-center w-max">
-                      <span className="font-['Space_Grotesk'] text-[10px] uppercase font-bold text-[#1b1b1b]">
+                      <span className="font-dm-mono text-[10px] uppercase font-bold text-[#1b1b1b]">
                         {line.quantity} × PHP{line.unitPrice.toFixed(2)} = PHP{(line.quantity * line.unitPrice).toFixed(2)}
                       </span>
                     </div>
@@ -536,7 +536,7 @@ export default function AssignPage({ params }: { params: Promise<{ id: string }>
                           <div
                             key={p.id}
                             style={{ backgroundColor: color, zIndex: assignedParticipants.length - idx }}
-                            className="w-7 h-7 rounded-full border-2 border-black flex items-center justify-center font-['Space_Grotesk'] text-[10px] font-bold"
+                            className="w-7 h-7 rounded-full border-2 border-black flex items-center justify-center font-dm-sans text-[10px] font-bold"
                           >
                             {getInitials(p.displayName)}
                           </div>
@@ -557,7 +557,7 @@ export default function AssignPage({ params }: { params: Promise<{ id: string }>
         {/* Discounts view */}
         {currentView === 'discounts' && (
           <>
-            <p className="font-['Space_Grotesk'] text-xs text-[#4c4546] px-1">Unassigned discounts split proportionally.</p>
+            <p className="font-dm-mono text-xs text-[#4c4546] px-1">Unassigned discounts split proportionally.</p>
             {discountLines.map((line) => {
               const assignedParticipants = getAssignedParticipants(line.id);
               const isSelected = activeLineId === line.id;
@@ -575,7 +575,7 @@ export default function AssignPage({ params }: { params: Promise<{ id: string }>
                   }`}
                 >
                   <div className="flex items-center gap-2">
-                    <h2 className="font-['Epilogue'] font-bold text-[16px] uppercase leading-tight flex-1 truncate text-green-700">{line.itemName}</h2>
+                    <h2 className="font-dm-sans font-bold text-[16px] uppercase leading-tight flex-1 truncate text-green-700">{line.itemName}</h2>
                     <button
                       onClick={(e) => { e.stopPropagation(); handleOpenEditModal(line); }}
                       className="p-1 border-2 border-black bg-white rounded shadow-[1px_1px_0px_0px_#000] active:shadow-none active:translate-x-[1px] active:translate-y-[1px] transition-all flex-shrink-0"
@@ -591,7 +591,7 @@ export default function AssignPage({ params }: { params: Promise<{ id: string }>
                   </div>
                   <div className="flex justify-between items-end">
                     <div className="bg-green-100 border-2 border-green-600 rounded-full px-2 py-0.5 flex items-center w-max">
-                      <span className="font-['Space_Grotesk'] text-[10px] uppercase font-bold text-green-700">
+                      <span className="font-dm-mono text-[10px] uppercase font-bold text-green-700">
                         PHP{(line.quantity * line.unitPrice).toFixed(2)}
                       </span>
                     </div>
@@ -603,13 +603,13 @@ export default function AssignPage({ params }: { params: Promise<{ id: string }>
                           <div
                             key={p.id}
                             style={{ backgroundColor: color, zIndex: assignedParticipants.length - idx }}
-                            className="w-7 h-7 rounded-full border-2 border-black flex items-center justify-center font-['Space_Grotesk'] text-[10px] font-bold"
+                            className="w-7 h-7 rounded-full border-2 border-black flex items-center justify-center font-dm-sans text-[10px] font-bold"
                           >
                             {getInitials(p.displayName)}
                           </div>
                         );
                       }) : (
-                        <span className="font-['Space_Grotesk'] text-[9px] text-[#7e7576] border border-dashed border-[#cfc4c5] px-2 py-0.5 rounded-full">
+                        <span className="font-dm-sans text-[9px] text-[#7e7576] border border-dashed border-[#cfc4c5] px-2 py-0.5 rounded-full">
                           proportional
                         </span>
                       )}
@@ -624,7 +624,7 @@ export default function AssignPage({ params }: { params: Promise<{ id: string }>
         {/* Misc charges view */}
         {currentView === 'misc-charges' && (
           <>
-            <p className="font-['Space_Grotesk'] text-xs text-[#4c4546] px-1">Review tax, tip, and service charges.</p>
+            <p className="font-dm-mono text-xs text-[#4c4546] px-1">Review tax, tip, and service charges.</p>
 
             <button
               onClick={handleOpenCreateModal}
@@ -633,14 +633,14 @@ export default function AssignPage({ params }: { params: Promise<{ id: string }>
               <div className="p-1 bg-black text-white rounded-full group-hover:scale-110 transition-transform flex items-center justify-center">
                 <Plus className="w-4 h-4" />
               </div>
-              <span className="font-['Epilogue'] font-bold uppercase text-sm">ADD ITEM</span>
+              <span className="font-dm-sans font-bold uppercase text-sm">ADD ITEM</span>
             </button>
 
             {miscChargeLines.map((line) => (
               <div key={line.id} className="bg-white border-4 border-black p-[12px_16px] rounded-lg flex flex-col gap-2 shadow-[3px_3px_0px_0px_#000]">
                 <div className="flex items-center gap-2">
-                  <h2 className="font-['Epilogue'] font-bold text-[16px] uppercase leading-tight flex-1 truncate">{line.itemName}</h2>
-                  <span className="font-['Space_Grotesk'] text-[9px] uppercase tracking-wide text-[#7e7576] border border-[#e2e2e2] px-1.5 py-0.5 rounded-full flex-shrink-0">
+                  <h2 className="font-dm-sans font-bold text-[16px] uppercase leading-tight flex-1 truncate">{line.itemName}</h2>
+                  <span className="font-dm-sans text-[9px] uppercase tracking-wide text-[#7e7576] border border-[#e2e2e2] px-1.5 py-0.5 rounded-full flex-shrink-0">
                     {line.receiptLineType === 'TAX' && 'Tax'}
                     {line.receiptLineType === 'TIP' && 'Tip'}
                     {line.receiptLineType === 'SRVC' && 'Service'}
@@ -659,7 +659,7 @@ export default function AssignPage({ params }: { params: Promise<{ id: string }>
                   </button>
                 </div>
                 <div className="bg-[#e2e2e2] border-2 border-black rounded-full px-2 py-0.5 flex items-center w-max">
-                  <span className="font-['Space_Grotesk'] text-[10px] uppercase font-bold text-[#1b1b1b]">
+                  <span className="font-dm-mono text-[10px] uppercase font-bold text-[#1b1b1b]">
                     {line.quantity} × PHP{line.unitPrice.toFixed(2)} = PHP{(line.quantity * line.unitPrice).toFixed(2)}
                   </span>
                 </div>
@@ -676,7 +676,7 @@ export default function AssignPage({ params }: { params: Promise<{ id: string }>
         {(currentView === 'items' || currentView === 'discounts') && (
           <div className="flex items-center gap-4 overflow-x-auto px-4 py-2 border-b-4 border-black [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
             {participants.length === 0 ? (
-              <span className="font-['Space_Grotesk'] text-xs text-[#7e7576]">No participants yet.</span>
+              <span className="font-dm-mono text-xs text-[#7e7576]">No participants yet.</span>
             ) : participants.map((participant, i) => {
               const color = PARTICIPANT_COLORS[i % PARTICIPANT_COLORS.length];
               const isActive = activeParticipantId === participant.id;
@@ -693,19 +693,19 @@ export default function AssignPage({ params }: { params: Promise<{ id: string }>
                   } ${isAlreadyAssigned ? '!opacity-100' : ''}`}
                 >
                   <div
-                    className={`relative w-7 h-7 rounded-full border-2 border-black flex items-center justify-center font-['Space_Grotesk'] text-[10px] font-bold shadow-[2px_2px_0px_0px_#000] transition-all ${
+                    className={`relative w-7 h-7 rounded-full border-2 border-black flex items-center justify-center font-dm-sans text-[10px] font-bold shadow-[2px_2px_0px_0px_#000] transition-all ${
                       isActive ? 'ring-2 ring-black ring-offset-1' : ''
                     }`}
                     style={{ backgroundColor: color }}
                   >
                     {getInitials(participant.displayName)}
                     {assignCount > 0 && (
-                      <div className="absolute -top-1.5 -right-1.5 bg-[#FFD700] border-2 border-black rounded-full w-[18px] h-[18px] flex items-center justify-center font-['Space_Grotesk'] text-[9px] font-bold leading-none z-10">
+                      <div className="absolute -top-1.5 -right-1.5 bg-[#FFD700] border-2 border-black rounded-full w-[18px] h-[18px] flex items-center justify-center font-dm-sans text-[9px] font-bold leading-none z-10">
                         {assignCount}
                       </div>
                     )}
                   </div>
-                  <span className="font-['Space_Grotesk'] text-[9px] uppercase font-bold text-[#1b1b1b]">
+                  <span className="font-dm-mono text-[9px] uppercase font-bold text-[#1b1b1b]">
                     {participant.displayName.split(' ')[0]}
                   </span>
                 </button>
@@ -718,8 +718,8 @@ export default function AssignPage({ params }: { params: Promise<{ id: string }>
         <div className="flex items-stretch h-16">
           {/* Subtotal */}
           <div className="flex flex-col items-center justify-center w-1/3 border-r-4 border-black px-3 gap-0.5">
-            <span className="font-['Space_Grotesk'] text-[8px] uppercase font-bold text-[#7e7576] tracking-wider">Subtotal</span>
-            <span className="font-['Epilogue'] font-bold text-sm leading-tight">
+            <span className="font-dm-mono text-[8px] uppercase font-bold text-[#7e7576] tracking-wider">Subtotal</span>
+            <span className="font-dm-sans font-bold text-sm leading-tight">
               PHP {getPurchaseSubtotal().toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </span>
           </div>
@@ -728,7 +728,7 @@ export default function AssignPage({ params }: { params: Promise<{ id: string }>
           <button
             onClick={handleContinue}
             disabled={saving}
-            className="flex-1 bg-[#FFD700] text-black border-l-0 flex items-center justify-center gap-2 font-['Epilogue'] font-bold uppercase text-sm tracking-wide shadow-none hover:bg-[#FFE44D] active:bg-[#e6c200] transition-colors disabled:opacity-50"
+            className="flex-1 bg-[#FFD700] text-black border-l-0 flex items-center justify-center gap-2 font-dm-sans font-bold uppercase text-sm tracking-wide shadow-none hover:bg-[#FFE44D] active:bg-[#e6c200] transition-colors disabled:opacity-50"
           >
             {continueLabel}
             <ArrowRight className="w-4 h-4" />
@@ -767,12 +767,12 @@ export default function AssignPage({ params }: { params: Promise<{ id: string }>
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex flex-col gap-1">
-              <h2 className="font-['Epilogue'] font-bold text-xl uppercase text-center border-b-2 border-black pb-2">
+              <h2 className="font-dm-sans font-bold text-xl uppercase text-center border-b-2 border-black pb-2">
                 Delete Item?
               </h2>
               <div className="text-center py-2">
                 <p className="font-['Work_Sans'] text-base text-[#4d4732]">"{deleteConfirmLine.itemName}"</p>
-                <p className="font-['Space_Grotesk'] text-[10px] uppercase tracking-wide text-[#7e7576] mt-1">
+                <p className="font-dm-mono text-[10px] uppercase tracking-wide text-[#7e7576] mt-1">
                   This cannot be undone.
                 </p>
               </div>
@@ -780,13 +780,13 @@ export default function AssignPage({ params }: { params: Promise<{ id: string }>
             <div className="flex gap-2">
               <button
                 onClick={() => setDeleteConfirmLine(null)}
-                className="flex-1 py-2 px-3 bg-white border-2 border-black font-['Space_Grotesk'] font-bold text-sm uppercase shadow-[2px_2px_0px_0px_#000] active:translate-x-[2px] active:translate-y-[2px] active:shadow-none transition-all"
+                className="flex-1 py-2 px-3 bg-white border-2 border-black font-dm-mono font-bold text-sm uppercase shadow-[2px_2px_0px_0px_#000] active:translate-x-[2px] active:translate-y-[2px] active:shadow-none transition-all"
               >
                 Cancel
               </button>
               <button
                 onClick={confirmDeleteLineItem}
-                className="flex-1 py-2 px-3 bg-[#ba1a1a] text-white border-2 border-black font-['Space_Grotesk'] font-bold text-sm uppercase shadow-[2px_2px_0px_0px_#000] active:translate-x-[2px] active:translate-y-[2px] active:shadow-none transition-all"
+                className="flex-1 py-2 px-3 bg-[#ba1a1a] text-white border-2 border-black font-dm-mono font-bold text-sm uppercase shadow-[2px_2px_0px_0px_#000] active:translate-x-[2px] active:translate-y-[2px] active:shadow-none transition-all"
               >
                 Delete
               </button>
