@@ -8,6 +8,7 @@ import { uploadState } from '@/lib/client/uploadState';
 
 interface LocalParticipant {
   tempId: string;
+  participantId?: number;
   displayName: string;
 }
 
@@ -22,6 +23,21 @@ export default function ParticipantsPage({ params }: { params: Promise<{ id: str
   const [checkingLines, setCheckingLines] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+
+  // Pre-populate participants if navigating back to this page
+  useEffect(() => {
+    api.participants.list(receiptId).then((existing) => {
+      if (existing.length > 0) {
+        setParticipants(
+          existing.map((p) => ({
+            tempId: `saved-${p.id}`,
+            participantId: p.id,
+            displayName: p.displayName,
+          }))
+        );
+      }
+    }).catch(() => {});
+  }, [receiptId]);
 
   // Check if receipt parsing is complete
   useEffect(() => {
@@ -82,8 +98,13 @@ export default function ParticipantsPage({ params }: { params: Promise<{ id: str
     setParticipantName('');
   };
 
-  const handleRemoveParticipant = (tempId: string) => {
+  const handleRemoveParticipant = async (tempId: string) => {
+    const participant = participants.find((p) => p.tempId === tempId);
+    if (!participant) return;
     setParticipants((prev) => prev.filter((p) => p.tempId !== tempId));
+    if (participant.participantId) {
+      await api.participants.delete(receiptId, participant.participantId).catch(() => {});
+    }
   };
 
   const handleContinue = async () => {
@@ -91,7 +112,10 @@ export default function ParticipantsPage({ params }: { params: Promise<{ id: str
     setSaving(true);
     setError(null);
     try {
-      await api.participants.create(receiptId, participants);
+      const newParticipants = participants.filter((p) => !p.participantId);
+      if (newParticipants.length > 0) {
+        await api.participants.create(receiptId, newParticipants);
+      }
       router.push(`/receipts/${receiptId}/assign`);
     } catch (err: any) {
       setError(err.message || 'Failed to save participants');
