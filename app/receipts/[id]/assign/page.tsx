@@ -1,10 +1,8 @@
 'use client';
 
-import { useState, useEffect, use } from 'react';
+import React, { useState, useEffect, use } from 'react';
 import { useRouter } from 'next/navigation';
-import { X, Pencil } from 'lucide-react';
-import { PageHeader } from '@/components/PageHeader';
-import { Button } from '@/components/Button';
+import { X, Pencil, Plus, Trash2, ArrowLeft, ArrowRight, MoreVertical, Eye } from 'lucide-react';
 import { Card } from '@/components/Card';
 import { LineItemModal } from '@/components/LineItemModal';
 import { api } from '@/lib/client/api-client';
@@ -48,26 +46,25 @@ export default function AssignPage({ params }: { params: Promise<{ id: string }>
   const [unassignedLineIds, setUnassignedLineIds] = useState<Set<number>>(new Set());
   const [receiptImageURI, setReceiptImageURI] = useState<string | null>(null);
   const [showReceiptImage, setShowReceiptImage] = useState(false);
+  const [showKebabMenu, setShowKebabMenu] = useState(false);
+  const [deleteConfirmLine, setDeleteConfirmLine] = useState<ReceiptLine | null>(null);
 
   useEffect(() => {
     async function fetchSplitGroup() {
       try {
         const splitGroup = await api.splitGroups.get(receiptId);
 
-        // Redirect to share code page if finalized
         if (splitGroup.receipt.status === 'FLZD') {
           setLoading(false);
           router.push(`/${splitGroup.receipt.shareCode}`);
           return;
         }
 
-        // Store all lines and image URI
         const lines = splitGroup.receipt.lines || [];
         setAllLines(lines);
         setParticipants(splitGroup.participants);
         setReceiptImageURI(splitGroup.receipt.imageURI || null);
 
-        // Build assignments data from the response
         const assignmentsData: LineAssignments = {};
         splitGroup.assignments.forEach((assignment) => {
           if (!assignmentsData[assignment.receiptLineId]) {
@@ -87,31 +84,33 @@ export default function AssignPage({ params }: { params: Promise<{ id: string }>
     fetchSplitGroup();
   }, [receiptId, router]);
 
-  // Filter lines based on current view
   const purchaseLines = allLines.filter((line) => line.receiptLineType === 'PRCH');
   const discountLines = allLines.filter((line) => line.receiptLineType === 'DSCT');
   const miscChargeLines = allLines.filter((line) => line.receiptLineType !== 'PRCH' && line.receiptLineType !== 'DSCT');
   const lines = currentView === 'items' ? purchaseLines : currentView === 'discounts' ? discountLines : miscChargeLines;
 
+  const getInitials = (name: string) => {
+    const parts = name.trim().split(/\s+/);
+    if (parts.length >= 2) return (parts[0][0] + parts[1][0]).toUpperCase();
+    return name.slice(0, 2).toUpperCase();
+  };
+
+  const getPurchaseSubtotal = () =>
+    purchaseLines.reduce((sum, line) => sum + line.quantity * line.unitPrice, 0);
+
   const toggleAssignment = (lineId: number, participantId: number) => {
     setAssignments((prev) => {
       const currentQuantity = prev[lineId]?.[participantId] || 0;
       const nextQuantity = currentQuantity > 0 ? 0 : 1;
-
       const nextLineAssignments = { ...(prev[lineId] || {}) };
       if (nextQuantity === 0) {
         delete nextLineAssignments[participantId];
       } else {
         nextLineAssignments[participantId] = nextQuantity;
       }
-
-      return {
-        ...prev,
-        [lineId]: nextLineAssignments,
-      };
+      return { ...prev, [lineId]: nextLineAssignments };
     });
 
-    // Clear unassigned highlight for this line if it's being assigned
     if (unassignedLineIds.has(lineId)) {
       setUnassignedLineIds((prev) => {
         const next = new Set(prev);
@@ -120,7 +119,6 @@ export default function AssignPage({ params }: { params: Promise<{ id: string }>
       });
     }
 
-    // Clear error if all lines are now assigned
     if (error) {
       const stillUnassigned = purchaseLines.filter(
         (line) =>
@@ -136,42 +134,33 @@ export default function AssignPage({ params }: { params: Promise<{ id: string }>
 
   const handleLineSelection = (lineId: number) => {
     setError(null);
-
-    // If a participant is already selected, assign them together and keep participant selected
     if (activeParticipantId) {
       toggleAssignment(lineId, activeParticipantId);
-      // Keep participant selected, clear line selection
       setActiveLineId(null);
     } else {
-      // Toggle line selection
       setActiveLineId((prev) => (prev === lineId ? null : lineId));
     }
   };
 
   const handleParticipantSelection = (participantId: number) => {
     setError(null);
-
-    // If a line is already selected, assign them together and keep line selected
     if (activeLineId) {
       toggleAssignment(activeLineId, participantId);
-      // Keep line selected, clear participant selection
       setActiveParticipantId(null);
     } else {
-      // Toggle participant selection
       setActiveParticipantId((prev) => (prev === participantId ? null : participantId));
     }
   };
 
   const handleContinue = async () => {
     if (currentView === 'items') {
-      // Validate all purchase lines are assigned
       const unassignedLines = purchaseLines.filter(
         (line) => !assignments[line.id] || Object.keys(assignments[line.id]).length === 0
       );
 
       if (unassignedLines.length > 0) {
         setUnassignedLineIds(new Set(unassignedLines.map((line) => line.id)));
-        setError('Please assign the highlighted items in red to at least one participant.');
+        setError('Please assign the highlighted items to at least one participant.');
         return;
       }
 
@@ -180,17 +169,13 @@ export default function AssignPage({ params }: { params: Promise<{ id: string }>
         setError(null);
         setUnassignedLineIds(new Set());
 
-        // Convert purchase assignments to batch API format with proper share quantities
         const purchaseLinesMap = new Map(purchaseLines.map(line => [+line.id, line]));
         const assignmentsList = Object.entries(assignments).flatMap(([lineId, participants]) => {
           const lineIdNum = +lineId;
           const line = purchaseLinesMap.get(lineIdNum);
-
           if (!line) return [];
-
           const participantIds = Object.keys(participants);
           const shareQuantity = line.quantity / participantIds.length;
-
           return participantIds.map((participantId) => ({
             receiptLineId: lineIdNum,
             participantId: Number(participantId),
@@ -198,9 +183,7 @@ export default function AssignPage({ params }: { params: Promise<{ id: string }>
           }));
         });
 
-        // Batch persist purchase assignments to API
         await api.assignments.batchAssign(receiptId, assignmentsList);
-
         setActiveLineId(null);
         setActiveParticipantId(null);
         if (miscChargeLines.length > 0) {
@@ -224,24 +207,18 @@ export default function AssignPage({ params }: { params: Promise<{ id: string }>
         router.push(`/receipts/${receiptId}/summary`);
       }
     } else if (currentView === 'discounts') {
-      // Discount assignments are optional — save any that exist and move on
       try {
         setSaving(true);
         setError(null);
 
-        // Build discount assignment list (only for lines that have assignments)
         const discountLinesMap = new Map(discountLines.map(line => [+line.id, line]));
         const discountAssignmentsList = Object.entries(assignments).flatMap(([lineId, participants]) => {
           const lineIdNum = +lineId;
           const line = discountLinesMap.get(lineIdNum);
-
           if (!line) return [];
-
           const participantIds = Object.keys(participants);
           if (participantIds.length === 0) return [];
-
           const shareQuantity = 1 / participantIds.length;
-
           return participantIds.map((participantId) => ({
             receiptLineId: lineIdNum,
             participantId: Number(participantId),
@@ -265,7 +242,7 @@ export default function AssignPage({ params }: { params: Promise<{ id: string }>
 
   const getAssignedParticipants = (lineId: number) => {
     const lineAssignments = assignments[lineId] || {};
-    return participants.filter((participant: Participant) => lineAssignments[participant.id]);
+    return participants.filter((p: Participant) => lineAssignments[p.id]);
   };
 
   const getParticipantAssignmentCount = (participantId: number) => {
@@ -277,6 +254,26 @@ export default function AssignPage({ params }: { params: Promise<{ id: string }>
   const hasAssignments = (lineId: number) => {
     return assignments[lineId] && Object.keys(assignments[lineId]).length > 0;
   };
+
+  const getParticipantTotal = (participantId: number) => {
+    return purchaseLines.reduce((total, line) => {
+      if (assignments[line.id]?.[participantId]) {
+        const splitCount = Object.keys(assignments[line.id]).length;
+        return total + (line.quantity * line.unitPrice) / splitCount;
+      }
+      return total;
+    }, 0);
+  };
+
+  const stepLabels = [
+    { num: '01', label: 'Assign', view: 'items' as const },
+    { num: '02', label: 'Misc', view: 'misc-charges' as const },
+    { num: '03', label: 'Disc', view: 'discounts' as const },
+    { num: '04', label: 'Sum', view: null },
+  ];
+
+  const PARTICIPANT_COLORS = ['#ffd9de', '#cee7f0', '#ffe16d', '#b5ead7', '#e2d1f9', '#fce1a4', '#b8e0ff'];
+  const currentStepIndex = stepLabels.findIndex(s => s.view === currentView);
 
   const handleOpenEditModal = (line: ReceiptLine) => {
     setEditingLine(line);
@@ -298,19 +295,14 @@ export default function AssignPage({ params }: { params: Promise<{ id: string }>
   }) => {
     try {
       if (lineItemModalMode === 'edit' && editingLine) {
-        // Update existing line
         const updateData: any = {
           itemName: data.itemName,
           quantity: data.quantity,
           unitPrice: data.unitPrice,
         };
-        if (data.receiptLineType) {
-          updateData.receiptLineType = data.receiptLineType;
-        }
+        if (data.receiptLineType) updateData.receiptLineType = data.receiptLineType;
 
         await api.lines.update(receiptId, editingLine.id, updateData);
-
-        // Update local state
         setAllLines((prev) =>
           prev.map((line) =>
             line.id === editingLine.id
@@ -319,7 +311,6 @@ export default function AssignPage({ params }: { params: Promise<{ id: string }>
           )
         );
 
-        // Clear assignments if quantity or price changed (only for purchase items)
         if (
           editingLine.receiptLineType === 'PRCH' &&
           (data.quantity !== editingLine.quantity || data.unitPrice !== editingLine.unitPrice)
@@ -331,7 +322,6 @@ export default function AssignPage({ params }: { params: Promise<{ id: string }>
           });
         }
       } else {
-        // Create new line
         const receiptLineType = data.receiptLineType || (currentView === 'items' ? 'PRCH' : 'SRVC');
         const newLine = await api.lines.create(receiptId, {
           itemName: data.itemName,
@@ -339,12 +329,8 @@ export default function AssignPage({ params }: { params: Promise<{ id: string }>
           unitPrice: data.unitPrice,
           receiptLineType,
         });
-
-        // Add to local state
         setAllLines((prev) => [...prev, newLine]);
       }
-
-      // Close modal
       setShowLineItemModal(false);
       setEditingLine(null);
     } catch (err: any) {
@@ -358,18 +344,17 @@ export default function AssignPage({ params }: { params: Promise<{ id: string }>
     setEditingLine(null);
   };
 
-  const handleDeleteLineItem = async (line: ReceiptLine) => {
-    if (!confirm(`Delete "${line.itemName}"?\n\nThis action cannot be undone.`)) {
-      return;
-    }
+  const handleDeleteLineItem = (line: ReceiptLine) => {
+    setDeleteConfirmLine(line);
+  };
 
+  const confirmDeleteLineItem = async () => {
+    if (!deleteConfirmLine) return;
+    const line = deleteConfirmLine;
+    setDeleteConfirmLine(null);
     try {
       await api.lines.delete(receiptId, line.id);
-
-      // Remove from local state
       setAllLines((prev) => prev.filter((l) => l.id !== line.id));
-
-      // Clear assignments for this line
       setAssignments((prev) => {
         const next = { ...prev };
         delete next[line.id];
@@ -392,385 +377,366 @@ export default function AssignPage({ params }: { params: Promise<{ id: string }>
     );
   }
 
+  const continueLabel = saving
+    ? 'Saving...'
+    : currentView === 'items'
+      ? miscChargeLines.length > 0 ? 'Misc Charges' : discountLines.length > 0 ? 'Discounts' : 'Summary'
+      : currentView === 'misc-charges'
+        ? discountLines.length > 0 ? 'Discounts' : 'Summary'
+        : 'Summary';
+
   return (
-    <div className="h-dvh flex flex-col bg-yellow-50">
-      {/* Header - fixed */}
-      <div className="p-4 md:p-8">
-        <div className="max-w-5xl mx-auto mb-8">
-          <PageHeader
-            onBack={() => router.push(`/receipts/${receiptId}/participants`)}
-            onViewReceipt={receiptImageURI ? () => setShowReceiptImage(true) : undefined}
-          />
+    <div className="min-h-dvh flex flex-col bg-[#f9f9f9] text-[#1b1b1b] font-['Work_Sans'] pb-[140px]">
+
+      {/* Header */}
+      <header className="sticky top-0 z-40 bg-white border-b-4 border-black w-full">
+        <div className="px-5 h-14 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => {
+                if (currentView === 'misc-charges') setCurrentView('items');
+                else if (currentView === 'discounts') setCurrentView(miscChargeLines.length > 0 ? 'misc-charges' : 'items');
+                else router.push(`/receipts/${receiptId}/participants`);
+              }}
+              className="p-1.5 border-2 border-black rounded bg-white shadow-[2px_2px_0px_0px_#000] active:shadow-none active:translate-x-[2px] active:translate-y-[2px] transition-all flex items-center justify-center"
+            >
+              <ArrowLeft className="w-4 h-4" />
+            </button>
+            <h1 className="font-['Epilogue'] font-black text-xl tracking-tight uppercase">
+              {currentView === 'items' ? 'Assign Items' : currentView === 'discounts' ? 'Assign Discounts' : 'Misc Charges'}
+            </h1>
+          </div>
+          <div className="relative">
+            <button
+              onClick={() => setShowKebabMenu(v => !v)}
+              className="p-1.5 border-2 border-black rounded bg-white shadow-[2px_2px_0px_0px_#000] active:shadow-none active:translate-x-[2px] active:translate-y-[2px] transition-all flex items-center justify-center"
+            >
+              <MoreVertical className="w-4 h-4" />
+            </button>
+            {showKebabMenu && (
+              <>
+                <div className="fixed inset-0 z-40" onClick={() => setShowKebabMenu(false)} />
+                <div className="absolute right-0 top-full mt-1 z-50 bg-white border-2 border-black shadow-[4px_4px_0px_0px_#000] w-44 flex flex-col">
+                  {receiptImageURI && (
+                    <button
+                      onClick={() => { setShowReceiptImage(true); setShowKebabMenu(false); }}
+                      className="flex items-center gap-2 px-4 py-3 border-b-2 border-black font-['Space_Grotesk'] text-[11px] font-bold uppercase tracking-wide hover:bg-[#FFD700] transition-colors text-left"
+                    >
+                      <Eye className="w-4 h-4 flex-shrink-0" />
+                      View Receipt
+                    </button>
+                  )}
+                </div>
+              </>
+            )}
+          </div>
         </div>
-      </div>
+
+        {/* Progress Stepper */}
+        <div className="px-5 pb-2.5 flex items-center gap-2 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          {stepLabels.map((step, i) => {
+            const isActive = step.view === currentView;
+            const isPast = i < currentStepIndex;
+            return (
+              <React.Fragment key={step.num}>
+                <div className="flex items-center gap-1 font-['Space_Grotesk'] text-[11px] font-bold whitespace-nowrap">
+                  <span className={`px-1 ${isActive ? 'bg-black text-white' : isPast ? 'bg-[#e2e2e2] text-[#1b1b1b]' : 'text-[#7e7576]'}`}>
+                    {step.num}
+                  </span>
+                  <span className={`uppercase ${isActive ? 'underline decoration-[#FFD700] decoration-[3px] underline-offset-4' : isPast ? '' : 'opacity-40'}`}>
+                    {step.label}
+                  </span>
+                </div>
+                {i < stepLabels.length - 1 && (
+                  <span className={`text-[10px] ${isPast ? 'text-black' : 'text-black/20'}`}>›</span>
+                )}
+              </React.Fragment>
+            );
+          })}
+        </div>
+      </header>
 
       {/* Error message */}
       {error && (
-        <div className="p-4 max-w-5xl mx-auto w-full">
-          <Card padding="md" className="border-red-600">
-            <p className="font-bold uppercase tracking-wider text-red-600">
-              {error}
-            </p>
-          </Card>
+        <div className="px-4 pt-3 max-w-2xl mx-auto w-full">
+          <div className="border-4 border-red-600 bg-red-50 p-3">
+            <p className="font-bold uppercase tracking-wider text-red-600 font-['Space_Grotesk'] text-xs">{error}</p>
+          </div>
         </div>
       )}
 
-      {/* Items list - scrollable */}
-      <div className="flex-1 overflow-y-auto px-4 md:px-8">
-        <section className="space-y-4 max-w-5xl mx-auto">
-          {currentView === 'items' && (
-            // Items assignment view
-            <Card padding="lg" className="mb-6">
-              <h2 className="text-2xl font-bold mb-6">Tap an item or a person to pair them</h2>
+      {/* Main content */}
+      <main className="flex-1 px-4 pt-3 pb-2 flex flex-col gap-2 max-w-2xl mx-auto w-full">
 
-              {purchaseLines.length === 0 && (
-                <p className="text-center font-bold py-4">No receipt lines yet! Add an item below</p>
-              )}
+        {/* Items view */}
+        {currentView === 'items' && (
+          <>
+            {purchaseLines.length === 0 && (
+              <p className="text-center font-bold py-4 font-['Epilogue'] text-sm">No items yet — add one below.</p>
+            )}
 
-              <div className="space-y-4">
-              {/* Add New Item Button */}
-              <button
-                onClick={handleOpenCreateModal}
-                className="w-full border-4 border-dashed border-gray-400 bg-gray-50 p-4 hover:border-gray-600 hover:bg-gray-100 active:bg-gray-200 transition-colors text-gray-600 hover:text-gray-900"
-              >
-                <div className="flex items-center justify-center gap-2">
-                  <span className="text-2xl">+</span>
-                  <span className="font-bold uppercase tracking-wider">Add Item</span>
-                </div>
-              </button>
-
-              {purchaseLines.map((line) => {
-                const assignedParticipants = getAssignedParticipants(line.id);
-                const isSelected = activeLineId === line.id;
-                const isAssignmentMode = activeParticipantId !== null;
-                const isAssignedToSelectedParticipant =
-                  activeParticipantId && assignments[line.id]?.[activeParticipantId];
-                const isUnassigned = unassignedLineIds.has(line.id);
-
-                return (
-                  <div
-                    key={line.id}
-                    className={`p-4 border-4 border-black transition-all ${
-                      isUnassigned
-                        ? 'border-orange-600 bg-orange-50'
-                        : isSelected
-                          ? 'border-8 border-yellow-400 bg-yellow-50 -translate-y-1'
-                          : isAssignedToSelectedParticipant
-                            ? 'border-green-400 bg-green-50'
-                            : isAssignmentMode
-                              ? 'hover:bg-purple-100 hover:border-purple-500 cursor-pointer hover:scale-[1.02] bg-white'
-                              : 'bg-white'
-                    }`}
-                  >
-                    <div
-                      className="cursor-pointer"
-                      onClick={() => handleLineSelection(line.id)}
-                    >
-                      <div className="flex justify-between items-start">
-                        <div className="flex-1">
-                          <h3 className="font-bold text-xl uppercase tracking-wider mb-2">
-                            {line.itemName}
-                          </h3>
-                          <p className="font-mono text-sm">
-                            {line.quantity} × PHP{line.unitPrice.toFixed(2)} = PHP
-                            {(line.quantity * line.unitPrice).toFixed(2)}
-                          </p>
-
-                          {/* Assigned participants - shown inline below item details */}
-                          {assignedParticipants.length > 0 && (
-                            <div className="flex flex-wrap gap-2 mt-3">
-                              {assignedParticipants.map((participant) => (
-                                <span
-                                  key={participant.id}
-                                  className="border-2 border-black px-3 py-1 text-sm font-bold uppercase tracking-wider"
-                                >
-                                  {participant.displayName}
-                                </span>
-                              ))}
-                            </div>
-                          )}
-                        </div>
-                        <div className="ml-4 flex gap-2 flex-shrink-0">
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleOpenEditModal(line);
-                            }}
-                            className="p-2 border-2 border-black hover:bg-black hover:text-white transition-colors"
-                            title="Edit item"
-                          >
-                            <Pencil className="w-5 h-5" />
-                          </button>
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleDeleteLineItem(line);
-                            }}
-                            className="p-2 border-2 border-red-600 text-red-600 hover:bg-red-600 hover:text-white transition-colors"
-                            title="Delete item"
-                          >
-                            <X className="w-5 h-5" />
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
+            {/* Add Item Button */}
+            <button
+              onClick={handleOpenCreateModal}
+              className="w-full bg-white border-4 border-black border-dashed p-3 rounded-lg flex items-center justify-center gap-3 hover:bg-[#f3f3f3] transition-colors group"
+            >
+              <div className="p-1 bg-black text-white rounded-full group-hover:scale-110 transition-transform flex items-center justify-center">
+                <Plus className="w-4 h-4" />
               </div>
-            </Card>
-          )}
+              <span className="font-['Epilogue'] font-bold uppercase text-sm">ADD ITEM</span>
+            </button>
 
-          {currentView === 'discounts' && (
-            // Discounts assignment view
-            <Card padding="lg" className="mb-6">
-              <h2 className="text-2xl font-bold mb-4">Assign Discounts (Optional)</h2>
-              <p className="text-sm mb-6">
-                Tap a discount and a person to assign it. Unassigned discounts will be split proportionally.
-              </p>
+            {purchaseLines.map((line) => {
+              const assignedParticipants = getAssignedParticipants(line.id);
+              const isSelected = activeLineId === line.id;
+              const isAssignmentMode = activeParticipantId !== null;
+              const isAssignedToSelectedParticipant = activeParticipantId && assignments[line.id]?.[activeParticipantId];
+              const isUnassigned = unassignedLineIds.has(line.id);
 
-              <div className="space-y-4">
-              {discountLines.map((line) => {
-                const assignedParticipants = getAssignedParticipants(line.id);
-                const isSelected = activeLineId === line.id;
-                const isAssignmentMode = activeParticipantId !== null;
-                const isAssignedToSelectedParticipant =
-                  activeParticipantId && assignments[line.id]?.[activeParticipantId];
-
-                return (
-                  <div
-                    key={line.id}
-                    className={`p-4 border-4 border-black transition-all ${
-                      isSelected
-                        ? 'border-8 border-yellow-400 bg-yellow-50 -translate-y-1'
-                        : isAssignedToSelectedParticipant
-                          ? 'border-green-400 bg-green-50'
-                          : isAssignmentMode
-                            ? 'hover:bg-purple-100 hover:border-purple-500 cursor-pointer hover:scale-[1.02] bg-white'
-                            : 'bg-white'
-                    }`}
-                  >
-                    <div
-                      className="cursor-pointer"
-                      onClick={() => handleLineSelection(line.id)}
-                    >
-                      <div className="flex justify-between items-start">
-                        <div className="flex-1">
-                          <h3 className="font-bold text-xl uppercase tracking-wider mb-2 text-green-700">
-                            {line.itemName}
-                          </h3>
-                          <p className="font-mono text-sm text-green-600">
-                            PHP{(line.quantity * line.unitPrice).toFixed(2)}
-                          </p>
-
-                          {/* Assigned participants */}
-                          {assignedParticipants.length > 0 && (
-                            <div className="flex flex-wrap gap-2 mt-3">
-                              {assignedParticipants.map((participant) => (
-                                <span
-                                  key={participant.id}
-                                  className="border-2 border-black px-3 py-1 text-sm font-bold uppercase tracking-wider"
-                                >
-                                  {participant.displayName}
-                                </span>
-                              ))}
-                            </div>
-                          )}
-                        </div>
-                        <div className="ml-4 flex gap-2 flex-shrink-0">
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleOpenEditModal(line);
-                            }}
-                            className="p-2 border-2 border-black hover:bg-black hover:text-white transition-colors"
-                            title="Edit discount"
-                          >
-                            <Pencil className="w-5 h-5" />
-                          </button>
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleDeleteLineItem(line);
-                            }}
-                            className="p-2 border-2 border-red-600 text-red-600 hover:bg-red-600 hover:text-white transition-colors"
-                            title="Delete discount"
-                          >
-                            <X className="w-5 h-5" />
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
-              </div>
-            </Card>
-          )}
-
-          {currentView === 'misc-charges' && (
-            // Misc charges review view
-            <Card padding="lg" className="mb-6">
-              <h2 className="text-2xl font-bold mb-4">Review Misc Charges</h2>
-              <p className="text-sm mb-6">
-                Review tax, tip, and service charges. Add or edit as needed.
-              </p>
-
-              <div className="space-y-4">
-              {/* Add New Item Button */}
-              <button
-                onClick={handleOpenCreateModal}
-                className="w-full border-4 border-dashed border-gray-400 bg-gray-50 p-4 hover:border-gray-600 hover:bg-gray-100 active:bg-gray-200 transition-colors text-gray-600 hover:text-gray-900"
-              >
-                <div className="flex items-center justify-center gap-2">
-                  <span className="text-2xl">+</span>
-                  <span className="font-bold uppercase tracking-wider">Add Item</span>
-                </div>
-              </button>
-
-              {miscChargeLines.map((line) => (
-                <div key={line.id} className="relative p-4 border-4 border-black bg-white">
-                  {/* Delete button - top right corner */}
-                  <button
-                    onClick={() => handleDeleteLineItem(line)}
-                    className="absolute top-2 right-2 p-1 hover:text-red-600"
-                    title="Delete item"
-                  >
-                    <X className="w-5 h-5" />
-                  </button>
-
-                  <div className="flex justify-between items-start pr-8">
-                    <div className="flex-1">
-                      <h3 className="font-bold text-xl uppercase tracking-wider mb-2">
-                        {line.itemName}
-                      </h3>
-                      <p className="font-mono text-sm">
-                        {line.quantity} × PHP{line.unitPrice.toFixed(2)} = PHP
-                        {(line.quantity * line.unitPrice).toFixed(2)}
-                      </p>
-                      <p className="font-mono text-xs uppercase tracking-wide text-gray-500 mt-1">
-                        {line.receiptLineType === 'TAX' && 'Tax'}
-                        {line.receiptLineType === 'TIP' && 'Tip'}
-                        {line.receiptLineType === 'SRVC' && 'Service Charge'}
-                      </p>
-                    </div>
+              return (
+                <div
+                  key={line.id}
+                  onClick={() => handleLineSelection(line.id)}
+                  className={`bg-white border-4 border-black p-[12px_16px] rounded-lg flex flex-col gap-2 cursor-pointer transition-all shadow-[3px_3px_0px_0px_#000] active:translate-x-[2px] active:translate-y-[2px] active:shadow-[1px_1px_0px_0px_#000] ${
+                    isUnassigned ? 'border-orange-500 bg-orange-50' :
+                    isSelected ? 'border-[#FFD700] bg-yellow-50' :
+                    isAssignedToSelectedParticipant ? 'border-green-500 bg-green-50' :
+                    isAssignmentMode ? 'hover:bg-purple-50 hover:border-purple-400' : 'hover:bg-[#f9f9f9]'
+                  }`}
+                >
+                  {/* Row 1: name + edit/delete */}
+                  <div className="flex items-center gap-2">
+                    <h2 className="font-['Epilogue'] font-bold text-[16px] uppercase leading-tight flex-1 truncate">{line.itemName}</h2>
                     <button
-                      onClick={() => handleOpenEditModal(line)}
-                      className="p-2 border-2 border-black hover:bg-black hover:text-white transition-colors flex-shrink-0"
-                      title="Edit item"
+                      onClick={(e) => { e.stopPropagation(); handleOpenEditModal(line); }}
+                      className="p-1 border-2 border-black bg-white rounded shadow-[1px_1px_0px_0px_#000] active:shadow-none active:translate-x-[1px] active:translate-y-[1px] transition-all flex-shrink-0"
                     >
-                      <Pencil className="w-5 h-5" />
+                      <Pencil className="w-3 h-3" />
+                    </button>
+                    <button
+                      onClick={(e) => { e.stopPropagation(); handleDeleteLineItem(line); }}
+                      className="p-1 border-2 border-black bg-[#ffdad6] text-[#93000a] rounded shadow-[1px_1px_0px_0px_#000] active:shadow-none active:translate-x-[1px] active:translate-y-[1px] transition-all flex-shrink-0"
+                    >
+                      <Trash2 className="w-3 h-3" />
                     </button>
                   </div>
+
+                  {/* Row 2: price pill + participant circles */}
+                  <div className="flex justify-between items-end">
+                    <div className="bg-[#e2e2e2] border-2 border-black rounded-full px-2 py-0.5 flex items-center w-max">
+                      <span className="font-['Space_Grotesk'] text-[10px] uppercase font-bold text-[#1b1b1b]">
+                        {line.quantity} × PHP{line.unitPrice.toFixed(2)} = PHP{(line.quantity * line.unitPrice).toFixed(2)}
+                      </span>
+                    </div>
+                    <div className="flex -space-x-2">
+                      {assignedParticipants.length > 0 ? assignedParticipants.map((p, idx) => {
+                        const colorIdx = participants.findIndex(pp => pp.id === p.id);
+                        const color = PARTICIPANT_COLORS[colorIdx % PARTICIPANT_COLORS.length];
+                        return (
+                          <div
+                            key={p.id}
+                            style={{ backgroundColor: color, zIndex: assignedParticipants.length - idx }}
+                            className="w-7 h-7 rounded-full border-2 border-black flex items-center justify-center font-['Space_Grotesk'] text-[10px] font-bold"
+                          >
+                            {getInitials(p.displayName)}
+                          </div>
+                        );
+                      }) : (
+                        <div className="w-7 h-7 rounded-full border-2 border-black border-dashed flex items-center justify-center">
+                          <Plus className="w-3 h-3 text-[#7e7576]" />
+                        </div>
+                      )}
+                    </div>
+                  </div>
                 </div>
-              ))}
-              </div>
-            </Card>
-          )}
-        </section>
-      </div>
+              );
+            })}
+          </>
+        )}
 
-      {/* Participants - fixed at bottom with horizontal scroll (show in items and discounts views) */}
-      {(currentView === 'items' || currentView === 'discounts') && (
-        <div className="border-t-4 border-black bg-white">
-          {/* Status indicators */}
-          {(activeLineId || activeParticipantId) && (
-            <div className="px-4 pt-3 pb-2 border-b-2 border-gray-300 max-w-5xl mx-auto">
-              <div className="flex flex-wrap gap-4 text-sm font-mono">
-                {activeLineId && (
-                  <span>
-                    Assigning to:{' '}
-                    <strong>
-                      {lines.find((line) => line.id === activeLineId)?.itemName ||
-                        'Select a line'}
-                    </strong>
-                  </span>
-                )}
-                {activeParticipantId && (
-                  <span>
-                    Assigning from:{' '}
-                    <strong>
-                      {participants.find((p) => p.id === activeParticipantId)?.displayName ||
-                        'Select a participant'}
-                    </strong>
-                  </span>
-                )}
-              </div>
-            </div>
-          )}
+        {/* Discounts view */}
+        {currentView === 'discounts' && (
+          <>
+            <p className="font-['Space_Grotesk'] text-xs text-[#4c4546] px-1">Unassigned discounts split proportionally.</p>
+            {discountLines.map((line) => {
+              const assignedParticipants = getAssignedParticipants(line.id);
+              const isSelected = activeLineId === line.id;
+              const isAssignmentMode = activeParticipantId !== null;
+              const isAssignedToSelectedParticipant = activeParticipantId && assignments[line.id]?.[activeParticipantId];
 
-          {/* Participants horizontal scroll */}
-          <div className="overflow-x-auto">
-            <div className="p-3">
-              {participants.length === 0 ? (
-                <div className="text-center font-mono text-gray-500 text-sm">
-                  No participants yet. Add them first to start assigning.
-                </div>
-              ) : (
-                <div className="flex gap-3 pb-1">
-                  {participants.map((participant: Participant) => {
-                    const isActive = activeParticipantId === participant.id;
-                    const assignedCount = getParticipantAssignmentCount(participant.id);
-                    const isLineAssignmentMode = activeLineId !== null;
-                    const isAlreadyAssigned =
-                      activeLineId && assignments[activeLineId]?.[participant.id];
-
-                    return (
-                      <button
-                        key={participant.id}
-                        type="button"
-                        onClick={() => handleParticipantSelection(participant.id)}
-                        className={`
-                          border-4 px-3 py-2 flex flex-col gap-0.5
-                          uppercase tracking-wider text-left min-w-[100px]
-                          transition-all flex-shrink-0
-                          ${
-                            isActive
-                              ? 'bg-yellow-300 border-yellow-400 text-black font-extrabold shadow-[8px_8px_0px_0px_rgba(0,0,0,1)]'
-                              : isLineAssignmentMode && !isAlreadyAssigned
-                                ? 'border-black bg-green-100 hover:bg-green-300 hover:scale-105 cursor-pointer'
-                                : 'border-black bg-white hover:bg-gray-100'
-                          }
-                        `}
-                      >
-                        <span className="font-bold text-sm">{participant.displayName}</span>
-                        <span className="font-mono text-xs">
-                          {assignedCount > 0
-                            ? `${assignedCount} item${assignedCount > 1 ? 's' : ''}`
-                            : 'Unassigned'}
+              return (
+                <div
+                  key={line.id}
+                  onClick={() => handleLineSelection(line.id)}
+                  className={`bg-white border-4 border-black p-[12px_16px] rounded-lg flex flex-col gap-2 cursor-pointer transition-all shadow-[3px_3px_0px_0px_#000] active:translate-x-[2px] active:translate-y-[2px] active:shadow-[1px_1px_0px_0px_#000] ${
+                    isSelected ? 'border-[#FFD700] bg-yellow-50' :
+                    isAssignedToSelectedParticipant ? 'border-green-500 bg-green-50' :
+                    isAssignmentMode ? 'hover:bg-purple-50 hover:border-purple-400' : 'hover:bg-[#f9f9f9]'
+                  }`}
+                >
+                  <div className="flex items-center gap-2">
+                    <h2 className="font-['Epilogue'] font-bold text-[16px] uppercase leading-tight flex-1 truncate text-green-700">{line.itemName}</h2>
+                    <button
+                      onClick={(e) => { e.stopPropagation(); handleOpenEditModal(line); }}
+                      className="p-1 border-2 border-black bg-white rounded shadow-[1px_1px_0px_0px_#000] active:shadow-none active:translate-x-[1px] active:translate-y-[1px] transition-all flex-shrink-0"
+                    >
+                      <Pencil className="w-3 h-3" />
+                    </button>
+                    <button
+                      onClick={(e) => { e.stopPropagation(); handleDeleteLineItem(line); }}
+                      className="p-1 border-2 border-black bg-[#ffdad6] text-[#93000a] rounded shadow-[1px_1px_0px_0px_#000] active:shadow-none active:translate-x-[1px] active:translate-y-[1px] transition-all flex-shrink-0"
+                    >
+                      <Trash2 className="w-3 h-3" />
+                    </button>
+                  </div>
+                  <div className="flex justify-between items-end">
+                    <div className="bg-green-100 border-2 border-green-600 rounded-full px-2 py-0.5 flex items-center w-max">
+                      <span className="font-['Space_Grotesk'] text-[10px] uppercase font-bold text-green-700">
+                        PHP{(line.quantity * line.unitPrice).toFixed(2)}
+                      </span>
+                    </div>
+                    <div className="flex -space-x-2">
+                      {assignedParticipants.length > 0 ? assignedParticipants.map((p, idx) => {
+                        const colorIdx = participants.findIndex(pp => pp.id === p.id);
+                        const color = PARTICIPANT_COLORS[colorIdx % PARTICIPANT_COLORS.length];
+                        return (
+                          <div
+                            key={p.id}
+                            style={{ backgroundColor: color, zIndex: assignedParticipants.length - idx }}
+                            className="w-7 h-7 rounded-full border-2 border-black flex items-center justify-center font-['Space_Grotesk'] text-[10px] font-bold"
+                          >
+                            {getInitials(p.displayName)}
+                          </div>
+                        );
+                      }) : (
+                        <span className="font-['Space_Grotesk'] text-[9px] text-[#7e7576] border border-dashed border-[#cfc4c5] px-2 py-0.5 rounded-full">
+                          proportional
                         </span>
-                      </button>
-                    );
-                  })}
+                      )}
+                    </div>
+                  </div>
                 </div>
-              )}
-            </div>
+              );
+            })}
+          </>
+        )}
+
+        {/* Misc charges view */}
+        {currentView === 'misc-charges' && (
+          <>
+            <p className="font-['Space_Grotesk'] text-xs text-[#4c4546] px-1">Review tax, tip, and service charges.</p>
+
+            <button
+              onClick={handleOpenCreateModal}
+              className="w-full bg-white border-4 border-black border-dashed p-3 rounded-lg flex items-center justify-center gap-3 hover:bg-[#f3f3f3] transition-colors group"
+            >
+              <div className="p-1 bg-black text-white rounded-full group-hover:scale-110 transition-transform flex items-center justify-center">
+                <Plus className="w-4 h-4" />
+              </div>
+              <span className="font-['Epilogue'] font-bold uppercase text-sm">ADD ITEM</span>
+            </button>
+
+            {miscChargeLines.map((line) => (
+              <div key={line.id} className="bg-white border-4 border-black p-[12px_16px] rounded-lg flex flex-col gap-2 shadow-[3px_3px_0px_0px_#000]">
+                <div className="flex items-center gap-2">
+                  <h2 className="font-['Epilogue'] font-bold text-[16px] uppercase leading-tight flex-1 truncate">{line.itemName}</h2>
+                  <span className="font-['Space_Grotesk'] text-[9px] uppercase tracking-wide text-[#7e7576] border border-[#e2e2e2] px-1.5 py-0.5 rounded-full flex-shrink-0">
+                    {line.receiptLineType === 'TAX' && 'Tax'}
+                    {line.receiptLineType === 'TIP' && 'Tip'}
+                    {line.receiptLineType === 'SRVC' && 'Service'}
+                  </span>
+                  <button
+                    onClick={() => handleOpenEditModal(line)}
+                    className="p-1 border-2 border-black bg-white rounded shadow-[1px_1px_0px_0px_#000] active:shadow-none active:translate-x-[1px] active:translate-y-[1px] transition-all flex-shrink-0"
+                  >
+                    <Pencil className="w-3 h-3" />
+                  </button>
+                  <button
+                    onClick={() => handleDeleteLineItem(line)}
+                    className="p-1 border-2 border-black bg-[#ffdad6] text-[#93000a] rounded shadow-[1px_1px_0px_0px_#000] active:shadow-none active:translate-x-[1px] active:translate-y-[1px] transition-all flex-shrink-0"
+                  >
+                    <Trash2 className="w-3 h-3" />
+                  </button>
+                </div>
+                <div className="bg-[#e2e2e2] border-2 border-black rounded-full px-2 py-0.5 flex items-center w-max">
+                  <span className="font-['Space_Grotesk'] text-[10px] uppercase font-bold text-[#1b1b1b]">
+                    {line.quantity} × PHP{line.unitPrice.toFixed(2)} = PHP{(line.quantity * line.unitPrice).toFixed(2)}
+                  </span>
+                </div>
+              </div>
+            ))}
+          </>
+        )}
+      </main>
+
+      {/* Fixed bottom nav */}
+      <nav className="fixed bottom-0 left-0 w-full z-50 flex flex-col bg-white border-t-4 border-black">
+
+        {/* Participant chips row — items + discounts views only */}
+        {(currentView === 'items' || currentView === 'discounts') && (
+          <div className="flex items-center gap-4 overflow-x-auto px-4 py-2 border-b-4 border-black [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+            {participants.length === 0 ? (
+              <span className="font-['Space_Grotesk'] text-xs text-[#7e7576]">No participants yet.</span>
+            ) : participants.map((participant, i) => {
+              const color = PARTICIPANT_COLORS[i % PARTICIPANT_COLORS.length];
+              const isActive = activeParticipantId === participant.id;
+              const isAlreadyAssigned = activeLineId && assignments[activeLineId]?.[participant.id];
+              const assignCount = getParticipantAssignmentCount(participant.id);
+
+              return (
+                <button
+                  key={participant.id}
+                  type="button"
+                  onClick={() => handleParticipantSelection(participant.id)}
+                  className={`flex flex-col items-center gap-0.5 min-w-[40px] flex-shrink-0 transition-opacity ${
+                    isActive ? 'opacity-100' : 'opacity-55 hover:opacity-80'
+                  } ${isAlreadyAssigned ? '!opacity-100' : ''}`}
+                >
+                  <div
+                    className={`relative w-7 h-7 rounded-full border-2 border-black flex items-center justify-center font-['Space_Grotesk'] text-[10px] font-bold shadow-[2px_2px_0px_0px_#000] transition-all ${
+                      isActive ? 'ring-2 ring-black ring-offset-1' : ''
+                    }`}
+                    style={{ backgroundColor: color }}
+                  >
+                    {getInitials(participant.displayName)}
+                    {assignCount > 0 && (
+                      <div className="absolute -top-1.5 -right-1.5 bg-[#FFD700] border-2 border-black rounded-full w-[18px] h-[18px] flex items-center justify-center font-['Space_Grotesk'] text-[9px] font-bold leading-none z-10">
+                        {assignCount}
+                      </div>
+                    )}
+                  </div>
+                  <span className="font-['Space_Grotesk'] text-[9px] uppercase font-bold text-[#1b1b1b]">
+                    {participant.displayName.split(' ')[0]}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        )}
+
+        {/* Action row: subtotal + continue */}
+        <div className="flex items-stretch h-16">
+          {/* Subtotal */}
+          <div className="flex flex-col items-center justify-center w-1/3 border-r-4 border-black px-3 gap-0.5">
+            <span className="font-['Space_Grotesk'] text-[8px] uppercase font-bold text-[#7e7576] tracking-wider">Subtotal</span>
+            <span className="font-['Epilogue'] font-bold text-sm leading-tight">
+              PHP {getPurchaseSubtotal().toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            </span>
           </div>
 
           {/* Continue button */}
-          <div className="p-4 border-t-4 border-black bg-white">
-            <div className="max-w-5xl mx-auto">
-              <Button fullWidth size="lg" onClick={handleContinue} disabled={saving}>
-                {saving
-                  ? 'Continuing...'
-                  : currentView === 'items'
-                    ? miscChargeLines.length > 0
-                      ? 'Continue to Misc Charges'
-                      : discountLines.length > 0
-                        ? 'Continue to Discounts'
-                        : 'Continue to Summary'
-                    : currentView === 'misc-charges'
-                      ? discountLines.length > 0
-                        ? 'Continue to Discounts'
-                        : 'Continue to Summary'
-                      : 'Continue to Summary'}
-              </Button>
-            </div>
-          </div>
+          <button
+            onClick={handleContinue}
+            disabled={saving}
+            className="flex-1 bg-[#FFD700] text-black border-l-0 flex items-center justify-center gap-2 font-['Epilogue'] font-bold uppercase text-sm tracking-wide shadow-none hover:bg-[#FFE44D] active:bg-[#e6c200] transition-colors disabled:opacity-50"
+          >
+            {continueLabel}
+            <ArrowRight className="w-4 h-4" />
+          </button>
         </div>
-      )}
+      </nav>
 
-      {/* Line Item Modal (for both create and edit) */}
+      {/* Line Item Modal */}
       <LineItemModal
         isOpen={showLineItemModal}
         mode={lineItemModalMode}
@@ -790,6 +756,45 @@ export default function AssignPage({ params }: { params: Promise<{ id: string }>
         onCancel={handleCancelLineItemModal}
       />
 
+      {/* Delete Confirmation Modal */}
+      {deleteConfirmLine && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4"
+          onClick={() => setDeleteConfirmLine(null)}
+        >
+          <div
+            className="bg-white border-[4px] border-black shadow-[6px_6px_0px_0px_#000] rounded-lg p-4 w-full max-w-sm flex flex-col gap-4"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex flex-col gap-1">
+              <h2 className="font-['Epilogue'] font-bold text-xl uppercase text-center border-b-2 border-black pb-2">
+                Delete Item?
+              </h2>
+              <div className="text-center py-2">
+                <p className="font-['Work_Sans'] text-base text-[#4d4732]">"{deleteConfirmLine.itemName}"</p>
+                <p className="font-['Space_Grotesk'] text-[10px] uppercase tracking-wide text-[#7e7576] mt-1">
+                  This cannot be undone.
+                </p>
+              </div>
+            </div>
+            <div className="flex gap-2">
+              <button
+                onClick={() => setDeleteConfirmLine(null)}
+                className="flex-1 py-2 px-3 bg-white border-2 border-black font-['Space_Grotesk'] font-bold text-sm uppercase shadow-[2px_2px_0px_0px_#000] active:translate-x-[2px] active:translate-y-[2px] active:shadow-none transition-all"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={confirmDeleteLineItem}
+                className="flex-1 py-2 px-3 bg-[#ba1a1a] text-white border-2 border-black font-['Space_Grotesk'] font-bold text-sm uppercase shadow-[2px_2px_0px_0px_#000] active:translate-x-[2px] active:translate-y-[2px] active:shadow-none transition-all"
+              >
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Receipt Image Modal */}
       {showReceiptImage && receiptImageURI && (
         <div
@@ -807,11 +812,7 @@ export default function AssignPage({ params }: { params: Promise<{ id: string }>
               <X className="w-5 h-5" />
             </button>
             <div className="overflow-auto bg-white border-4 border-black">
-              <img
-                src={receiptImageURI}
-                alt="Original receipt"
-                className="w-full h-auto"
-              />
+              <img src={receiptImageURI} alt="Original receipt" className="w-full h-auto" />
             </div>
           </div>
         </div>
