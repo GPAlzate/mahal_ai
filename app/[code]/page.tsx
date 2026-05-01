@@ -151,52 +151,47 @@ export default function ShareCodePage({ params }: { params: Promise<{ code: stri
           </button>
 
           {isReceiptExpanded && (
-            <div className="pt-4 border-t-4 border-black space-y-1">
-              {summary.receipt.lines
-                ?.filter(line => line.totalPrice !== 0)
-                .map(line => {
-                  const isDiscount = line.receiptLineType === 'DSCT';
-                  return (
-                    <div key={line.id} className={`flex justify-between font-dm-mono text-[12px] py-1 ${isDiscount ? 'text-green-700' : ''}`}>
-                      <span className="flex-1">
-                        {line.itemName}{line.quantity !== 1 && ` (×${line.quantity})`}
-                      </span>
+            <div className="pt-4 border-t-4 border-black">
+              {/* Items */}
+              <div className="space-y-0.5 mb-1">
+                {summary.receipt.lines
+                  ?.filter(line => line.receiptLineType === 'PRCH' && line.totalPrice !== 0)
+                  .map(line => (
+                    <div key={line.id} className="flex justify-between font-dm-mono text-[12px] py-1">
+                      <span className="flex-1">{line.itemName}{line.quantity !== 1 && ` (×${line.quantity})`}</span>
                       <span className="font-bold ml-4">{formatCurrency(line.totalPrice)}</span>
                     </div>
-                  );
-                })}
+                  ))}
+              </div>
 
-              <div className="flex justify-between font-dm-mono text-[12px] py-2 border-t-2 border-black mt-1">
+              {/* Subtotal */}
+              <div className="flex justify-between font-dm-mono text-[12px] py-2 border-t-2 border-black">
                 <span className="font-bold">Subtotal:</span>
                 <span className="font-bold">{formatCurrency(summary.subtotal)}</span>
               </div>
 
-              {summary.tax !== 0 && (
-                <div className="flex justify-between font-dm-mono text-[12px] py-1 text-[#4d4732]">
-                  <span>Tax:</span>
-                  <span className="font-bold">{formatCurrency(summary.tax)}</span>
-                </div>
-              )}
-              {summary.tip !== 0 && (
-                <div className="flex justify-between font-dm-mono text-[12px] py-1 text-[#4d4732]">
-                  <span>Tip:</span>
-                  <span className="font-bold">{formatCurrency(summary.tip)}</span>
-                </div>
-              )}
-              {summary.serviceCharge !== 0 && (
-                <div className="flex justify-between font-dm-mono text-[12px] py-1 text-[#4d4732]">
-                  <span>Service Charge:</span>
-                  <span className="font-bold">{formatCurrency(summary.serviceCharge)}</span>
-                </div>
-              )}
-              {summary.discount !== 0 && (
-                <div className="flex justify-between font-dm-mono text-[12px] py-1 text-green-700">
-                  <span>Discount:</span>
-                  <span className="font-bold">{formatCurrency(summary.discount)}</span>
-                </div>
-              )}
+              {/* Misc charges + discounts */}
+              <div className="space-y-0.5 mt-1">
+                {summary.receipt.lines
+                  ?.filter(line => line.receiptLineType !== 'PRCH' && line.receiptLineType !== 'DSCT' && line.totalPrice !== 0)
+                  .map(line => (
+                    <div key={line.id} className="flex justify-between font-dm-mono text-[12px] py-1 text-[#4d4732]">
+                      <span className="flex-1">{line.itemName}{line.quantity !== 1 && ` (×${line.quantity})`}</span>
+                      <span className="font-bold ml-4">{formatCurrency(line.totalPrice)}</span>
+                    </div>
+                  ))}
+                {summary.receipt.lines
+                  ?.filter(line => line.receiptLineType === 'DSCT' && line.totalPrice !== 0)
+                  .map(line => (
+                    <div key={line.id} className="flex justify-between font-dm-mono text-[12px] py-1 text-green-700">
+                      <span className="flex-1">{line.itemName}{line.quantity !== 1 && ` (×${line.quantity})`}</span>
+                      <span className="font-bold ml-4">{formatCurrency(line.totalPrice)}</span>
+                    </div>
+                  ))}
+              </div>
 
-              <div className="flex justify-between font-dm-mono py-3 border-t-4 border-black mt-1">
+              {/* Grand Total */}
+              <div className="flex justify-between font-dm-mono py-3 border-t-4 border-black mt-2">
                 <span className="font-bold text-sm uppercase">Total:</span>
                 <span className="font-bold text-sm">{formatCurrency(summary.total)}</span>
               </div>

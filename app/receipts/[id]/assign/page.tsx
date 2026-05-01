@@ -322,7 +322,7 @@ export default function AssignPage({ params }: { params: Promise<{ id: string }>
           });
         }
       } else {
-        const receiptLineType = data.receiptLineType || (currentView === 'items' ? 'PRCH' : 'SRVC');
+        const receiptLineType = data.receiptLineType || (currentView === 'items' ? 'PRCH' : currentView === 'discounts' ? 'DSCT' : 'SRVC');
         const newLine = await api.lines.create(receiptId, {
           itemName: data.itemName,
           quantity: data.quantity,
@@ -558,6 +558,18 @@ export default function AssignPage({ params }: { params: Promise<{ id: string }>
         {currentView === 'discounts' && (
           <>
             <p className="font-dm-mono text-xs text-[#4c4546] px-1">Unassigned discounts split proportionally.</p>
+
+            {/* Add Discount Button */}
+            <button
+              onClick={handleOpenCreateModal}
+              className="w-full bg-white border-4 border-black border-dashed p-3 rounded-lg flex items-center justify-center gap-3 hover:bg-[#f3f3f3] transition-colors group"
+            >
+              <div className="p-1 bg-black text-white rounded-full group-hover:scale-110 transition-transform flex items-center justify-center">
+                <Plus className="w-4 h-4" />
+              </div>
+              <span className="font-dm-sans font-bold uppercase text-sm">ADD DISCOUNT</span>
+            </button>
+
             {discountLines.map((line) => {
               const assignedParticipants = getAssignedParticipants(line.id);
               const isSelected = activeLineId === line.id;
@@ -751,7 +763,7 @@ export default function AssignPage({ params }: { params: Promise<{ id: string }>
             : undefined
         }
         hasAssignments={editingLine ? hasAssignments(editingLine.id) : false}
-        showLineTypeSelector={currentView === 'misc-charges' || currentView === 'discounts'}
+        showLineTypeSelector={currentView === 'misc-charges'}
         onSave={handleSaveLineItem}
         onCancel={handleCancelLineItemModal}
       />
