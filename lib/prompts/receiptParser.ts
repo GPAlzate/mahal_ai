@@ -115,6 +115,7 @@ const PARSING_RULES = `
    - Extract ALL visible line items including purchases, taxes, tips, service charges, and discounts
    - Do NOT skip or omit any charges shown on the receipt
    - Include every line that has a non-zero price
+   - Preserve the top-to-bottom visual order of lines exactly as they appear on the receipt
 
 2. **Accuracy:**
    - All monetary values must be numbers (not strings)

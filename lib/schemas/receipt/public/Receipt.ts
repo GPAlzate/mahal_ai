@@ -23,6 +23,8 @@ export const ReceiptSchema = z.object({
   title: z.string().nullable(),
   receiptTime: z.date(),
   imageURI: z.string().nullable().optional(),
+  scannedSubtotal: z.number().nullable(),
+  scannedTotal: z.number().nullable(),
   createdAt: z.date(),
   updatedAt: z.date(),
   deletedAt: z.date().nullable(),
