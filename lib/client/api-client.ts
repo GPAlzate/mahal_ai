@@ -47,15 +47,8 @@ async function fetchAPI<T>(
 
 export const api = {
   receipts: {
-    parse: (imageUrl: string) =>
-      fetchAPI<{ receiptId: number; status: string }>('/api/receipts/parse', {
-        method: 'POST',
-        body: JSON.stringify({ imageUrl }),
-      }),
-
-    // Attaches a blob URL to an existing receipt, sets status=PRSP, and triggers
-    // background AI parsing. Called from the participants page once the blob upload
-    // promise (stored in uploadState) resolves.
+    // Attaches a blob URL to an existing receipt, transitions ULIP → PRSP,
+    // and schedules background AI parsing.
     triggerParse: (id: number, imageUrl: string) =>
       fetchAPI<{ status: string }>(`/api/receipts/${id}/parse`, {
         method: 'POST',
@@ -66,6 +59,12 @@ export const api = {
       fetchAPI<{ receiptId: number }>('/api/receipts', {
         method: 'POST',
         body: JSON.stringify(data),
+      }),
+
+    updateStatus: (id: number, status: ReceiptStatus) =>
+      fetchAPI<Receipt>(`/api/receipts/${id}`, {
+        method: 'PATCH',
+        body: JSON.stringify({ status }),
       }),
 
     get: (id: number, includeLines?: boolean) =>

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { receiptService } from '@/lib/services/ReceiptService';
+import { ReceiptStatusSchema } from '@/lib/schemas/receipt/public/Receipt';
 
 /**
  * GET /api/receipts/[id]?includeLines=true
@@ -12,7 +13,7 @@ import { receiptService } from '@/lib/services/ReceiptService';
  * {
  *   id: number,
  *   share_code: string,
- *   status: "PRSP" | "DRFT" | "FLZD" | "DLTD",
+ *   status: "ULIP" | "PRSP" | "DRFT" | "FLZD" | "DLTD",
  *   created_at: timestamp,
  *   updated_at: timestamp,
  *   deleted_at: timestamp | null,
@@ -31,7 +32,6 @@ export async function GET(
       return NextResponse.json({ error: 'Invalid receipt ID' }, { status: 400 });
     }
 
-    // Extract includeLines query parameter
     const { searchParams } = new URL(request.url);
     const includeLines = searchParams.get('includeLines') === 'true';
 
@@ -43,6 +43,45 @@ export async function GET(
 
     const errorMessage = error instanceof Error ? error.message : 'Failed to get receipt';
 
+    const status = errorMessage.includes('not found') ? 404 : 500;
+
+    return NextResponse.json({ error: errorMessage }, { status });
+  }
+}
+
+/**
+ * PATCH /api/receipts/[id]
+ * Update receipt status. Used by the client to mark a receipt DLTD when
+ * the blob upload or parse trigger fails before the server can detect it.
+ *
+ * Request body: { status: ReceiptStatus }
+ */
+export async function PATCH(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const { id } = await params;
+    const receiptId = +id;
+
+    if (isNaN(receiptId)) {
+      return NextResponse.json({ error: 'Invalid receipt ID' }, { status: 400 });
+    }
+
+    const body = await request.json();
+    const parsed = ReceiptStatusSchema.safeParse(body.status);
+
+    if (!parsed.success) {
+      return NextResponse.json({ error: 'Invalid status value' }, { status: 400 });
+    }
+
+    const receipt = await receiptService.updateStatus(receiptId, parsed.data);
+
+    return NextResponse.json(receipt, { status: 200 });
+  } catch (error) {
+    console.error('Error updating receipt status:', error);
+
+    const errorMessage = error instanceof Error ? error.message : 'Failed to update receipt';
     const status = errorMessage.includes('not found') ? 404 : 500;
 
     return NextResponse.json({ error: errorMessage }, { status });

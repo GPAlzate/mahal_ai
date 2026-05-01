@@ -20,10 +20,7 @@ export class OpenAIService {
   }
 
   /**
-   * Parse a receipt image using GPT-4o-mini via Responses API with Structured Outputs
-   *
-   * Model choice: gpt-4o-mini provides excellent OCR accuracy at a fraction of the cost
-   * of larger models, making it ideal for receipt parsing tasks.
+   * Parse a receipt image using GPT-5.1 via Responses API with Structured Outputs
    *
    * Uses OpenAI Structured Outputs to ensure type-safe, schema-validated responses.
    * No need for manual JSON parsing or validation - OpenAI guarantees schema adherence.
@@ -34,7 +31,7 @@ export class OpenAIService {
    */
   async parseReceiptImage(imageURL: string): Promise<ParsedReceipt> {
     try {
-      this._logger.log('Starting receipt image parsing with GPT-4o-mini');
+      this._logger.log('Starting receipt image parsing with GPT-5.1');
 
       console.time('Receipt Parsing')
       const response = await this.client.responses.parse({

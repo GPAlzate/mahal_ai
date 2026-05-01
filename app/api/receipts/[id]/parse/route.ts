@@ -38,9 +38,9 @@ export async function POST(
     const imageUrl: string = body.imageUrl;
     logger.log(`[Receipt ${receiptId}] Attaching image and scheduling parse: ${imageUrl}`);
 
-    // Persist the image URI. The receipt was already created with status=PRSP,
-    // so no status update is needed here.
+    // Persist the image URI and advance status ULIP → PRSP now that the blob is ready.
     await receiptService.attachImageURI(receiptId, imageUrl);
+    await receiptService.updateStatus(receiptId, 'PRSP');
 
     // Schedule background parsing
     after(async () => {

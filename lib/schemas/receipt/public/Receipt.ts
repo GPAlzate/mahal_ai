@@ -4,7 +4,7 @@ import { z } from 'zod';
 /**
  * Receipt status enumeration matching database enum
  */
-export const ReceiptStatusSchema = z.enum(['PRSP', 'DRFT', 'FLZD', 'DLTD']);
+export const ReceiptStatusSchema = z.enum(['ULIP', 'PRSP', 'DRFT', 'FLZD', 'DLTD']);
 
 export type ReceiptStatus = z.infer<typeof ReceiptStatusSchema>;
 

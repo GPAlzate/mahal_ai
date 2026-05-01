@@ -4,7 +4,7 @@ import { useState, use, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { ArrowLeft, Plus, X } from 'lucide-react';
 import { api } from '@/lib/client/api-client';
-import { uploadState } from '@/lib/client/uploadState';
+import type { ReceiptStatus } from '@/lib/schemas/receipt/public/Receipt';
 
 interface LocalParticipant {
   tempId: string;
@@ -21,6 +21,7 @@ export default function ParticipantsPage({ params }: { params: Promise<{ id: str
   const [participants, setParticipants] = useState<LocalParticipant[]>([]);
   const [linesReady, setLinesReady] = useState(false);
   const [checkingLines, setCheckingLines] = useState(true);
+  const [parseStatus, setParseStatus] = useState<ReceiptStatus>('ULIP');
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
@@ -39,56 +40,38 @@ export default function ParticipantsPage({ params }: { params: Promise<{ id: str
     }).catch(() => {});
   }, [receiptId]);
 
-  // Check if receipt parsing is complete
+  // Poll until parsing completes. Parse is triggered on the home page as soon as
+  // the blob upload finishes, so by the time the user is done entering names it
+  // will usually already be DRFT.
   useEffect(() => {
+    let cancelled = false;
+
     const checkReceiptStatus = async () => {
       try {
         const receipt = await api.receipts.get(receiptId);
+        if (cancelled) return;
 
-        // Redirect to share code page if finalized
+        setParseStatus(receipt.status);
+
         if (receipt.status === 'FLZD') {
           setCheckingLines(false);
           router.push(`/${receipt.shareCode}`);
-          return;
-        }
-
-        if (receipt.status === 'DRFT') {
+        } else if (receipt.status === 'DRFT') {
           setLinesReady(true);
           setCheckingLines(false);
         } else if (receipt.status === 'DLTD') {
           setError('Failed to parse receipt. Please try uploading again.');
           setCheckingLines(false);
         } else {
-          // Still parsing (PRSP or unknown), check again in 1 second
           setTimeout(checkReceiptStatus, 1000);
         }
       } catch (err) {
-        setTimeout(checkReceiptStatus, 1000);
+        if (!cancelled) setTimeout(checkReceiptStatus, 1000);
       }
     };
 
-    const startFlow = async () => {
-      // If this receipt was created via the optimistic-navigation path, there will
-      // be a pending blob upload promise in the module store. Await it, then trigger
-      // AI parsing before we start polling — otherwise the receipt stays in DRFT
-      // (no lines) until parsing is triggered.
-      const blobPromise = uploadState.get(receiptId);
-      if (blobPromise) {
-        uploadState.delete(receiptId);
-        try {
-          const blob = await blobPromise;
-          await api.receipts.triggerParse(receiptId, blob.url);
-        } catch (err: any) {
-          setError(err.message || 'Failed to upload receipt image. Please try again.');
-          setCheckingLines(false);
-          return;
-        }
-      }
-
-      checkReceiptStatus();
-    };
-
-    startFlow();
+    checkReceiptStatus();
+    return () => { cancelled = true; };
   }, [receiptId, router]);
 
   const handleAddParticipant = (e: React.FormEvent) => {
@@ -206,7 +189,7 @@ export default function ParticipantsPage({ params }: { params: Promise<{ id: str
           {!saving && checkingLines && (
             <span className="flex items-center gap-2 justify-center">
               <div className="animate-spin h-4 w-4 border-2 border-black border-t-transparent rounded-full" />
-              Parsing receipt...
+              {parseStatus === 'ULIP' ? 'Uploading receipt...' : 'Analyzing receipt...'}
             </span>
           )}
           {!saving && !checkingLines && participants.length === 0 && 'Add participants to continue'}

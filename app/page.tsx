@@ -5,7 +5,6 @@ import { useRouter } from 'next/navigation';
 import { upload } from '@vercel/blob/client';
 import { Image } from 'lucide-react';
 import { api } from '@/lib/client/api-client';
-import { uploadState } from '@/lib/client/uploadState';
 
 export default function Home() {
   const router = useRouter();
@@ -18,17 +17,10 @@ export default function Home() {
   const [manualLoading, setManualLoading] = useState(false);
   const [manualError, setManualError] = useState<string | null>(null);
 
-  // Tracks the in-progress blob upload so handleSubmit can reuse it rather than
-  // re-uploading. The AbortController lets us cancel if the user swaps images.
   const blobPromiseRef = useRef<Promise<{ url: string }> | null>(null);
   const uploadAbortRef = useRef<AbortController | null>(null);
-
-  // TODO: Consider starting receipt creation + AI parsing here on file select
-  // (in addition to the blob upload) once we have funnel data. If most users
-  // who select an image do click Continue, pre-running the full pipeline would
-  // make the participants page appear with parsing already complete. The tradeoff
-  // is orphaned receipts for users who swap images — manageable with a cleanup
-  // job that deletes PRSP receipts older than N minutes with no participants.
+  // Pre-created receipt ID so Continue just navigates without any DB round-trip.
+  const receiptIdPromiseRef = useRef<Promise<number> | null>(null);
 
   const handleFileChange = (selectedFile: File) => {
     if (!selectedFile.type.startsWith('image/')) {
@@ -36,15 +28,15 @@ export default function Home() {
       return;
     }
 
-    // Cancel any in-progress upload from a previously selected image
+    // Cancel any in-progress blob upload from a previously selected image.
+    // The old receipt (if any) stays as an orphaned ULIP record and gets cleaned up later.
     uploadAbortRef.current?.abort();
+    receiptIdPromiseRef.current = null;
 
     setFile(selectedFile);
     setError(null);
 
-    // Start the blob upload immediately so it runs while the user reviews the
-    // preview and decides to continue. By the time they click Continue the upload
-    // will likely already be done, meaning (b) only waits for the AI response.
+    // Start blob upload immediately while user reviews preview.
     const controller = new AbortController();
     uploadAbortRef.current = controller;
     blobPromiseRef.current = upload(`receipts/${selectedFile.name}`, selectedFile, {
@@ -52,6 +44,19 @@ export default function Home() {
       handleUploadUrl: '/api/blob-upload',
       abortSignal: controller.signal,
     });
+
+    // Create the receipt record immediately (status=ULIP) in parallel with blob upload.
+    receiptIdPromiseRef.current = api.receipts.create({ status: 'ULIP' }).then((r) => r.receiptId);
+
+    // Once both are ready, trigger AI parsing. By the time the user finishes entering
+    // participant names the parse will likely be complete. On failure, mark DLTD so
+    // the participants page polling surfaces the error.
+    const capturedBlob = blobPromiseRef.current;
+    receiptIdPromiseRef.current.then((receiptId) => {
+      capturedBlob
+        .then((blob) => api.receipts.triggerParse(receiptId, blob.url))
+        .catch(() => api.receipts.updateStatus(receiptId, 'DLTD').catch(() => {}));
+    }).catch(() => {}); // receipt create failed — surfaced on Continue click
 
     // Create preview
     const reader = new FileReader();
@@ -97,26 +102,14 @@ export default function Home() {
   };
 
   const handleSubmit = async () => {
-    if (!file || !blobPromiseRef.current) return;
+    if (!file || !receiptIdPromiseRef.current) return;
 
     setLoading(true);
     setError(null);
 
     try {
-      console.time('🕐 total (to navigation)');
-
-      // Create the receipt record (fast DB insert ~300ms). The blob upload is
-      // already in flight from handleFileChange, so we run both in parallel.
-      console.time('🕐 create receipt (DB only)');
-      const { receiptId } = await api.receipts.create({ status: 'PRSP' });
-      console.timeEnd('🕐 create receipt (DB only)');
-
-      // Hand the already-in-progress upload promise to the participants page.
-      // If the upload finished while the user was on this page, awaiting it
-      // there will resolve immediately.
-      uploadState.set(receiptId, blobPromiseRef.current);
-
-      console.timeEnd('🕐 total (to navigation)');
+      // Receipt was already created on image select — just await the ID and navigate.
+      const receiptId = await receiptIdPromiseRef.current;
       router.push(`/receipts/${receiptId}/participants`);
     } catch (err: any) {
       setError(err.message || 'Failed to process receipt');
@@ -238,6 +231,7 @@ export default function Home() {
                   uploadAbortRef.current?.abort();
                   uploadAbortRef.current = null;
                   blobPromiseRef.current = null;
+                  receiptIdPromiseRef.current = null;
                   setFile(null);
                   setPreviewUrl(null);
                 }}
