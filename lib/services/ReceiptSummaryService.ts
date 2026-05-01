@@ -53,6 +53,7 @@ export class ReceiptSummaryService {
     const tipLines = lines.filter((l) => l.receiptLineType === 'TIP');
     const serviceLines = lines.filter((l) => l.receiptLineType === 'SRVC');
     const discountLines = lines.filter((l) => l.receiptLineType === 'DSCT');
+    const adjustmentLines = lines.filter((l) => l.receiptLineType === 'DADJ');
 
     // Calculate receipt-level totals
     const subtotal = purchaseLines.reduce((sum, l) => sum + l.unitPrice * l.quantity, 0);
@@ -60,13 +61,15 @@ export class ReceiptSummaryService {
     const tip = tipLines.reduce((sum, l) => sum + l.unitPrice * l.quantity, 0);
     const serviceCharge = serviceLines.reduce((sum, l) => sum + l.unitPrice * l.quantity, 0);
     const discount = discountLines.reduce((sum, l) => sum + l.unitPrice * l.quantity, 0);
-    const total = subtotal + tax + tip + serviceCharge + discount;
+    const adjustment = adjustmentLines.reduce((sum, l) => sum + l.unitPrice * l.quantity, 0);
+    const total = subtotal + tax + tip + serviceCharge + discount + adjustment;
 
     this._logger.log(`Subtotal: ${subtotal}`)
     this._logger.log(`Tax: ${tax}`)
     this._logger.log(`Tip: ${tip}`)
     this._logger.log(`Service Charge: ${serviceCharge}`)
     this._logger.log(`Discount: ${discount}`)
+    this._logger.log(`Adjustment: ${adjustment}`)
     this._logger.log(`Total: ${total}`)
 
     // Pre-index data structures for O(1) lookups (optimization from O(N²) to O(N))
@@ -177,9 +180,12 @@ export class ReceiptSummaryService {
       const proportionalDiscountShare = unassignedDiscountTotal * proportion;
       const discountShare = assignedDiscountShare + proportionalDiscountShare;
 
+      // Adjustment share is always split proportionally by purchase subtotal
+      const adjustmentShare = adjustment * proportion;
+
       // Calculate participant's total
       const participantTotal =
-        participantSubtotal + taxShare + tipShare + serviceChargeShare + discountShare;
+        participantSubtotal + taxShare + tipShare + serviceChargeShare + discountShare + adjustmentShare;
 
       return {
         participantId: participant.id,
@@ -190,6 +196,7 @@ export class ReceiptSummaryService {
         tipShare,
         serviceChargeShare,
         discountShare,
+        adjustmentShare,
         total: participantTotal,
       };
     });
@@ -202,6 +209,7 @@ export class ReceiptSummaryService {
       tip,
       serviceCharge,
       discount,
+      adjustment,
       total,
     };
     this._logger.log('Final summary result:', JSON.stringify(result, null, 2));

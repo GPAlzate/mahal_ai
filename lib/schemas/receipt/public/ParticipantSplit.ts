@@ -26,6 +26,7 @@ export const ParticipantSplitSchema = z.object({
   tipShare: z.number(),
   serviceChargeShare: z.number(),
   discountShare: z.number(),
+  adjustmentShare: z.number(),
   total: z.number(),
 });
 

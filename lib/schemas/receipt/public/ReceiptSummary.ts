@@ -14,6 +14,7 @@ export const ReceiptSummarySchema = z.object({
   tip: z.number(),
   serviceCharge: z.number(),
   discount: z.number(),
+  adjustment: z.number(),
   total: z.number(),
 });
 
