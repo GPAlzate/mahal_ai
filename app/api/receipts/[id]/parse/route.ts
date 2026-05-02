@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse, after } from 'next/server';
 import { receiptService } from '@/lib/services/ReceiptService';
+import { getBlobBaseURL } from '@/lib/env';
 import { Logger } from '@/lib/utils/Logger';
 
 const logger = new Logger('POST /api/receipts/[id]/parse');
@@ -36,6 +37,11 @@ export async function POST(
     }
 
     const imageUrl: string = body.imageUrl;
+    const blobBaseURL = getBlobBaseURL();
+    if (!imageUrl.startsWith(blobBaseURL + '/')) {
+      return NextResponse.json({ error: 'Invalid image URL' }, { status: 400 });
+    }
+
     logger.log(`[Receipt ${receiptId}] Attaching image and scheduling parse: ${imageUrl}`);
 
     // Persist the image URI and advance status ULIP → PRSP now that the blob is ready.

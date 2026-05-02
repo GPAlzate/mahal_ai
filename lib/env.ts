@@ -29,3 +29,10 @@ export function getDatabaseURL(): string {
 export function getOpenAIAPIKey(): string {
   return getEnvVar('OPENAI_API_KEY') as string;
 }
+
+/**
+ * Retrieves the Vercel Blob public base URL from environment variables
+ */
+export function getBlobBaseURL(): string {
+  return getEnvVar('BLOB_BASE_URL') as string;
+}

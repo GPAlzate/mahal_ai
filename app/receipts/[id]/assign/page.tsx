@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, use } from 'react';
 import { useRouter } from 'next/navigation';
-import { X, Pencil, Plus, Trash2, ArrowLeft, ArrowRight, MoreVertical, Eye } from 'lucide-react';
+import { X, Pencil, Plus, Trash2, ArrowLeft, ArrowRight, MoreVertical, Eye, HelpCircle } from 'lucide-react';
 import { Card } from '@/components/Card';
 import { LineItemModal } from '@/components/LineItemModal';
 import { api } from '@/lib/client/api-client';
@@ -48,6 +48,19 @@ export default function AssignPage({ params }: { params: Promise<{ id: string }>
   const [showReceiptImage, setShowReceiptImage] = useState(false);
   const [showKebabMenu, setShowKebabMenu] = useState(false);
   const [deleteConfirmLine, setDeleteConfirmLine] = useState<ReceiptLine | null>(null);
+  const [showHelpModal, setShowHelpModal] = useState(false);
+
+  useEffect(() => {
+    if (!localStorage.getItem('mahal_assign_help_seen')) {
+      const t = setTimeout(() => setShowHelpModal(true), 1000);
+      return () => clearTimeout(t);
+    }
+  }, []);
+
+  const dismissHelpModal = () => {
+    localStorage.setItem('mahal_assign_help_seen', '1');
+    setShowHelpModal(false);
+  };
 
   useEffect(() => {
     async function fetchSplitGroup() {
@@ -266,11 +279,11 @@ export default function AssignPage({ params }: { params: Promise<{ id: string }>
   };
 
   const stepLabels = [
-    { num: '01', label: 'Assign', view: 'items' as const },
-    { num: '02', label: 'Misc', view: 'misc-charges' as const },
-    { num: '03', label: 'Discount', view: 'discounts' as const },
-    { num: '04', label: 'Summary', view: null },
-  ];
+    { label: 'Receipt Items', view: 'items' as const },
+    ...(miscChargeLines.length > 0 ? [{ label: 'Misc', view: 'misc-charges' as const }] : []),
+    ...(discountLines.length > 0 ? [{ label: 'Discount', view: 'discounts' as const }] : []),
+    { label: 'Finalize', view: null },
+  ].map((s, i) => ({ ...s, num: String(i + 1).padStart(2, '0') }));
 
   const PARTICIPANT_COLORS = ['#ffd9de', '#cee7f0', '#ffe16d', '#b5ead7', '#e2d1f9', '#fce1a4', '#b8e0ff'];
   const currentStepIndex = stepLabels.findIndex(s => s.view === currentView);
@@ -417,6 +430,13 @@ export default function AssignPage({ params }: { params: Promise<{ id: string }>
               <>
                 <div className="fixed inset-0 z-40" onClick={() => setShowKebabMenu(false)} />
                 <div className="absolute right-0 top-full mt-1 z-50 bg-white border-2 border-black shadow-[4px_4px_0px_0px_#000] w-44 flex flex-col">
+                  <button
+                    onClick={() => { setShowHelpModal(true); setShowKebabMenu(false); }}
+                    className="flex items-center gap-2 px-4 py-3 border-b-2 border-black font-dm-mono text-[11px] font-bold uppercase tracking-wide hover:bg-[#FFD700] transition-colors text-left"
+                  >
+                    <HelpCircle className="w-4 h-4 flex-shrink-0" />
+                    How to Use
+                  </button>
                   {receiptImageURI && (
                     <button
                       onClick={() => { setShowReceiptImage(true); setShowKebabMenu(false); }}
@@ -557,7 +577,7 @@ export default function AssignPage({ params }: { params: Promise<{ id: string }>
         {/* Discounts view */}
         {currentView === 'discounts' && (
           <>
-            <p className="font-dm-mono text-xs text-[#4c4546] px-1">Unassigned discounts split proportionally.</p>
+            <p className="font-dm-mono text-xs text-[#4c4546] px-1">Unassigned discounts are applied to all participants.</p>
 
             {/* Add Discount Button */}
             <button
@@ -652,11 +672,6 @@ export default function AssignPage({ params }: { params: Promise<{ id: string }>
               <div key={line.id} className="bg-white border-4 border-black p-[12px_16px] rounded-lg flex flex-col gap-2 shadow-[3px_3px_0px_0px_#000]">
                 <div className="flex items-center gap-2">
                   <h2 className="font-dm-sans font-bold text-[16px] uppercase leading-tight flex-1 truncate">{line.itemName}</h2>
-                  <span className="font-dm-sans text-[9px] uppercase tracking-wide text-[#7e7576] border border-[#e2e2e2] px-1.5 py-0.5 rounded-full flex-shrink-0">
-                    {line.receiptLineType === 'TAX' && 'Tax'}
-                    {line.receiptLineType === 'TIP' && 'Tip'}
-                    {line.receiptLineType === 'SRVC' && 'Service'}
-                  </span>
                   <button
                     onClick={() => handleOpenEditModal(line)}
                     className="p-1 border-2 border-black bg-white rounded shadow-[1px_1px_0px_0px_#000] active:shadow-none active:translate-x-[1px] active:translate-y-[1px] transition-all flex-shrink-0"
@@ -686,7 +701,7 @@ export default function AssignPage({ params }: { params: Promise<{ id: string }>
 
         {/* Participant chips row — items + discounts views only */}
         {(currentView === 'items' || currentView === 'discounts') && (
-          <div className="flex items-center gap-4 overflow-x-auto px-4 py-2 border-b-4 border-black [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          <div className="flex items-center gap-4 overflow-x-auto px-4 py-3 border-b-4 border-black [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
             {participants.length === 0 ? (
               <span className="font-dm-mono text-xs text-[#7e7576]">No participants yet.</span>
             ) : participants.map((participant, i) => {
@@ -700,12 +715,12 @@ export default function AssignPage({ params }: { params: Promise<{ id: string }>
                   key={participant.id}
                   type="button"
                   onClick={() => handleParticipantSelection(participant.id)}
-                  className={`flex flex-col items-center gap-0.5 min-w-[40px] flex-shrink-0 transition-opacity ${
+                  className={`flex flex-col items-center gap-1 min-w-[44px] flex-shrink-0 transition-opacity ${
                     isActive ? 'opacity-100' : 'opacity-55 hover:opacity-80'
                   } ${isAlreadyAssigned ? '!opacity-100' : ''}`}
                 >
                   <div
-                    className={`relative w-7 h-7 rounded-full border-2 border-black flex items-center justify-center font-dm-sans text-[10px] font-bold shadow-[2px_2px_0px_0px_#000] transition-all ${
+                    className={`relative w-9 h-9 rounded-full border-2 border-black flex items-center justify-center font-dm-sans text-xs font-bold shadow-[2px_2px_0px_0px_#000] transition-all ${
                       isActive ? 'ring-2 ring-black ring-offset-1' : ''
                     }`}
                     style={{ backgroundColor: color }}
@@ -717,7 +732,7 @@ export default function AssignPage({ params }: { params: Promise<{ id: string }>
                       </div>
                     )}
                   </div>
-                  <span className="font-dm-mono text-[9px] uppercase font-bold text-[#1b1b1b]">
+                  <span className="font-dm-mono text-[10px] uppercase font-bold text-[#1b1b1b]">
                     {participant.displayName.split(' ')[0]}
                   </span>
                 </button>
@@ -727,11 +742,11 @@ export default function AssignPage({ params }: { params: Promise<{ id: string }>
         )}
 
         {/* Action row: subtotal + continue */}
-        <div className="flex items-stretch h-16">
+        <div className="flex items-stretch h-12">
           {/* Subtotal */}
           <div className="flex flex-col items-center justify-center w-1/3 border-r-4 border-black px-3 gap-0.5">
-            <span className="font-dm-mono text-[8px] uppercase font-bold text-[#7e7576] tracking-wider">Subtotal</span>
-            <span className="font-dm-sans font-bold text-sm leading-tight">
+            <span className="font-dm-mono text-[7px] uppercase font-bold text-[#7e7576] tracking-wider">Subtotal</span>
+            <span className="font-dm-sans font-bold text-xs leading-tight">
               PHP {getPurchaseSubtotal().toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </span>
           </div>
@@ -740,7 +755,7 @@ export default function AssignPage({ params }: { params: Promise<{ id: string }>
           <button
             onClick={handleContinue}
             disabled={saving}
-            className="flex-1 bg-[#FFD700] text-black border-l-0 flex items-center justify-center gap-2 font-dm-sans font-bold uppercase text-sm tracking-wide shadow-none hover:bg-[#FFE44D] active:bg-[#e6c200] transition-colors disabled:opacity-50"
+            className="flex-1 bg-[#FFD700] text-black border-l-0 flex items-center justify-center gap-2 font-dm-sans font-bold uppercase text-xs tracking-wide shadow-none hover:bg-[#FFE44D] active:bg-[#e6c200] transition-colors disabled:opacity-50"
           >
             {continueLabel}
             <ArrowRight className="w-4 h-4" />
@@ -803,6 +818,93 @@ export default function AssignPage({ params }: { params: Promise<{ id: string }>
                 Delete
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Help Modal */}
+      {showHelpModal && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4"
+          onClick={dismissHelpModal}
+        >
+          <div className="w-full max-w-sm flex flex-col" onClick={(e) => e.stopPropagation()}>
+            {/* White card */}
+            <div className="bg-white border-4 border-black shadow-[8px_8px_0px_0px_#000] overflow-hidden">
+              {/* Modal header */}
+              <div className="bg-[#FFD700] border-b-4 border-black px-4 py-2 flex justify-between items-center">
+                <h2 className="font-dm-sans font-black text-xl uppercase tracking-tight">How to use</h2>
+                <button
+                  onClick={dismissHelpModal}
+                  className="p-1 border-2 border-black bg-white shadow-[2px_2px_0px_0px_#000] active:shadow-none active:translate-x-[2px] active:translate-y-[2px] transition-all"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              {/* Modal body */}
+              <div className="p-4 flex flex-col gap-4">
+
+                {/* Method 1: Item → People */}
+                <div className="border-2 border-black p-4 bg-stone-50 flex flex-col items-center gap-4">
+                  <div className="flex flex-col items-center gap-3">
+                    <div className="relative">
+                      <div className="bg-yellow-50 border-4 border-[#FFD700] shadow-[4px_4px_0px_0px_#000] p-3 w-40 -rotate-1">
+                        <div className="flex justify-between items-center mb-1">
+                          <span className="font-dm-mono text-[10px] font-bold uppercase">Halo-halo</span>
+                          <span className="font-dm-mono text-[10px]">PHP 200</span>
+                        </div>
+                        <div className="h-1.5 w-full bg-stone-200" />
+                      </div>
+                      <span className="absolute -bottom-3 -right-2 z-20 w-6 h-6 bg-black text-white flex items-center justify-center font-dm-sans font-black text-xs">1</span>
+                    </div>
+                    <span className="font-dm-mono text-xs">↓</span>
+                    <div className="relative flex gap-2">
+                      <div className="w-9 h-9 rounded-full bg-[#cee7f0] border-2 border-black flex items-center justify-center font-dm-sans text-[10px] font-bold">JD</div>
+                      <div className="w-9 h-9 rounded-full bg-[#FFD700] border-2 border-black shadow-[2px_2px_0px_0px_#000] flex items-center justify-center font-dm-sans text-[10px] font-bold">MK</div>
+                      <div className="w-9 h-9 rounded-full bg-[#ffd9de] border-2 border-black flex items-center justify-center font-dm-sans text-[10px] font-bold">AL</div>
+                      <span className="absolute -bottom-3 right-0 z-20 w-6 h-6 bg-black text-white flex items-center justify-center font-dm-sans font-black text-xs">2</span>
+                    </div>
+                  </div>
+                  <p className="font-dm-sans font-bold text-sm text-center">
+                    Tap an <span className="bg-[#FFD700] px-1">item</span> then select the <span className="underline">friends</span> who shared it.
+                  </p>
+                </div>
+
+                {/* OR divider — no box, just spacing */}
+                <div className="relative flex items-center justify-center py-1">
+                  <div className="w-full border-t-2 border-black" />
+                  <span className="absolute bg-white px-3 font-dm-sans font-black text-sm uppercase">OR</span>
+                </div>
+
+                {/* Method 2: Person → Items */}
+                <div className="border-2 border-black p-4 bg-stone-50 flex flex-col items-center gap-4">
+                  <div className="flex flex-col items-center gap-3">
+                    <div className="relative">
+                      <div className="w-12 h-12 rounded-full bg-[#FFD700] border-4 border-black shadow-[4px_4px_0px_0px_#000] flex items-center justify-center font-dm-sans font-black text-base rotate-3">MK</div>
+                      <span className="absolute -bottom-2 -right-3 z-20 w-6 h-6 bg-black text-white flex items-center justify-center font-dm-sans font-black text-xs">1</span>
+                    </div>
+                    <span className="font-dm-mono text-xs">↓</span>
+                    <div className="relative flex flex-col items-center gap-2">
+                      <div className="bg-yellow-50 border-2 border-[#FFD700] p-2 w-32"><div className="h-1.5 w-full bg-stone-200" /></div>
+                      <div className="bg-white border-2 border-black p-2 w-32"><div className="h-1.5 w-full bg-stone-200" /></div>
+                      <span className="absolute -bottom-4 -right-4 z-20 w-6 h-6 bg-black text-white flex items-center justify-center font-dm-sans font-black text-xs">2</span>
+                    </div>
+                  </div>
+                  <p className="font-dm-sans font-bold text-sm text-center">
+                    Select a <span className="bg-[#FFD700] px-1">friend</span> then tap the <span className="underline">items</span> they had.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Dismiss — outside the white box */}
+            <button
+              onClick={dismissHelpModal}
+              className="mt-3 w-full bg-[#FFD700] border-4 border-black shadow-[4px_4px_0px_0px_#000] font-dm-sans font-black text-lg uppercase tracking-widest py-2.5 hover:bg-[#FFE44D] active:translate-x-[4px] active:translate-y-[4px] active:shadow-none transition-all"
+            >
+              GOT IT!
+            </button>
           </div>
         </div>
       )}

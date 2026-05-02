@@ -63,7 +63,14 @@ export class OpenAIService {
         throw new Error('No parsed output from OpenAI');
       }
 
-      this._logger.log(`Successfully parsed receipt image: ${JSON.stringify(response, null, 2)}`);
+      if (!response.output_parsed.isReceipt) {
+        throw new Error('Image is not a receipt');
+      }
+
+      this._logger.log(
+        `Successfully parsed receipt image: ${response.output_parsed.receiptLines.length} lines, ` +
+          `currency=${response.output_parsed.currency}, amountDue=${response.output_parsed.amountDue}`
+      );
       return response.output_parsed;
     } catch (error) {
       this._logger.error('Failed to parse receipt image:', error);
