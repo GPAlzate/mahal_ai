@@ -89,20 +89,20 @@ export function ParticipantSplits({ participantSplits, formatCurrency }: Props) 
                 <div className="space-y-0.5 mb-3">
                   {split.taxShare !== 0 && (
                     <div className="flex justify-between font-dm-mono text-[12px] text-[#4d4732]">
-                      <span>Tax (proportional):</span>
-                      <span>+{formatCurrency(split.taxShare)}</span>
+                      <span>Tax:</span>
+                      <span>{formatCurrency(split.taxShare)}</span>
                     </div>
                   )}
                   {split.tipShare !== 0 && (
                     <div className="flex justify-between font-dm-mono text-[12px] text-[#4d4732]">
-                      <span>Tip (proportional):</span>
-                      <span>+{formatCurrency(split.tipShare)}</span>
+                      <span>Tip:</span>
+                      <span>{formatCurrency(split.tipShare)}</span>
                     </div>
                   )}
                   {split.serviceChargeShare !== 0 && (
                     <div className="flex justify-between font-dm-mono text-[12px] text-[#4d4732]">
-                      <span>Service Charge (proportional):</span>
-                      <span>+{formatCurrency(split.serviceChargeShare)}</span>
+                      <span>Service Charge:</span>
+                      <span>{formatCurrency(split.serviceChargeShare)}</span>
                     </div>
                   )}
                   {split.discountShare !== 0 && (() => {
@@ -114,13 +114,13 @@ export function ParticipantSplits({ participantSplits, formatCurrency }: Props) 
                       <>
                         {assignedDiscountAmount !== 0 && (
                           <div className="flex justify-between font-dm-mono text-[12px] text-green-700">
-                            <span>Discount (assigned):</span>
+                            <span>Discount:</span>
                             <span>{formatCurrency(assignedDiscountAmount)}</span>
                           </div>
                         )}
                         {proportionalDiscountAmount !== 0 && (
                           <div className="flex justify-between font-dm-mono text-[12px] text-green-700">
-                            <span>Discount (proportional):</span>
+                            <span>Discount:</span>
                             <span>{formatCurrency(proportionalDiscountAmount)}</span>
                           </div>
                         )}
@@ -128,8 +128,8 @@ export function ParticipantSplits({ participantSplits, formatCurrency }: Props) 
                     );
                   })()}
                   {split.adjustmentShare !== 0 && (
-                    <div className="flex justify-between font-dm-mono text-[12px] text-[#4d4732]">
-                      <span>Adjustment (proportional):</span>
+                    <div className={`flex justify-between font-dm-mono text-[12px] ${split.adjustmentShare < 0 ? 'text-green-700' : 'text-[#4d4732]'}`}>
+                      <span>Discrepancy Adjustment:</span>
                       <span>{split.adjustmentShare >= 0 ? '+' : ''}{formatCurrency(split.adjustmentShare)}</span>
                     </div>
                   )}

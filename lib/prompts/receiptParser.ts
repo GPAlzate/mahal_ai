@@ -36,9 +36,8 @@ Each item in the receiptLines array must have:
    - Must equal unitPrice × quantity
    - For discounts: MUST be negative (e.g., -50.00 not 50.00)
 
-5. **receiptLineType** (enum: "PRCH" | "TAX" | "TIP" | "SRVC" | "DSCT", required):
+5. **receiptLineType** (enum: "PRCH" | "TIP" | "SRVC" | "DSCT" | "DADJ", required):
    - "PRCH" (Purchase): Food, drinks, products, merchandise, any item being bought
-   - "TAX" (Tax): Sales tax, VAT, GST, any government tax
    - "TIP" (Tip/Gratuity): Tip, gratuity, service tip
    - "SRVC" (Service Charge): Service charge, service fee, delivery fee, convenience fee
    - "DSCT" (Discount): ANY reduction in price - identified by:
@@ -112,7 +111,7 @@ const PARSING_RULES = `
 **General Parsing Rules:**
 
 1. **Completeness:**
-   - Extract ALL visible line items including purchases, taxes, tips, service charges, and discounts
+   - Extract ALL visible line items including purchases, tips, service charges, and discounts
    - Do NOT skip or omit any charges shown on the receipt
    - Include every line that has a non-zero price
    - Preserve the top-to-bottom visual order of lines exactly as they appear on the receipt
@@ -169,13 +168,6 @@ const EXAMPLE_OUTPUT = `
       "receiptLineType": "DSCT"
     },
     {
-      "itemName": "VAT (12%)",
-      "quantity": 1,
-      "unitPrice": 35.10,
-      "totalPrice": 35.10,
-      "receiptLineType": "TAX"
-    },
-    {
       "itemName": "Service Charge",
       "quantity": 1,
       "unitPrice": 20.00,
@@ -185,7 +177,7 @@ const EXAMPLE_OUTPUT = `
   ],
   "currency": "PHP",
   "subtotal": 325.00,
-  "amountDue": 347.60
+  "amountDue": 312.50
 }
 `;
 

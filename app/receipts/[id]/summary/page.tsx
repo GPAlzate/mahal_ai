@@ -2,16 +2,19 @@
 
 import React, { useState, useEffect, use } from 'react';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, Eye, MoreVertical, X } from 'lucide-react';
+import { ArrowLeft, Eye, Info, MoreVertical, X } from 'lucide-react';
 import { api } from '@/lib/client/api-client';
 import type { ReceiptSummary } from '@/lib/schemas/receipt/public/ReceiptSummary';
 import { ReceiptCard } from '@/components/ReceiptCard';
 import { ParticipantSplits } from '@/components/ParticipantSplits';
 
-const formatCurrency = (amount: number) => `PHP${amount.toFixed(2)}`;
+const formatCurrency = (amount: number) => {
+  const sign = amount < 0 ? '-' : '';
+  return `${sign}PHP${Math.abs(amount).toFixed(2)}`;
+};
 
 const stepLabels = [
-  { num: '01', label: 'Assign' },
+  { num: '01', label: 'Receipt Items' },
   { num: '02', label: 'Misc' },
   { num: '03', label: 'Discount' },
   { num: '04', label: 'Summary' },
@@ -31,6 +34,7 @@ export default function SummaryPage({ params }: { params: Promise<{ id: string }
   const [showMismatchModal, setShowMismatchModal] = useState(false);
   const [mismatchDismissed, setMismatchDismissed] = useState(false);
   const [addingAdjustment, setAddingAdjustment] = useState(false);
+  const [showDiscrepancyInfo, setShowDiscrepancyInfo] = useState(false);
 
   useEffect(() => {
     async function fetchSummary() {
@@ -242,10 +246,10 @@ export default function SummaryPage({ params }: { params: Promise<{ id: string }
         return (
           <>
             <div
-              className="fixed inset-0 z-40 bg-black/50"
+              className="fixed inset-0 z-[60] bg-black/50"
               onClick={() => { setShowMismatchModal(false); setMismatchDismissed(true); }}
             />
-            <div className="fixed bottom-0 left-0 w-full z-50 bg-white border-x-4 border-t-4 border-black rounded-t-xl shadow-[0px_-4px_0px_0px_#000] flex flex-col max-w-lg mx-auto">
+            <div className="fixed bottom-0 inset-x-0 z-[70] bg-white border-x-4 border-t-4 border-black rounded-t-xl shadow-[0px_-4px_0px_0px_#000] flex flex-col max-w-lg mx-auto">
               <div className="flex flex-col items-center gap-2 px-5 pt-5 pb-4 border-b-4 border-black">
                 <div className="bg-[#FFF3CD] border-2 border-black w-10 h-10 flex items-center justify-center font-bold text-lg">
                   ⚠
@@ -256,12 +260,12 @@ export default function SummaryPage({ params }: { params: Promise<{ id: string }
               <div className="px-5 py-4 flex flex-col gap-4">
                 <div className="flex border-2 border-black shadow-[2px_2px_0px_0px_#000] rounded-xl overflow-hidden">
                   <div className="flex-1 flex flex-col items-center justify-center py-3 px-2 gap-0.5">
-                    <span className="font-dm-mono text-[10px] uppercase tracking-widest text-[#4d4732]">Receipt Total</span>
+                    <span className="font-dm-mono text-[10px] uppercase tracking-widest text-[#4d4732]">Scanned Receipt Total</span>
                     <span className="font-dm-mono font-bold text-lg">{formatCurrency(summary.receipt.scannedTotal)}</span>
                   </div>
                   <div className="w-0.5 bg-black" />
                   <div className="flex-1 flex flex-col items-center justify-center py-3 px-2 gap-0.5">
-                    <span className="font-dm-mono text-[10px] uppercase tracking-widest text-[#4d4732]">Calculated</span>
+                    <span className="font-dm-mono text-[10px] uppercase tracking-widest text-[#4d4732]">Calculated Total</span>
                     <span className="font-dm-mono font-bold text-lg">{formatCurrency(summary.total)}</span>
                   </div>
                 </div>
@@ -276,6 +280,21 @@ export default function SummaryPage({ params }: { params: Promise<{ id: string }
                 <p className="font-dm-sans text-sm text-center text-[#4d4732]">
                   Add an adjustment line to make the split match your receipt?
                 </p>
+
+                <button
+                  onClick={() => setShowDiscrepancyInfo(v => !v)}
+                  className="flex items-center justify-center gap-1.5 font-dm-mono text-[11px] text-[#4d4732] hover:text-black transition-colors"
+                >
+                  <Info className="w-3.5 h-3.5 flex-shrink-0" />
+                  <span>Why is there a discrepancy?</span>
+                </button>
+
+                {showDiscrepancyInfo && (
+                  <div className="font-dm-mono text-[11px] text-[#4d4732] bg-[#f3f3f3] border border-[#d0c6ab] rounded-lg px-3 py-2.5 leading-relaxed flex flex-col gap-2">
+                    <p>Discrepancies happen when AI-extracted items don&apos;t perfectly sum to the receipt total — often due to VAT structures, rounding, or charges that couldn&apos;t be individually parsed.</p>
+                    <p>If you know what&apos;s causing it, feel free to go back and add lines or edit amounts to reflect this discrepancy.</p>
+                  </div>
+                )}
               </div>
 
               <div className="px-5 pb-6 pt-4 border-t-4 border-black flex flex-col gap-2">
@@ -287,16 +306,16 @@ export default function SummaryPage({ params }: { params: Promise<{ id: string }
                   {addingAdjustment ? 'Adding...' : `Add ${sign}${formatCurrency(discrepancy)} Adjustment`}
                 </button>
                 <button
-                  onClick={() => { setShowMismatchModal(false); setMismatchDismissed(true); }}
+                  onClick={() => router.push(`/receipts/${receiptId}/assign`)}
                   className="w-full h-12 border-4 border-black rounded-lg font-dm-mono font-bold text-sm uppercase bg-white shadow-[2px_2px_0px_0px_#000] hover:bg-[#f3f3f3] active:translate-x-[2px] active:translate-y-[2px] active:shadow-none transition-all"
                 >
-                  Skip for Now
+                  Go Back and Review Lines
                 </button>
                 <button
-                  onClick={() => { setShowMismatchModal(false); setMismatchDismissed(false); }}
+                  onClick={() => { setShowMismatchModal(false); setMismatchDismissed(true); }}
                   className="font-dm-mono text-[10px] uppercase tracking-widest text-[#4d4732] hover:text-black transition-colors text-center py-1"
                 >
-                  Ignore
+                  Skip for Now
                 </button>
               </div>
             </div>

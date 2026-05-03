@@ -163,9 +163,11 @@ export function LineItemModal({
               >
                 <option value="">Select type...</option>
                 <option value="TAX">Tax</option>
+                <option value="TAX">Tax</option>
                 <option value="TIP">Tip</option>
                 <option value="SRVC">Service Charge</option>
                 <option value="DSCT">Discount</option>
+                <option value="DADJ">Adjustment</option>
               </select>
             </div>
           )}

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { ChevronDown, ChevronUp } from 'lucide-react';
+import { ChevronDown, ChevronUp, Info } from 'lucide-react';
 import type { ReceiptSummary } from '@/lib/schemas/receipt/public/ReceiptSummary';
 
 interface Props {
@@ -9,8 +9,11 @@ interface Props {
   formatCurrency: (amount: number) => string;
 }
 
+const DISCREPANCY_TOOLTIP = "Discrepancies happen when AI-extracted items don't perfectly sum to the receipt total — often due to VAT structures, rounding, or charges that couldn't be individually parsed.";
+
 export function ReceiptCard({ summary, formatCurrency }: Props) {
   const [isExpanded, setIsExpanded] = useState(false);
+  const [adjInfoLineId, setAdjInfoLineId] = useState<number | null>(null);
 
   return (
     <section className="bg-white border-4 border-black rounded-xl shadow-[4px_4px_0px_0px_#000] p-5">
@@ -67,9 +70,24 @@ export function ReceiptCard({ summary, formatCurrency }: Props) {
             {summary.receipt.lines
               ?.filter(line => line.receiptLineType === 'DADJ')
               .map(line => (
-                <div key={line.id} className="flex justify-between font-dm-mono text-[12px] py-1 text-[#4d4732]">
-                  <span className="flex-1 italic">{line.itemName}</span>
-                  <span className="font-bold ml-4">{line.totalPrice >= 0 ? '+' : ''}{formatCurrency(line.totalPrice)}</span>
+                <div key={line.id}>
+                  <div className="flex justify-between font-dm-mono text-[12px] py-1 text-[#4d4732]">
+                    <span className="flex-1 italic flex items-center gap-1">
+                      {line.itemName}
+                      <button
+                        onClick={() => setAdjInfoLineId(adjInfoLineId === line.id ? null : line.id)}
+                        className="flex-shrink-0 text-[#7e775f] hover:text-black transition-colors"
+                      >
+                        <Info className="w-3 h-3" />
+                      </button>
+                    </span>
+                    <span className="font-bold ml-4">{line.totalPrice >= 0 ? '+' : ''}{formatCurrency(line.totalPrice)}</span>
+                  </div>
+                  {adjInfoLineId === line.id && (
+                    <p className="font-dm-mono text-[10px] text-[#4d4732] bg-[#f3f3f3] border border-[#d0c6ab] rounded px-2.5 py-2 mb-1 leading-relaxed">
+                      {DISCREPANCY_TOOLTIP}
+                    </p>
+                  )}
                 </div>
               ))}
           </div>

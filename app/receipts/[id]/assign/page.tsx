@@ -98,8 +98,12 @@ export default function AssignPage({ params }: { params: Promise<{ id: string }>
   }, [receiptId, router]);
 
   const purchaseLines = allLines.filter((line) => line.receiptLineType === 'PRCH');
-  const discountLines = allLines.filter((line) => line.receiptLineType === 'DSCT');
-  const miscChargeLines = allLines.filter((line) => line.receiptLineType !== 'PRCH' && line.receiptLineType !== 'DSCT');
+  const discountLines = allLines.filter(
+    (line) => line.receiptLineType === 'DSCT' || (line.receiptLineType === 'DADJ' && line.unitPrice < 0)
+  );
+  const miscChargeLines = allLines.filter(
+    (line) => line.receiptLineType !== 'PRCH' && line.receiptLineType !== 'DSCT' && !(line.receiptLineType === 'DADJ' && line.unitPrice < 0)
+  );
   const lines = currentView === 'items' ? purchaseLines : currentView === 'discounts' ? discountLines : miscChargeLines;
 
   const getInitials = (name: string) => {
@@ -199,13 +203,7 @@ export default function AssignPage({ params }: { params: Promise<{ id: string }>
         await api.assignments.batchAssign(receiptId, assignmentsList);
         setActiveLineId(null);
         setActiveParticipantId(null);
-        if (miscChargeLines.length > 0) {
-          setCurrentView('misc-charges');
-        } else if (discountLines.length > 0) {
-          setCurrentView('discounts');
-        } else {
-          router.push(`/receipts/${receiptId}/summary`);
-        }
+        setCurrentView('misc-charges');
         setSaving(false);
       } catch (err: any) {
         setError(err.message || 'Unable to save assignments');
@@ -214,11 +212,7 @@ export default function AssignPage({ params }: { params: Promise<{ id: string }>
     } else if (currentView === 'misc-charges') {
       setActiveLineId(null);
       setActiveParticipantId(null);
-      if (discountLines.length > 0) {
-        setCurrentView('discounts');
-      } else {
-        router.push(`/receipts/${receiptId}/summary`);
-      }
+      setCurrentView('discounts');
     } else if (currentView === 'discounts') {
       try {
         setSaving(true);
@@ -279,11 +273,11 @@ export default function AssignPage({ params }: { params: Promise<{ id: string }>
   };
 
   const stepLabels = [
-    { label: 'Receipt Items', view: 'items' as const },
-    ...(miscChargeLines.length > 0 ? [{ label: 'Misc', view: 'misc-charges' as const }] : []),
-    ...(discountLines.length > 0 ? [{ label: 'Discount', view: 'discounts' as const }] : []),
-    { label: 'Finalize', view: null },
-  ].map((s, i) => ({ ...s, num: String(i + 1).padStart(2, '0') }));
+    { num: '01', label: 'Receipt Items', view: 'items' as const },
+    { num: '02', label: 'Misc', view: 'misc-charges' as const },
+    { num: '03', label: 'Discount', view: 'discounts' as const },
+    { num: '04', label: 'Finalize', view: null },
+  ];
 
   const PARTICIPANT_COLORS = ['#ffd9de', '#cee7f0', '#ffe16d', '#b5ead7', '#e2d1f9', '#fce1a4', '#b8e0ff'];
   const currentStepIndex = stepLabels.findIndex(s => s.view === currentView);
@@ -393,9 +387,9 @@ export default function AssignPage({ params }: { params: Promise<{ id: string }>
   const continueLabel = saving
     ? 'Saving...'
     : currentView === 'items'
-      ? miscChargeLines.length > 0 ? 'Misc Charges' : discountLines.length > 0 ? 'Discounts' : 'Summary'
+      ? 'Misc Charges'
       : currentView === 'misc-charges'
-        ? discountLines.length > 0 ? 'Discounts' : 'Summary'
+        ? 'Discounts'
         : 'Summary';
 
   return (
@@ -408,7 +402,7 @@ export default function AssignPage({ params }: { params: Promise<{ id: string }>
             <button
               onClick={() => {
                 if (currentView === 'misc-charges') setCurrentView('items');
-                else if (currentView === 'discounts') setCurrentView(miscChargeLines.length > 0 ? 'misc-charges' : 'items');
+                else if (currentView === 'discounts') setCurrentView('misc-charges');
                 else router.push(`/receipts/${receiptId}/participants`);
               }}
               className="p-1.5 border-2 border-black rounded bg-white shadow-[2px_2px_0px_0px_#000] active:shadow-none active:translate-x-[2px] active:translate-y-[2px] transition-all flex items-center justify-center"
