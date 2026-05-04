@@ -3,7 +3,7 @@
 import React, { useState, useEffect, use } from 'react';
 import { useRouter } from 'next/navigation';
 import { X, Pencil, Plus, Trash2, ArrowLeft, ArrowRight, MoreVertical, Eye, HelpCircle } from 'lucide-react';
-import { Card } from '@/components/Card';
+import LoadingScreen from '@/components/LoadingScreen';
 import { LineItemModal } from '@/components/LineItemModal';
 import { api } from '@/lib/client/api-client';
 
@@ -372,17 +372,7 @@ export default function AssignPage({ params }: { params: Promise<{ id: string }>
     }
   };
 
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-yellow-50 p-4 md:p-8">
-        <div className="max-w-4xl mx-auto">
-          <Card padding="lg">
-            <p className="font-mono text-center">Loading receipt...</p>
-          </Card>
-        </div>
-      </div>
-    );
-  }
+  if (loading) return <LoadingScreen message="Loading receipt..." />;
 
   const continueLabel = saving
     ? 'Saving...'
