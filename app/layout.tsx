@@ -8,6 +8,12 @@ const dmMono = DM_Mono({ subsets: ["latin"], weight: ["400", "500"], variable: "
 export const metadata: Metadata = {
   title: "mahal ai ❤️",
   description: "kkb with friends",
+  manifest: "/manifest.webmanifest",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+    title: "mahal ai",
+  },
 };
 
 export default function RootLayout({
@@ -17,6 +23,10 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
+      <head>
+        <meta name="theme-color" content="#FFD700" />
+        <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+      </head>
       <body className={`${dmSans.variable} ${dmMono.variable}`}>
         {children}
       </body>
