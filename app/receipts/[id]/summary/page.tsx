@@ -135,7 +135,7 @@ export default function SummaryPage({ params }: { params: Promise<{ id: string }
             >
               <ArrowLeft className="w-4 h-4" />
             </button>
-            <h1 className="font-dm-sans font-black text-xl tracking-tight uppercase">Summary</h1>
+            <h1 className="font-dm-sans font-black text-xl tracking-tight uppercase">{summary?.receipt.title || 'Summary'}</h1>
           </div>
           <div className="relative">
             <button
