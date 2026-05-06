@@ -69,6 +69,15 @@ export async function PATCH(
     }
 
     const body = await request.json();
+
+    if (body.title !== undefined) {
+      if (body.title !== null && typeof body.title !== 'string') {
+        return NextResponse.json({ error: 'Invalid title value' }, { status: 400 });
+      }
+      const receipt = await receiptService.updateTitle(receiptId, body.title ?? null);
+      return NextResponse.json(receipt, { status: 200 });
+    }
+
     const parsed = ReceiptStatusSchema.safeParse(body.status);
 
     if (!parsed.success) {

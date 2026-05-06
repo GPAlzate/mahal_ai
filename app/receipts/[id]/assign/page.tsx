@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, use } from 'react';
+import React, { useState, useEffect, use, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { X, Pencil, Plus, Trash2, ArrowLeft, ArrowRight, MoreVertical, Eye, HelpCircle } from 'lucide-react';
 import LoadingScreen from '@/components/LoadingScreen';
@@ -45,6 +45,8 @@ export default function AssignPage({ params }: { params: Promise<{ id: string }>
   const [editingLine, setEditingLine] = useState<ReceiptLine | null>(null);
   const [unassignedLineIds, setUnassignedLineIds] = useState<Set<number>>(new Set());
   const [receiptImageURI, setReceiptImageURI] = useState<string | null>(null);
+  const [receiptTitle, setReceiptTitle] = useState<string>('');
+  const titleInputRef = useRef<HTMLInputElement>(null);
   const [showReceiptImage, setShowReceiptImage] = useState(false);
   const [showKebabMenu, setShowKebabMenu] = useState(false);
   const [deleteConfirmLine, setDeleteConfirmLine] = useState<ReceiptLine | null>(null);
@@ -77,6 +79,7 @@ export default function AssignPage({ params }: { params: Promise<{ id: string }>
         setAllLines(lines);
         setParticipants(splitGroup.participants);
         setReceiptImageURI(splitGroup.receipt.imageURI || null);
+        setReceiptTitle(splitGroup.receipt.title || '');
 
         const assignmentsData: LineAssignments = {};
         splitGroup.assignments.forEach((assignment) => {
@@ -372,6 +375,14 @@ export default function AssignPage({ params }: { params: Promise<{ id: string }>
     }
   };
 
+  const handleTitleBlur = async () => {
+    try {
+      await api.receipts.updateTitle(receiptId, receiptTitle.trim() || null);
+    } catch {
+      // non-critical, silently ignore
+    }
+  };
+
   if (loading) return <LoadingScreen message="Loading receipt..." />;
 
   const continueLabel = saving
@@ -387,22 +398,21 @@ export default function AssignPage({ params }: { params: Promise<{ id: string }>
 
       {/* Header */}
       <header className="sticky top-0 z-40 bg-white border-b-4 border-black w-full">
+        {/* Row 1: nav */}
         <div className="px-5 h-14 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <button
-              onClick={() => {
-                if (currentView === 'misc-charges') setCurrentView('items');
-                else if (currentView === 'discounts') setCurrentView('misc-charges');
-                else router.push(`/receipts/${receiptId}/participants`);
-              }}
-              className="p-1.5 border-2 border-black rounded bg-white shadow-[2px_2px_0px_0px_#000] active:shadow-none active:translate-x-[2px] active:translate-y-[2px] transition-all flex items-center justify-center"
-            >
-              <ArrowLeft className="w-4 h-4" />
-            </button>
-            <h1 className="font-dm-sans font-black text-xl tracking-tight uppercase">
-              {currentView === 'items' ? 'Assign Items' : currentView === 'discounts' ? 'Assign Discounts' : 'Misc Charges'}
-            </h1>
-          </div>
+          <button
+            onClick={() => {
+              if (currentView === 'misc-charges') setCurrentView('items');
+              else if (currentView === 'discounts') setCurrentView('misc-charges');
+              else router.push(`/receipts/${receiptId}/participants`);
+            }}
+            className="p-1.5 border-2 border-black rounded bg-white shadow-[2px_2px_0px_0px_#000] active:shadow-none active:translate-x-[2px] active:translate-y-[2px] transition-all flex items-center justify-center"
+          >
+            <ArrowLeft className="w-4 h-4" />
+          </button>
+          <span className="font-dm-sans font-black text-sm uppercase tracking-tight text-[#7e7576]">
+            {currentView === 'items' ? 'Assign Items' : currentView === 'discounts' ? 'Assign Discounts' : 'Misc Charges'}
+          </span>
           <div className="relative">
             <button
               onClick={() => setShowKebabMenu(v => !v)}
@@ -433,6 +443,31 @@ export default function AssignPage({ params }: { params: Promise<{ id: string }>
                 </div>
               </>
             )}
+          </div>
+        </div>
+
+        {/* Row 2: editable receipt title */}
+        <div className="px-5 pb-3 flex flex-col gap-0.5">
+          <div className="flex items-center gap-1 max-w-full overflow-hidden">
+            <input
+              ref={titleInputRef}
+              type="text"
+              value={receiptTitle}
+              onChange={(e) => setReceiptTitle(e.target.value)}
+              onBlur={handleTitleBlur}
+              onKeyDown={(e) => e.key === 'Enter' && titleInputRef.current?.blur()}
+              placeholder="Untitled receipt"
+              maxLength={100}
+              style={{ fieldSizing: 'content' } as React.CSSProperties}
+              className="bg-transparent border-none p-0 font-dm-sans font-black text-xl tracking-tight uppercase focus:outline-none min-w-[4ch] max-w-[calc(100vw-7rem)] placeholder:text-[#cfc4c5]"
+            />
+            <button
+              type="button"
+              onClick={() => titleInputRef.current?.focus()}
+              className="p-1 border-2 border-transparent hover:border-black hover:bg-[#f3f3f3] transition-colors flex items-center justify-center flex-shrink-0"
+            >
+              <Pencil className="w-3.5 h-3.5 text-[#7e7576]" />
+            </button>
           </div>
         </div>
 

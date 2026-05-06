@@ -24,6 +24,7 @@ export default function ParticipantsPage({ params }: { params: Promise<{ id: str
   const [parseStatus, setParseStatus] = useState<ReceiptStatus>('ULIP');
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [receiptTitle, setReceiptTitle] = useState('');
 
   // Pre-populate participants if navigating back to this page
   useEffect(() => {
@@ -96,12 +97,13 @@ export default function ParticipantsPage({ params }: { params: Promise<{ id: str
     setError(null);
     try {
       const newParticipants = participants.filter((p) => !p.participantId);
-      if (newParticipants.length > 0) {
-        await api.participants.create(receiptId, newParticipants);
-      }
+      await Promise.all([
+        newParticipants.length > 0 ? api.participants.create(receiptId, newParticipants) : Promise.resolve(),
+        receiptTitle.trim() ? api.receipts.updateTitle(receiptId, receiptTitle.trim()) : Promise.resolve(),
+      ]);
       router.push(`/receipts/${receiptId}/assign`);
     } catch (err: any) {
-      setError(err.message || 'Failed to save participants');
+      setError(err.message || 'Failed to save');
       setSaving(false);
     }
   };

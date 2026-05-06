@@ -73,7 +73,13 @@ const RECEIPT_LEVEL_FIELDS = `
    - Calculate by adding all PRCH line totalPrice values
    - Must be non-negative number
 
-5. **amountDue** (number, required):
+5. **suggestedTitle** (string, optional):
+   - A short, human-readable title for the receipt (2–5 words, Title Case)
+   - If merchantName is known: use it as-is (e.g., "The Coffee Shop")
+   - If merchantName is unknown: infer from the items (e.g., "Team Dinner", "Grocery Run", "Lunch")
+   - If absolutely nothing can be inferred: DO NOT SET
+
+6. **amountDue** (number, required):
    - The FINAL total amount to be paid AFTER all taxes, tips, service charges, and discounts
    - Look for: "Total", "Amount Due", "Total Due", "Grand Total", largest number at bottom
    - This is what the customer actually pays

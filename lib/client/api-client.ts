@@ -67,6 +67,12 @@ export const api = {
         body: JSON.stringify({ status }),
       }),
 
+    updateTitle: (id: number, title: string | null) =>
+      fetchAPI<Receipt>(`/api/receipts/${id}`, {
+        method: 'PATCH',
+        body: JSON.stringify({ title }),
+      }),
+
     get: (id: number, includeLines?: boolean) =>
       fetchAPI<Receipt>(`/api/receipts/${id}${includeLines ? '?includeLines=true' : ''}`),
 

@@ -22,6 +22,12 @@ export const ParsedReceiptSchema = z.object({
       'Whether the image is a receipt. Set to false if the image is not a receipt — skip all other fields if false.'
     ),
   merchantName: z.string().nullable().describe('Name of the merchant/store'),
+  suggestedTitle: z
+    .string()
+    .nullable()
+    .describe(
+      'Short human-readable title for the receipt. Use merchant name if known; otherwise infer from items (e.g. "Team Dinner", "Grocery Run"). 2-5 words, Title Case. Null only if nothing can be inferred.'
+    ),
   receiptDate: z
     .string()
     .regex(/^\d{4}-\d{2}-\d{2}$/)

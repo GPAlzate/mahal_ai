@@ -200,6 +200,26 @@ export class ReceiptService {
   }
 
   /**
+   * Update receipt title
+   * @param receiptId - ID of the receipt
+   * @param title - New title value (null to clear)
+   */
+  async updateTitle(receiptId: number, title: string | null) {
+    const result = await sql`
+      UPDATE receipts
+      SET title = ${title}, updated_at = NOW()
+      WHERE id = ${receiptId} AND deleted_at IS NULL
+      RETURNING *
+    `;
+
+    if (!result || result.length === 0) {
+      throw new Error('Receipt not found');
+    }
+
+    return toReceipt(toReceiptDTO(result[0]));
+  }
+
+  /**
    * Add parsed line items to an existing receipt
    * Executes all inserts concurrently for better performance
    *
@@ -291,12 +311,13 @@ export class ReceiptService {
 
       // Update receipt with parsed title and receipt_time
       const receiptTimeValue = parsedReceipt.receiptDate ? new Date(parsedReceipt.receiptDate) : null;
+      const suggestedTitle = parsedReceipt.suggestedTitle || parsedReceipt.merchantName || null;
 
       console.time(`🕐 [background ${receiptId}] update receipt status`);
       await sql`
         UPDATE receipts
         SET
-          title = ${parsedReceipt.merchantName || null},
+          title = ${suggestedTitle},
           receipt_time = COALESCE(${receiptTimeValue}, receipt_time),
           scanned_subtotal = ${parsedReceipt.subtotal ?? null},
           scanned_total = ${parsedReceipt.amountDue ?? null},
