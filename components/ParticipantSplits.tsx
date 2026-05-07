@@ -34,7 +34,7 @@ export function ParticipantSplits({ participantSplits, formatCurrency }: Props) 
 
   return (
     <>
-      <h2 className="font-dm-sans font-bold text-2xl uppercase mt-2">Participant Splits</h2>
+      <h2 className="font-dm-sans font-bold text-2xl uppercase mt-2">Participant Shares</h2>
 
       {participantSplits.map((split, i) => {
         const isExpanded = expandedParticipants.has(split.participantId);

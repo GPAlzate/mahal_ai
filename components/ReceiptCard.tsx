@@ -17,10 +17,10 @@ export function ReceiptCard({ summary, formatCurrency }: Props) {
 
   return (
     <section className="bg-white border-4 border-black rounded-xl shadow-[4px_4px_0px_0px_#000] p-5">
-      <div className="mb-4">
+      <div className="flex items-baseline justify-between mb-4">
         <h2 className="font-dm-sans font-bold text-2xl uppercase">{summary.receipt.title || 'Receipt'}</h2>
-        <p className="font-dm-mono text-[11px] text-[#7e7576] mt-0.5">
-          {new Date(summary.receipt.receiptTime).toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' })}
+        <p className="font-dm-mono text-[11px] text-[#7e7576]">
+          {new Date(summary.receipt.receiptTime).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })}
         </p>
       </div>
 

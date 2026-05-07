@@ -8,11 +8,7 @@ import LoadingScreen from '@/components/LoadingScreen';
 import type { ReceiptSummary } from '@/lib/schemas/receipt/public/ReceiptSummary';
 import { ReceiptCard } from '@/components/ReceiptCard';
 import { ParticipantSplits } from '@/components/ParticipantSplits';
-
-const formatCurrency = (amount: number) => {
-  const sign = amount < 0 ? '-' : '';
-  return `${sign}PHP${Math.abs(amount).toFixed(2)}`;
-};
+import { formatCurrency } from '@/lib/helpers/CurrencyHelper';
 
 const stepLabels = [
   { num: '01', label: 'Receipt Items' },
@@ -128,15 +124,13 @@ export default function SummaryPage({ params }: { params: Promise<{ id: string }
       {/* Sticky Header */}
       <header className="sticky top-0 z-40 bg-white border-b-4 border-black w-full">
         <div className="px-5 h-14 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <button
-              onClick={() => router.push(`/receipts/${receiptId}/assign`)}
-              className="p-1.5 border-2 border-black rounded bg-white shadow-[2px_2px_0px_0px_#000] active:shadow-none active:translate-x-[2px] active:translate-y-[2px] transition-all flex items-center justify-center"
-            >
-              <ArrowLeft className="w-4 h-4" />
-            </button>
-            <h1 className="font-dm-sans font-black text-xl tracking-tight uppercase">{summary?.receipt.title || 'Summary'}</h1>
-          </div>
+          <button
+            onClick={() => router.push(`/receipts/${receiptId}/assign`)}
+            className="p-1.5 border-2 border-black rounded bg-white shadow-[2px_2px_0px_0px_#000] active:shadow-none active:translate-x-[2px] active:translate-y-[2px] transition-all flex items-center justify-center"
+          >
+            <ArrowLeft className="w-4 h-4" />
+          </button>
+          <span className="font-dm-sans font-black text-sm uppercase tracking-tight text-[#7e7576]">Summary</span>
           <div className="relative">
             <button
               onClick={() => setShowKebabMenu(v => !v)}
@@ -161,6 +155,13 @@ export default function SummaryPage({ params }: { params: Promise<{ id: string }
               </>
             )}
           </div>
+        </div>
+
+        {/* Row 2: receipt title (static) */}
+        <div className="px-5 pb-3">
+          <span className="font-dm-sans font-black text-xl tracking-tight uppercase">
+            {summary.receipt.title || 'Untitled receipt'}
+          </span>
         </div>
 
         {/* Progress Stepper */}

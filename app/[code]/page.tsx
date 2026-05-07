@@ -8,8 +8,7 @@ import LoadingScreen from '@/components/LoadingScreen';
 import type { ReceiptSummary } from '@/lib/schemas/receipt/public/ReceiptSummary';
 import { ReceiptCard } from '@/components/ReceiptCard';
 import { ParticipantSplits } from '@/components/ParticipantSplits';
-
-const formatCurrency = (amount: number) => `PHP${amount.toFixed(2)}`;
+import { formatCurrency } from '@/lib/helpers/CurrencyHelper';
 
 export default function ShareCodePage({ params }: { params: Promise<{ code: string }> }) {
   const resolvedParams = use(params);
@@ -86,13 +85,6 @@ export default function ShareCodePage({ params }: { params: Promise<{ code: stri
                       View Receipt
                     </button>
                   )}
-                  <button
-                    onClick={() => { router.push('/'); setShowKebabMenu(false); }}
-                    className="flex items-center gap-2 px-4 py-3 font-dm-mono text-[11px] font-bold uppercase tracking-wide hover:bg-[#FFD700] transition-colors text-left"
-                  >
-                    <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-                    New Receipt
-                  </button>
                 </div>
               </>
             )}

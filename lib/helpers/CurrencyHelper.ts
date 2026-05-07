@@ -12,12 +12,11 @@
  * ```
  */
 export function formatCurrency(amount: number): string {
-  return new Intl.NumberFormat('en-PH', {
-    style: 'currency',
-    currency: 'PHP',
+  const abs = new Intl.NumberFormat('en-PH', {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
-  }).format(amount);
+  }).format(Math.abs(amount));
+  return amount < 0 ? `-PHP${abs}` : `PHP${abs}`;
 }
 
 /**

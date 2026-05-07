@@ -3,7 +3,7 @@
 import { useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { upload } from '@vercel/blob/client';
-import { Image } from 'lucide-react';
+import { Image, ArrowRight, Loader2 } from 'lucide-react';
 import { api } from '@/lib/client/api-client';
 
 export default function Home() {
@@ -16,6 +16,9 @@ export default function Home() {
   const [receiptTitle, setReceiptTitle] = useState('');
   const [manualLoading, setManualLoading] = useState(false);
   const [manualError, setManualError] = useState<string | null>(null);
+  const [shareCode, setShareCode] = useState('');
+  const [shareCodeError, setShareCodeError] = useState<string | null>(null);
+  const [shareCodeLoading, setShareCodeLoading] = useState(false);
 
   const blobPromiseRef = useRef<Promise<{ url: string }> | null>(null);
   const uploadAbortRef = useRef<AbortController | null>(null);
@@ -138,6 +141,21 @@ export default function Home() {
     }
   };
 
+  const handleShareCodeSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const code = shareCode.trim().toUpperCase();
+    if (!code) return;
+    setShareCodeError(null);
+    setShareCodeLoading(true);
+    try {
+      await api.receipts.getByShareCode(code);
+      router.push(`/${code}`);
+    } catch {
+      setShareCodeError("Oops! We couldn't find that receipt.");
+      setShareCodeLoading(false);
+    }
+  };
+
   const inputClass = "w-full h-12 border-2 border-black rounded-lg px-4 font-dm-mono text-base focus:border-[4px] focus:outline-none focus:bg-[#cee7f0] bg-white placeholder:text-[#7e775f] transition-all";
   const labelClass = "font-dm-mono text-[10px] uppercase font-bold tracking-widest text-[#4d4732]";
 
@@ -198,10 +216,10 @@ export default function Home() {
 
               {/* Manual receipt form */}
               <form onSubmit={handleManualReceiptSubmit} className="flex flex-col gap-2">
-                <label className={labelClass}>Receipt Name</label>
+                <label className={labelClass}>Create a receipt manually</label>
                 <input
                   className={inputClass}
-                  placeholder="e.g. Dinner at Chipotle"
+                  placeholder="e.g. 2am Jollibee"
                   value={receiptTitle}
                   onChange={(e) => setReceiptTitle(e.target.value)}
                   disabled={manualLoading}
@@ -240,6 +258,36 @@ export default function Home() {
                 Choose Different Image
               </button>
             </>
+          )}
+        </div>
+
+        {/* Share code card */}
+        <div className="mt-4 bg-white border-4 border-black shadow-[4px_4px_0px_0px_#000] rounded-xl p-5 flex flex-col gap-3">
+          <h2 className="font-dm-sans font-bold text-2xl">View a shared receipt</h2>
+          <form onSubmit={handleShareCodeSubmit} className="flex flex-col gap-2">
+            <label className={labelClass}>Enter Receipt Share Code</label>
+            <div className="flex gap-2">
+            <input
+              className="flex-1 h-12 border-2 border-black rounded-lg px-4 font-dm-mono text-base focus:border-[4px] focus:outline-none focus:bg-[#cee7f0] bg-white placeholder:text-[#7e775f] transition-all"
+              placeholder="e.g. ABCDE"
+              value={shareCode}
+              onChange={(e) => { setShareCode(e.target.value.slice(0, 5)); setShareCodeLoading(false); setShareCodeError(null); }}
+              maxLength={5}
+            />
+            <button
+              type="submit"
+              disabled={!shareCode.trim() || shareCodeLoading}
+              className="h-12 px-4 border-[4px] border-black rounded-lg bg-green-100 text-black shadow-[4px_4px_0px_0px_#000] hover:bg-green-200 active:translate-x-[2px] active:translate-y-[2px] active:shadow-none transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
+            >
+              {shareCodeLoading
+                ? <Loader2 strokeWidth={2.5} className="h-5 w-5 animate-spin" />
+                : <ArrowRight strokeWidth={2.5} className="h-5 w-5" />
+              }
+            </button>
+            </div>
+          </form>
+          {shareCodeError && (
+            <p className="font-dm-mono text-xs font-bold text-red-600 uppercase tracking-wider">{shareCodeError}</p>
           )}
         </div>
 
