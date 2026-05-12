@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import { DM_Sans, DM_Mono } from "next/font/google";
+import { BottomTabBar } from "@/components/BottomTabBar";
 
 const dmSans = DM_Sans({ subsets: ["latin"], variable: "--font-dm-sans" });
 const dmMono = DM_Mono({ subsets: ["latin"], weight: ["400", "500"], variable: "--font-dm-mono" });
@@ -33,6 +34,7 @@ export default function RootLayout({
       </head>
       <body className={`${dmSans.variable} ${dmMono.variable}`}>
         {children}
+        <BottomTabBar />
       </body>
     </html>
   );

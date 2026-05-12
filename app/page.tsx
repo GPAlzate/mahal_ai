@@ -165,7 +165,7 @@ export default function Home() {
       onPaste={handlePaste}
       tabIndex={0}
     >
-      <div className="max-w-lg mx-auto p-4">
+      <div className="max-w-lg mx-auto p-4 pb-20">
 
         {/* Header */}
         <div className="mb-4">

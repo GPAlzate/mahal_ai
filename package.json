@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
+    "dev": "concurrently --names \"next,ngrok\" --prefix-colors \"cyan,yellow\" \"next dev\" \"ngrok http 3000 --log stdout --log-format logfmt --log-level info\"",
     "build": "next build",
     "start": "next start",
     "lint": "next lint"
@@ -24,6 +24,7 @@
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
     "autoprefixer": "^10.4.24",
+    "concurrently": "^9.2.1",
     "eslint": "^10.0.0",
     "eslint-config-next": "^16.1.6",
     "postcss": "^8.5.6",
