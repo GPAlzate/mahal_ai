@@ -2,7 +2,7 @@
 
 import { useState, useEffect, use } from 'react';
 import { useRouter } from 'next/navigation';
-import { Eye, MoreVertical, X } from 'lucide-react';
+import { Eye, MoreVertical, X, Share2, Check } from 'lucide-react';
 import { api } from '@/lib/client/api-client';
 import LoadingScreen from '@/components/LoadingScreen';
 import type { ReceiptSummary } from '@/lib/schemas/receipt/public/ReceiptSummary';
@@ -20,6 +20,7 @@ export default function ShareCodePage({ params }: { params: Promise<{ code: stri
   const [error, setError] = useState<string | null>(null);
   const [showReceiptImage, setShowReceiptImage] = useState(false);
   const [showKebabMenu, setShowKebabMenu] = useState(false);
+  const [shared, setShared] = useState(false);
 
   useEffect(() => {
     async function fetchSummary() {
@@ -42,6 +43,22 @@ export default function ShareCodePage({ params }: { params: Promise<{ code: stri
 
     fetchSummary();
   }, [shareCode]);
+
+  const handleShare = async () => {
+    const url = `${window.location.origin}/${summary?.receipt.shareCode}`;
+    const title = summary?.receipt.title || 'Receipt';
+    if (navigator.share) {
+      try {
+        await navigator.share({ title, url });
+      } catch {
+        // user dismissed the share sheet — no-op
+      }
+    } else {
+      await navigator.clipboard.writeText(url);
+      setShared(true);
+      setTimeout(() => setShared(false), 2000);
+    }
+  };
 
   if (loading) return <LoadingScreen message="Loading receipt..." />;
 
@@ -92,10 +109,19 @@ export default function ShareCodePage({ params }: { params: Promise<{ code: stri
         </div>
 
         {/* Share Code Badge */}
-        <div className="flex items-center gap-2 bg-green-100 border-2 border-black rounded-lg px-3 py-2 self-center">
-          <span className="font-dm-mono text-[10px] uppercase font-bold tracking-widest text-green-800">Share Code</span>
+        <button
+          onClick={handleShare}
+          className="flex items-center gap-2 bg-green-100 border-2 border-black rounded-lg px-3 py-2 self-start shadow-[2px_2px_0px_0px_#000] hover:bg-green-200 active:translate-x-[2px] active:translate-y-[2px] active:shadow-none transition-all cursor-pointer"
+        >
+          {shared
+            ? <Check className="w-3.5 h-3.5 text-green-800" strokeWidth={2.5} />
+            : <Share2 className="w-3.5 h-3.5 text-green-800" strokeWidth={2.5} />
+          }
+          <span className="font-dm-mono text-[10px] uppercase font-bold tracking-widest text-green-800">
+            {shared ? 'Copied!' : 'Share'}
+          </span>
           <span className="font-dm-mono font-bold text-sm tracking-widest text-black">{summary.receipt.shareCode}</span>
-        </div>
+        </button>
 
         <ReceiptCard summary={summary} formatCurrency={formatCurrency} />
         <ParticipantSplits participantSplits={summary.participantSplits} formatCurrency={formatCurrency} />

@@ -223,13 +223,6 @@ export default function SummaryPage({ params }: { params: Promise<{ id: string }
         >
           {finalizing ? 'Finalizing...' : 'Finalize Receipt →'}
         </button>
-        <div className="text-center mt-2">
-          <button
-            onClick={() => router.push('/')}
-            className="font-dm-mono text-[10px] uppercase tracking-widest text-[#4d4732] hover:text-black transition-colors"
-          >
-          </button>
-        </div>
       </nav>
 
       {/* Mismatch Bottom Sheet */}
