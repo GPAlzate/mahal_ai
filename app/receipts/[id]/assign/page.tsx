@@ -741,7 +741,7 @@ export default function AssignPage({ params }: { params: Promise<{ id: string }>
       </main>
 
       {/* Fixed bottom nav */}
-      <nav className="fixed bottom-0 left-0 w-full z-50 flex flex-col bg-white border-t-4 border-black">
+      <nav className="fixed bottom-0 left-0 w-full z-50 flex flex-col bg-white border-t-4 border-black pb-[env(safe-area-inset-bottom)]">
 
         {/* Participant chips row — items + discounts views only */}
         {(currentView === 'items' || currentView === 'discounts') && (

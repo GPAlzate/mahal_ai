@@ -215,7 +215,7 @@ export default function SummaryPage({ params }: { params: Promise<{ id: string }
       </main>
 
       {/* Fixed Bottom Nav */}
-      <nav className="fixed bottom-0 left-0 w-full z-50 bg-white border-t-4 border-black px-4 pt-3 pb-4">
+      <nav className="fixed bottom-0 left-0 w-full z-50 bg-white border-t-4 border-black px-4 pt-3 pb-[max(1rem,env(safe-area-inset-bottom))]">
         <button
           onClick={handleFinalize}
           disabled={finalizing}
@@ -235,7 +235,7 @@ export default function SummaryPage({ params }: { params: Promise<{ id: string }
               className="fixed inset-0 z-[60] bg-black/50"
               onClick={() => { setShowMismatchModal(false); setMismatchDismissed(true); }}
             />
-            <div className="fixed bottom-0 inset-x-0 z-[70] bg-white border-x-4 border-t-4 border-black rounded-t-xl shadow-[0px_-4px_0px_0px_#000] flex flex-col max-w-lg mx-auto">
+            <div className="fixed bottom-0 inset-x-0 z-[70] bg-white border-x-4 border-t-4 border-black rounded-t-xl shadow-[0px_-4px_0px_0px_#000] flex flex-col max-w-lg mx-auto pb-[env(safe-area-inset-bottom)]">
               <div className="flex flex-col items-center gap-2 px-5 pt-5 pb-4 border-b-4 border-black">
                 <div className="bg-[#FFF3CD] border-2 border-black w-10 h-10 flex items-center justify-center font-bold text-lg">
                   ⚠
