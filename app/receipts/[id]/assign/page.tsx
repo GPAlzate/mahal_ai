@@ -2,10 +2,11 @@
 
 import React, { useState, useEffect, use, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { X, Pencil, Plus, Trash2, ArrowLeft, ArrowRight, MoreVertical, Eye, HelpCircle } from 'lucide-react';
+import { X, Pencil, Plus, Trash2, ArrowLeft, ArrowRight, MoreVertical, Eye, HelpCircle, Users } from 'lucide-react';
 import LoadingScreen from '@/components/LoadingScreen';
 import { LineItemModal } from '@/components/LineItemModal';
 import { api } from '@/lib/client/api-client';
+import { formatCurrency } from '@/lib/helpers/CurrencyHelper';
 
 interface ReceiptLine {
   id: number;
@@ -383,6 +384,19 @@ export default function AssignPage({ params }: { params: Promise<{ id: string }>
     }
   };
 
+  const handleSplitEqually = () => {
+    setAssignments((prev) => {
+      const next = { ...prev };
+      purchaseLines.forEach((line) => {
+        next[line.id] = {};
+        participants.forEach((p) => { next[line.id][p.id] = 1; });
+      });
+      return next;
+    });
+    setUnassignedLineIds(new Set());
+    setError(null);
+  };
+
   if (loading) return <LoadingScreen message="Loading receipt..." />;
 
   const continueLabel = saving
@@ -394,7 +408,7 @@ export default function AssignPage({ params }: { params: Promise<{ id: string }>
         : 'Summary';
 
   return (
-    <div className="min-h-dvh flex flex-col bg-[#f9f9f9] text-[#1b1b1b] font-['Work_Sans'] pb-[140px]">
+    <div className="min-h-dvh flex flex-col bg-[#fff9ef] text-[#1b1b1b] font-['Work_Sans'] pb-[140px]">
 
       {/* Header */}
       <header className="sticky top-0 z-40 bg-white border-b-4 border-black w-full">
@@ -514,17 +528,6 @@ export default function AssignPage({ params }: { params: Promise<{ id: string }>
               <p className="text-center font-bold py-4 font-dm-sans text-sm">No items yet — add one below.</p>
             )}
 
-            {/* Add Item Button */}
-            <button
-              onClick={handleOpenCreateModal}
-              className="w-full bg-white border-4 border-black border-dashed p-3 rounded-lg flex items-center justify-center gap-3 hover:bg-[#f3f3f3] transition-colors group"
-            >
-              <div className="p-1 bg-black text-white rounded-full group-hover:scale-110 transition-transform flex items-center justify-center">
-                <Plus className="w-4 h-4" />
-              </div>
-              <span className="font-dm-sans font-bold uppercase text-sm">ADD ITEM</span>
-            </button>
-
             {purchaseLines.map((line) => {
               const assignedParticipants = getAssignedParticipants(line.id);
               const isSelected = activeLineId === line.id;
@@ -540,7 +543,7 @@ export default function AssignPage({ params }: { params: Promise<{ id: string }>
                     isUnassigned ? 'border-orange-500 bg-orange-50' :
                     isSelected ? 'border-[#FFD700] bg-yellow-50' :
                     isAssignedToSelectedParticipant ? 'border-green-500 bg-green-50' :
-                    isAssignmentMode ? 'hover:bg-purple-50 hover:border-purple-400' : 'hover:bg-[#f9f9f9]'
+                    isAssignmentMode ? 'hover:bg-purple-50 hover:border-purple-400' : 'hover:bg-[#f3f3f3]'
                   }`}
                 >
                   {/* Row 1: name + edit/delete */}
@@ -564,7 +567,7 @@ export default function AssignPage({ params }: { params: Promise<{ id: string }>
                   <div className="flex justify-between items-end">
                     <div className="bg-[#e2e2e2] border-2 border-black rounded-full px-2 py-0.5 flex items-center w-max">
                       <span className="font-dm-mono text-[10px] uppercase font-bold text-[#1b1b1b]">
-                        {line.quantity} × PHP{line.unitPrice.toFixed(2)} = PHP{(line.quantity * line.unitPrice).toFixed(2)}
+                        {line.quantity} × {formatCurrency(line.unitPrice)} = {formatCurrency(line.quantity * line.unitPrice)}
                       </span>
                     </div>
                     <div className="flex -space-x-2">
@@ -590,6 +593,28 @@ export default function AssignPage({ params }: { params: Promise<{ id: string }>
                 </div>
               );
             })}
+
+            {/* Add Item + Split Equally row */}
+            <div className="flex gap-2">
+              <button
+                onClick={handleOpenCreateModal}
+                className="flex-1 bg-white border-4 border-black border-dashed p-3 rounded-lg flex items-center justify-center gap-3 hover:bg-[#f3f3f3] transition-colors group"
+              >
+                <div className="p-1 bg-black text-white rounded-full group-hover:scale-110 transition-transform flex items-center justify-center">
+                  <Plus className="w-4 h-4" />
+                </div>
+                <span className="font-dm-sans font-bold uppercase text-sm">ADD ITEM</span>
+              </button>
+              {purchaseLines.length > 0 && participants.length > 0 && (
+                <button
+                  onClick={handleSplitEqually}
+                  className="bg-[#cee7f0] border-4 border-black p-3 rounded-lg flex items-center justify-center gap-2 hover:bg-[#b8dcea] transition-colors shadow-[3px_3px_0px_0px_#000] active:translate-x-[2px] active:translate-y-[2px] active:shadow-none"
+                >
+                  <Users className="w-4 h-4" />
+                  <span className="font-dm-sans font-bold uppercase text-sm whitespace-nowrap">Split All</span>
+                </button>
+              )}
+            </div>
           </>
         )}
 
@@ -622,7 +647,7 @@ export default function AssignPage({ params }: { params: Promise<{ id: string }>
                   className={`bg-white border-4 border-black p-[12px_16px] rounded-lg flex flex-col gap-2 cursor-pointer transition-all shadow-[3px_3px_0px_0px_#000] active:translate-x-[2px] active:translate-y-[2px] active:shadow-[1px_1px_0px_0px_#000] ${
                     isSelected ? 'border-[#FFD700] bg-yellow-50' :
                     isAssignedToSelectedParticipant ? 'border-green-500 bg-green-50' :
-                    isAssignmentMode ? 'hover:bg-purple-50 hover:border-purple-400' : 'hover:bg-[#f9f9f9]'
+                    isAssignmentMode ? 'hover:bg-purple-50 hover:border-purple-400' : 'hover:bg-[#f3f3f3]'
                   }`}
                 >
                   <div className="flex items-center gap-2">
@@ -643,7 +668,7 @@ export default function AssignPage({ params }: { params: Promise<{ id: string }>
                   <div className="flex justify-between items-end">
                     <div className="bg-green-100 border-2 border-green-600 rounded-full px-2 py-0.5 flex items-center w-max">
                       <span className="font-dm-mono text-[10px] uppercase font-bold text-green-700">
-                        PHP{(line.quantity * line.unitPrice).toFixed(2)}
+                        {formatCurrency(line.quantity * line.unitPrice)}
                       </span>
                     </div>
                     <div className="flex -space-x-2">
@@ -706,7 +731,7 @@ export default function AssignPage({ params }: { params: Promise<{ id: string }>
                 </div>
                 <div className="bg-[#e2e2e2] border-2 border-black rounded-full px-2 py-0.5 flex items-center w-max">
                   <span className="font-dm-mono text-[10px] uppercase font-bold text-[#1b1b1b]">
-                    {line.quantity} × PHP{line.unitPrice.toFixed(2)} = PHP{(line.quantity * line.unitPrice).toFixed(2)}
+                    {line.quantity} × {formatCurrency(line.unitPrice)} = {formatCurrency(line.quantity * line.unitPrice)}
                   </span>
                 </div>
               </div>
@@ -766,7 +791,7 @@ export default function AssignPage({ params }: { params: Promise<{ id: string }>
           <div className="flex flex-col items-center justify-center w-1/3 border-r-4 border-black px-3 gap-0.5">
             <span className="font-dm-mono text-[7px] uppercase font-bold text-[#7e7576] tracking-wider">Subtotal</span>
             <span className="font-dm-sans font-bold text-xs leading-tight">
-              PHP {getPurchaseSubtotal().toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              {formatCurrency(getPurchaseSubtotal())}
             </span>
           </div>
 

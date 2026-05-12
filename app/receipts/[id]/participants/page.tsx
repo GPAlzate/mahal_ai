@@ -195,7 +195,7 @@ export default function ParticipantsPage({ params }: { params: Promise<{ id: str
             </span>
           )}
           {!saving && !checkingLines && participants.length === 0 && 'Add participants to continue'}
-          {!saving && !checkingLines && participants.length > 0 && 'View Receipt →'}
+          {!saving && !checkingLines && participants.length > 0 && 'Assign Items →'}
         </button>
 
       </div>
