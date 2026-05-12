@@ -13,12 +13,16 @@ const TABS: Tab[] = [
   { label: 'Account', icon: User, href: null, comingSoon: true },
 ];
 
-const TOP_LEVEL_ROUTES = ['/'];
+const HIDDEN_PATTERNS = [
+  /^\/receipts\/\d+\/assign$/,
+  /^\/receipts\/\d+\/summary$/,
+  /^\/[A-Z0-9]{1,10}$/i,
+];
 
 export function BottomTabBar() {
   const pathname = usePathname();
 
-  if (!TOP_LEVEL_ROUTES.includes(pathname)) return null;
+  if (HIDDEN_PATTERNS.some((p) => p.test(pathname))) return null;
 
   return (
     <nav

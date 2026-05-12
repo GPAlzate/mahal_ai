@@ -111,7 +111,7 @@ export default function ParticipantsPage({ params }: { params: Promise<{ id: str
   const canContinue = participants.length > 0 && linesReady && !saving;
 
   return (
-    <div className="min-h-screen bg-[#fff9ef] p-4">
+    <div className="min-h-screen bg-[#fff9ef] p-4 pb-20">
       <div className="max-w-lg mx-auto">
 
         {/* Header */}
