@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { X, Pencil, Plus, Trash2, ArrowLeft, ArrowRight, MoreVertical, Eye, HelpCircle, Users } from 'lucide-react';
 import LoadingScreen from '@/components/LoadingScreen';
 import { LineItemModal } from '@/components/LineItemModal';
+import { ParticipantAssignModal } from '@/components/ParticipantAssignModal';
 import { api } from '@/lib/client/api-client';
 import { formatCurrency } from '@/lib/helpers/CurrencyHelper';
 
@@ -52,6 +53,7 @@ export default function AssignPage({ params }: { params: Promise<{ id: string }>
   const [showKebabMenu, setShowKebabMenu] = useState(false);
   const [deleteConfirmLine, setDeleteConfirmLine] = useState<ReceiptLine | null>(null);
   const [showHelpModal, setShowHelpModal] = useState(false);
+  const [assignModalLine, setAssignModalLine] = useState<ReceiptLine | null>(null);
 
   useEffect(() => {
     if (!localStorage.getItem('mahal_assign_help_seen')) {
@@ -408,7 +410,7 @@ export default function AssignPage({ params }: { params: Promise<{ id: string }>
         : 'Summary';
 
   return (
-    <div className="min-h-dvh flex flex-col bg-[#fff9ef] text-[#1b1b1b] font-['Work_Sans'] pb-[140px]">
+    <div className={`min-h-dvh flex flex-col bg-[#fff9ef] text-[#1b1b1b] font-['Work_Sans'] ${currentView === 'misc-charges' ? 'pb-20' : 'pb-[140px]'}`}>
 
       {/* Header */}
       <header className="sticky top-0 z-40 bg-white border-b-4 border-black w-full">
@@ -530,7 +532,6 @@ export default function AssignPage({ params }: { params: Promise<{ id: string }>
 
             {purchaseLines.map((line) => {
               const assignedParticipants = getAssignedParticipants(line.id);
-              const isSelected = activeLineId === line.id;
               const isAssignmentMode = activeParticipantId !== null;
               const isAssignedToSelectedParticipant = activeParticipantId && assignments[line.id]?.[activeParticipantId];
               const isUnassigned = unassignedLineIds.has(line.id);
@@ -538,28 +539,28 @@ export default function AssignPage({ params }: { params: Promise<{ id: string }>
               return (
                 <div
                   key={line.id}
-                  onClick={() => handleLineSelection(line.id)}
+                  onClick={() => activeParticipantId ? handleLineSelection(line.id) : setAssignModalLine(line)}
                   className={`bg-white border-4 border-black p-[12px_16px] rounded-lg flex flex-col gap-2 cursor-pointer transition-all shadow-[3px_3px_0px_0px_#000] active:translate-x-[2px] active:translate-y-[2px] active:shadow-[1px_1px_0px_0px_#000] ${
                     isUnassigned ? 'border-orange-500 bg-orange-50' :
-                    isSelected ? 'border-[#FFD700] bg-yellow-50' :
                     isAssignedToSelectedParticipant ? 'border-green-500 bg-green-50' :
-                    isAssignmentMode ? 'hover:bg-purple-50 hover:border-purple-400' : 'hover:bg-[#f3f3f3]'
+                    isAssignmentMode ? 'hover:bg-purple-50 hover:border-purple-400' :
+                    'hover:bg-[#f9f9f0] hover:border-[#ccb800]'
                   }`}
                 >
                   {/* Row 1: name + edit/delete */}
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-3">
                     <h2 className="font-dm-sans font-bold text-[16px] uppercase leading-tight flex-1 truncate">{line.itemName}</h2>
                     <button
                       onClick={(e) => { e.stopPropagation(); handleOpenEditModal(line); }}
-                      className="p-1 border-2 border-black bg-white rounded shadow-[1px_1px_0px_0px_#000] active:shadow-none active:translate-x-[1px] active:translate-y-[1px] transition-all flex-shrink-0"
+                      className="p-2.5 border-2 border-black bg-white rounded shadow-[1px_1px_0px_0px_#000] active:shadow-none active:translate-x-[1px] active:translate-y-[1px] transition-all flex-shrink-0"
                     >
-                      <Pencil className="w-3 h-3" />
+                      <Pencil className="w-4 h-4" />
                     </button>
                     <button
                       onClick={(e) => { e.stopPropagation(); handleDeleteLineItem(line); }}
-                      className="p-1 border-2 border-black bg-[#ffdad6] text-[#93000a] rounded shadow-[1px_1px_0px_0px_#000] active:shadow-none active:translate-x-[1px] active:translate-y-[1px] transition-all flex-shrink-0"
+                      className="p-2.5 border-2 border-black bg-[#ffdad6] text-[#93000a] rounded shadow-[1px_1px_0px_0px_#000] active:shadow-none active:translate-x-[1px] active:translate-y-[1px] transition-all flex-shrink-0"
                     >
-                      <Trash2 className="w-3 h-3" />
+                      <Trash2 className="w-4 h-4" />
                     </button>
                   </div>
 
@@ -806,6 +807,18 @@ export default function AssignPage({ params }: { params: Promise<{ id: string }>
           </button>
         </div>
       </nav>
+
+      {/* Participant Assignment Modal (item-first flow) */}
+      <ParticipantAssignModal
+        isOpen={assignModalLine !== null}
+        line={assignModalLine}
+        participants={participants}
+        lineAssignments={assignModalLine ? (assignments[assignModalLine.id] || {}) : {}}
+        onToggle={(participantId) => { if (assignModalLine) toggleAssignment(assignModalLine.id, participantId); }}
+        onClose={() => setAssignModalLine(null)}
+        participantColors={PARTICIPANT_COLORS}
+        getInitials={getInitials}
+      />
 
       {/* Line Item Modal */}
       <LineItemModal

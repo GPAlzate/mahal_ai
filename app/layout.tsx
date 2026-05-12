@@ -34,7 +34,7 @@ export default function RootLayout({
       </head>
       <body className={`${dmSans.variable} ${dmMono.variable}`}>
         {children}
-        <BottomTabBar />
+        {/* <BottomTabBar /> */}
       </body>
     </html>
   );
