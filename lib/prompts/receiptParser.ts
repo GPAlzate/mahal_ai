@@ -118,8 +118,8 @@ const PARSING_RULES = `
 
 1. **Completeness:**
    - Extract ALL visible line items including purchases, tips, service charges, and discounts
-   - Do NOT skip or omit any charges shown on the receipt
-   - Include every line that has a non-zero price
+   - **OMIT tax lines entirely** — do NOT include any line identified as tax, VAT, GST, sales tax, or similar government-imposed tax charges
+   - Include every non-tax line that has a non-zero price
    - Preserve the top-to-bottom visual order of lines exactly as they appear on the receipt
 
 2. **Accuracy:**
