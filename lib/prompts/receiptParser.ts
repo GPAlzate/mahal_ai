@@ -14,13 +14,13 @@ Each item in the receiptLines array must have:
 
 1. **itemName** (string, required):
    - Look for: Item description, menu item, product name, charge description
-   - Examples: "Burger", "Tax", "Service Charge", "10% Discount"
+   - Examples: "Burger", "Service Charge", "10% Discount"
    - Keep original text from receipt, don't abbreviate or translate
 
 2. **quantity** (number, positive, required):
    - Look for: "Qty", "x", number before item name, multiplication indicator
-   - Examples: "2x Burger" → quantity: 2, "Tax" → quantity: 1
-   - Default to 1 for single items, taxes, tips, service charges, discounts
+   - Examples: "2x Burger" → quantity: 2, "Service Charge" → quantity: 1
+   - Default to 1 for single items, tips, service charges, discounts
    - If not clearly visible or identifiable: SET TO 1
 
 3. **unitPrice** (number, required):

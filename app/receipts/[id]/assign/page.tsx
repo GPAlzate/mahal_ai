@@ -6,6 +6,7 @@ import { X, Pencil, Plus, Trash2, ArrowLeft, ArrowRight, MoreVertical, Eye, Help
 import LoadingScreen from '@/components/LoadingScreen';
 import { LineItemModal } from '@/components/LineItemModal';
 import { ParticipantAssignModal } from '@/components/ParticipantAssignModal';
+import { KebabMenu } from '@/components/KebabMenu';
 import { api } from '@/lib/client/api-client';
 import { formatCurrency } from '@/lib/helpers/CurrencyHelper';
 
@@ -54,6 +55,7 @@ export default function AssignPage({ params }: { params: Promise<{ id: string }>
   const [deleteConfirmLine, setDeleteConfirmLine] = useState<ReceiptLine | null>(null);
   const [showHelpModal, setShowHelpModal] = useState(false);
   const [assignModalLine, setAssignModalLine] = useState<ReceiptLine | null>(null);
+  const [openKebabId, setOpenKebabId] = useState<number | null>(null);
 
   useEffect(() => {
     if (!localStorage.getItem('mahal_assign_help_seen')) {
@@ -439,24 +441,13 @@ export default function AssignPage({ params }: { params: Promise<{ id: string }>
             {showKebabMenu && (
               <>
                 <div className="fixed inset-0 z-40" onClick={() => setShowKebabMenu(false)} />
-                <div className="absolute right-0 top-full mt-1 z-50 bg-white border-2 border-black shadow-[4px_4px_0px_0px_#000] w-44 flex flex-col">
-                  <button
-                    onClick={() => { setShowHelpModal(true); setShowKebabMenu(false); }}
-                    className="flex items-center gap-2 px-4 py-3 border-b-2 border-black font-dm-mono text-[11px] font-bold uppercase tracking-wide hover:bg-[#FFD700] transition-colors text-left"
-                  >
-                    <HelpCircle className="w-4 h-4 flex-shrink-0" />
-                    How to Use
-                  </button>
-                  {receiptImageURI && (
-                    <button
-                      onClick={() => { setShowReceiptImage(true); setShowKebabMenu(false); }}
-                      className="flex items-center gap-2 px-4 py-3 border-b-2 border-black font-dm-mono text-[11px] font-bold uppercase tracking-wide hover:bg-[#FFD700] transition-colors text-left"
-                    >
-                      <Eye className="w-4 h-4 flex-shrink-0" />
-                      View Receipt
-                    </button>
-                  )}
-                </div>
+                <KebabMenu
+                  className="z-50 w-44"
+                  items={[
+                    { label: 'How to Use', icon: <HelpCircle className="w-4 h-4 flex-shrink-0" />, onClick: () => { setShowHelpModal(true); setShowKebabMenu(false); } },
+                    ...(receiptImageURI ? [{ label: 'View Receipt', icon: <Eye className="w-4 h-4 flex-shrink-0" />, onClick: () => { setShowReceiptImage(true); setShowKebabMenu(false); } }] : []),
+                  ]}
+                />
               </>
             )}
           </div>
@@ -547,22 +538,8 @@ export default function AssignPage({ params }: { params: Promise<{ id: string }>
                     'hover:bg-[#f9f9f0] hover:border-[#ccb800]'
                   }`}
                 >
-                  {/* Row 1: name + edit/delete */}
-                  <div className="flex items-center gap-3">
-                    <h2 className="font-dm-sans font-bold text-[16px] uppercase leading-tight flex-1 truncate">{line.itemName}</h2>
-                    <button
-                      onClick={(e) => { e.stopPropagation(); handleOpenEditModal(line); }}
-                      className="p-2.5 border-2 border-black bg-white rounded shadow-[1px_1px_0px_0px_#000] active:shadow-none active:translate-x-[1px] active:translate-y-[1px] transition-all flex-shrink-0"
-                    >
-                      <Pencil className="w-4 h-4" />
-                    </button>
-                    <button
-                      onClick={(e) => { e.stopPropagation(); handleDeleteLineItem(line); }}
-                      className="p-2.5 border-2 border-black bg-[#ffdad6] text-[#93000a] rounded shadow-[1px_1px_0px_0px_#000] active:shadow-none active:translate-x-[1px] active:translate-y-[1px] transition-all flex-shrink-0"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  </div>
+                  {/* Row 1: name only */}
+                  <h2 className="font-dm-sans font-bold text-[16px] uppercase leading-tight">{line.itemName}</h2>
 
                   {/* Row 2: price pill + participant circles */}
                   <div className="flex justify-between items-end">
@@ -624,17 +601,6 @@ export default function AssignPage({ params }: { params: Promise<{ id: string }>
           <>
             <p className="font-dm-mono text-xs text-[#4c4546] px-1">Unassigned discounts are applied to all participants.</p>
 
-            {/* Add Discount Button */}
-            <button
-              onClick={handleOpenCreateModal}
-              className="w-full bg-white border-4 border-black border-dashed p-3 rounded-lg flex items-center justify-center gap-3 hover:bg-[#f3f3f3] transition-colors group"
-            >
-              <div className="p-1 bg-black text-white rounded-full group-hover:scale-110 transition-transform flex items-center justify-center">
-                <Plus className="w-4 h-4" />
-              </div>
-              <span className="font-dm-sans font-bold uppercase text-sm">ADD DISCOUNT</span>
-            </button>
-
             {discountLines.map((line) => {
               const assignedParticipants = getAssignedParticipants(line.id);
               const isSelected = activeLineId === line.id;
@@ -653,18 +619,26 @@ export default function AssignPage({ params }: { params: Promise<{ id: string }>
                 >
                   <div className="flex items-center gap-2">
                     <h2 className="font-dm-sans font-bold text-[16px] uppercase leading-tight flex-1 truncate text-green-700">{line.itemName}</h2>
-                    <button
-                      onClick={(e) => { e.stopPropagation(); handleOpenEditModal(line); }}
-                      className="p-1 border-2 border-black bg-white rounded shadow-[1px_1px_0px_0px_#000] active:shadow-none active:translate-x-[1px] active:translate-y-[1px] transition-all flex-shrink-0"
-                    >
-                      <Pencil className="w-3 h-3" />
-                    </button>
-                    <button
-                      onClick={(e) => { e.stopPropagation(); handleDeleteLineItem(line); }}
-                      className="p-1 border-2 border-black bg-[#ffdad6] text-[#93000a] rounded shadow-[1px_1px_0px_0px_#000] active:shadow-none active:translate-x-[1px] active:translate-y-[1px] transition-all flex-shrink-0"
-                    >
-                      <Trash2 className="w-3 h-3" />
-                    </button>
+                    <div className="relative flex-shrink-0" onClick={e => e.stopPropagation()}>
+                      <button
+                        onClick={() => setOpenKebabId(openKebabId === line.id ? null : line.id)}
+                        className="p-2 border-2 border-black bg-white rounded shadow-[1px_1px_0px_0px_#000] active:shadow-none active:translate-x-[1px] active:translate-y-[1px] transition-all flex items-center justify-center"
+                      >
+                        <MoreVertical className="w-4 h-4" />
+                      </button>
+                      {openKebabId === line.id && (
+                        <>
+                          <div className="fixed inset-0 z-10" onClick={() => setOpenKebabId(null)} />
+                          <KebabMenu
+                            className="z-20 w-32"
+                            items={[
+                              { label: 'Edit', icon: <Pencil className="w-3.5 h-3.5 flex-shrink-0" />, onClick: () => { handleOpenEditModal(line); setOpenKebabId(null); } },
+                              { label: 'Delete', icon: <Trash2 className="w-3.5 h-3.5 flex-shrink-0" />, onClick: () => { handleDeleteLineItem(line); setOpenKebabId(null); }, variant: 'destructive' as const },
+                            ]}
+                          />
+                        </>
+                      )}
+                    </div>
                   </div>
                   <div className="flex justify-between items-end">
                     <div className="bg-green-100 border-2 border-green-600 rounded-full px-2 py-0.5 flex items-center w-max">
@@ -695,6 +669,16 @@ export default function AssignPage({ params }: { params: Promise<{ id: string }>
                 </div>
               );
             })}
+
+            <button
+              onClick={handleOpenCreateModal}
+              className="w-full bg-white border-4 border-black border-dashed p-3 rounded-lg flex items-center justify-center gap-3 hover:bg-[#f3f3f3] transition-colors group"
+            >
+              <div className="p-1 bg-black text-white rounded-full group-hover:scale-110 transition-transform flex items-center justify-center">
+                <Plus className="w-4 h-4" />
+              </div>
+              <span className="font-dm-sans font-bold uppercase text-sm">ADD DISCOUNT</span>
+            </button>
           </>
         )}
 
@@ -702,6 +686,39 @@ export default function AssignPage({ params }: { params: Promise<{ id: string }>
         {currentView === 'misc-charges' && (
           <>
             <p className="font-dm-mono text-xs text-[#4c4546] px-1">Review tax, tip, and service charges.</p>
+
+            {miscChargeLines.map((line) => (
+              <div key={line.id} className="bg-white border-4 border-black p-[12px_16px] rounded-lg flex flex-col gap-2 shadow-[3px_3px_0px_0px_#000]">
+                <div className="flex items-center gap-2">
+                  <h2 className="font-dm-sans font-bold text-[16px] uppercase leading-tight flex-1 truncate">{line.itemName}</h2>
+                  <div className="relative flex-shrink-0">
+                    <button
+                      onClick={() => setOpenKebabId(openKebabId === line.id ? null : line.id)}
+                      className="p-2 border-2 border-black bg-white rounded shadow-[1px_1px_0px_0px_#000] active:shadow-none active:translate-x-[1px] active:translate-y-[1px] transition-all flex items-center justify-center"
+                    >
+                      <MoreVertical className="w-4 h-4" />
+                    </button>
+                    {openKebabId === line.id && (
+                      <>
+                        <div className="fixed inset-0 z-10" onClick={() => setOpenKebabId(null)} />
+                        <KebabMenu
+                          className="z-20 w-32"
+                          items={[
+                            { label: 'Edit', icon: <Pencil className="w-3.5 h-3.5 flex-shrink-0" />, onClick: () => { handleOpenEditModal(line); setOpenKebabId(null); } },
+                            { label: 'Delete', icon: <Trash2 className="w-3.5 h-3.5 flex-shrink-0" />, onClick: () => { handleDeleteLineItem(line); setOpenKebabId(null); }, variant: 'destructive' as const },
+                          ]}
+                        />
+                      </>
+                    )}
+                  </div>
+                </div>
+                <div className="bg-[#e2e2e2] border-2 border-black rounded-full px-2 py-0.5 flex items-center w-max">
+                  <span className="font-dm-mono text-[10px] uppercase font-bold text-[#1b1b1b]">
+                    {line.quantity} × {formatCurrency(line.unitPrice)} = {formatCurrency(line.quantity * line.unitPrice)}
+                  </span>
+                </div>
+              </div>
+            ))}
 
             <button
               onClick={handleOpenCreateModal}
@@ -712,31 +729,6 @@ export default function AssignPage({ params }: { params: Promise<{ id: string }>
               </div>
               <span className="font-dm-sans font-bold uppercase text-sm">ADD ITEM</span>
             </button>
-
-            {miscChargeLines.map((line) => (
-              <div key={line.id} className="bg-white border-4 border-black p-[12px_16px] rounded-lg flex flex-col gap-2 shadow-[3px_3px_0px_0px_#000]">
-                <div className="flex items-center gap-2">
-                  <h2 className="font-dm-sans font-bold text-[16px] uppercase leading-tight flex-1 truncate">{line.itemName}</h2>
-                  <button
-                    onClick={() => handleOpenEditModal(line)}
-                    className="p-1 border-2 border-black bg-white rounded shadow-[1px_1px_0px_0px_#000] active:shadow-none active:translate-x-[1px] active:translate-y-[1px] transition-all flex-shrink-0"
-                  >
-                    <Pencil className="w-3 h-3" />
-                  </button>
-                  <button
-                    onClick={() => handleDeleteLineItem(line)}
-                    className="p-1 border-2 border-black bg-[#ffdad6] text-[#93000a] rounded shadow-[1px_1px_0px_0px_#000] active:shadow-none active:translate-x-[1px] active:translate-y-[1px] transition-all flex-shrink-0"
-                  >
-                    <Trash2 className="w-3 h-3" />
-                  </button>
-                </div>
-                <div className="bg-[#e2e2e2] border-2 border-black rounded-full px-2 py-0.5 flex items-center w-max">
-                  <span className="font-dm-mono text-[10px] uppercase font-bold text-[#1b1b1b]">
-                    {line.quantity} × {formatCurrency(line.unitPrice)} = {formatCurrency(line.quantity * line.unitPrice)}
-                  </span>
-                </div>
-              </div>
-            ))}
           </>
         )}
       </main>
@@ -815,7 +807,30 @@ export default function AssignPage({ params }: { params: Promise<{ id: string }>
         participants={participants}
         lineAssignments={assignModalLine ? (assignments[assignModalLine.id] || {}) : {}}
         onToggle={(participantId) => { if (assignModalLine) toggleAssignment(assignModalLine.id, participantId); }}
+        onAssignAll={() => {
+          if (!assignModalLine) return;
+          setAssignments(prev => ({
+            ...prev,
+            [assignModalLine.id]: Object.fromEntries(participants.map(p => [p.id, 1])),
+          }));
+          setUnassignedLineIds(prev => { const next = new Set(prev); next.delete(assignModalLine.id); return next; });
+          setError(null);
+        }}
+        onClear={() => {
+          if (!assignModalLine) return;
+          setAssignments(prev => ({ ...prev, [assignModalLine.id]: {} }));
+        }}
         onClose={() => setAssignModalLine(null)}
+        onEdit={() => {
+          const line = assignModalLine;
+          setAssignModalLine(null);
+          if (line) handleOpenEditModal(line);
+        }}
+        onDelete={() => {
+          const line = assignModalLine;
+          setAssignModalLine(null);
+          if (line) handleDeleteLineItem(line);
+        }}
         participantColors={PARTICIPANT_COLORS}
         getInitials={getInitials}
       />
