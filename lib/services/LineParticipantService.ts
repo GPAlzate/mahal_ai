@@ -63,7 +63,11 @@ export class LineParticipantService {
   }
 
   /**
-   * Batch assign participants to receipt lines
+   * Batch assign participants to receipt lines.
+   * Uses a replace-per-line strategy: for each receiptLineId in the batch, all existing
+   * assignments are deleted before inserting the new ones. Lines not present in the batch
+   * are left untouched.
+   *
    * @param receiptId - ID of the receipt (for validation)
    * @param assignments - Array of assignments to create
    * @returns Array of created line participant assignments
@@ -72,10 +76,6 @@ export class LineParticipantService {
     receiptId: number,
     assignments: Array<{ receiptLineId: number; participantId: number; shareQuantity: number }>
   ) {
-    if (!assignments || assignments.length === 0) {
-      return [];
-    }
-
     // Verify receipt exists and is not finalized (once, not per assignment)
     this._logger.log(`Fetching receipt for receiptId ${receiptId}.`)
     const receipt = await sql`
@@ -91,27 +91,38 @@ export class LineParticipantService {
       throw new Error('Cannot modify finalized receipt');
     }
 
-    // Build array of SQL upsert promises (using ON CONFLICT to update existing assignments)
-    this._logger.log(`Creating assignments ${JSON.stringify(assignments, null, 2)} for receipt ${receiptId}.`)
-    const upsertPromises = assignments.map((assignment) =>
-      sql`
-        INSERT INTO line_participants (receipt_line_id, participant_id, share_quantity)
-        VALUES (
-          ${assignment.receiptLineId},
-          ${assignment.participantId},
-          ${assignment.shareQuantity}
-        )
-        ON CONFLICT (receipt_line_id, participant_id)
-        DO UPDATE SET share_quantity = ${assignment.shareQuantity}
-        RETURNING *
-      `
+    // Group by receiptLineId so we can replace all assignments per line
+    const byLine = new Map<number, typeof assignments>();
+    for (const a of assignments) {
+      if (!byLine.has(a.receiptLineId)) {
+        byLine.set(a.receiptLineId, []);
+      }
+      byLine.get(a.receiptLineId)!.push(a);
+    }
+
+    this._logger.log(`Replacing assignments for ${byLine.size} lines on receipt ${receiptId}.`);
+
+    const lineResults = await Promise.all(
+      Array.from(byLine.entries()).map(async ([lineId, lineAssignments]) => {
+        await sql`DELETE FROM line_participants WHERE receipt_line_id = ${lineId}`;
+
+        if (lineAssignments.length === 0) {
+          return [];
+        }
+
+        const insertResults = await Promise.all(
+          lineAssignments.map((a) => sql`
+            INSERT INTO line_participants (receipt_line_id, participant_id, share_quantity)
+            VALUES (${a.receiptLineId}, ${a.participantId}, ${a.shareQuantity})
+            RETURNING *
+          `)
+        );
+
+        return insertResults.map((r) => toLineParticipant(toLineParticipantDTO(r[0])));
+      })
     );
 
-    // Execute all upserts concurrently
-    const results = await Promise.all(upsertPromises);
-
-    // Flatten results and convert to public format
-    return results.map((result) => toLineParticipant(toLineParticipantDTO(result[0])));
+    return lineResults.flat();
   }
 
   /**
