@@ -59,6 +59,8 @@ export class OpenAIService {
       console.timeEnd('Receipt Parsing')
 
       // Structured Outputs automatically validates and parses the response
+      this._logger.log('Raw parsed output:', JSON.stringify(response.output_parsed, null, 2));
+
       if (!response.output_parsed) {
         throw new Error('No parsed output from OpenAI');
       }

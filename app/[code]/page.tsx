@@ -8,6 +8,7 @@ import LoadingScreen from '@/components/LoadingScreen';
 import type { ReceiptSummary } from '@/lib/schemas/receipt/public/ReceiptSummary';
 import { ReceiptCard } from '@/components/ReceiptCard';
 import { ParticipantSplits } from '@/components/ParticipantSplits';
+import { KebabMenu } from '@/components/KebabMenu';
 import { formatCurrency } from '@/lib/helpers/CurrencyHelper';
 
 export default function ShareCodePage({ params }: { params: Promise<{ code: string }> }) {
@@ -92,17 +93,16 @@ export default function ShareCodePage({ params }: { params: Promise<{ code: stri
             {showKebabMenu && (
               <>
                 <div className="fixed inset-0 z-40" onClick={() => setShowKebabMenu(false)} />
-                <div className="absolute right-0 top-full mt-1 z-50 bg-white border-2 border-black shadow-[4px_4px_0px_0px_#000] w-44 flex flex-col">
-                  {summary.receipt.imageURI && (
-                    <button
-                      onClick={() => { setShowReceiptImage(true); setShowKebabMenu(false); }}
-                      className="flex items-center gap-2 px-4 py-3 border-b-2 border-black font-dm-mono text-[11px] font-bold uppercase tracking-wide hover:bg-[#FFD700] transition-colors text-left"
-                    >
-                      <Eye className="w-4 h-4 flex-shrink-0" />
-                      View Receipt
-                    </button>
-                  )}
-                </div>
+                <KebabMenu
+                  className="z-50"
+                  items={[
+                    ...(summary.receipt.imageURI ? [{
+                      label: 'View Receipt',
+                      icon: <Eye className="w-4 h-4 flex-shrink-0" />,
+                      onClick: () => { setShowReceiptImage(true); setShowKebabMenu(false); },
+                    }] : []),
+                  ]}
+                />
               </>
             )}
           </div>

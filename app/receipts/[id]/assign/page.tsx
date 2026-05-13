@@ -343,6 +343,7 @@ export default function AssignPage({ params }: { params: Promise<{ id: string }>
           quantity: data.quantity,
           unitPrice: data.unitPrice,
           receiptLineType,
+          linePosition: allLines.length,
         });
         setAllLines((prev) => [...prev, newLine]);
       }

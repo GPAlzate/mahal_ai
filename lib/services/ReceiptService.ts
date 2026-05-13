@@ -100,12 +100,13 @@ export class ReceiptService {
         rl.quantity,
         rl.unit_price,
         rl.line_type,
+        rl.line_position,
         rl.created_at as line_created_at,
         rl.updated_at as line_updated_at
       FROM receipts r
       LEFT JOIN receipt_lines rl ON r.id = rl.receipt_id AND rl.deleted_at IS NULL
       WHERE r.id = ${receiptId} AND r.deleted_at IS NULL
-      ORDER BY rl.created_at ASC
+      ORDER BY rl.line_position ASC, rl.created_at ASC
     `;
 
     if (result.length === 0) {
@@ -122,6 +123,7 @@ export class ReceiptService {
         quantity: row.quantity,
         unit_price: row.unit_price,
         line_type: row.line_type,
+        line_position: row.line_position,
         created_at: row.line_created_at,
         updated_at: row.line_updated_at,
         deleted_at: null,
@@ -148,12 +150,13 @@ export class ReceiptService {
         rl.quantity,
         rl.unit_price,
         rl.line_type,
+        rl.line_position,
         rl.created_at as line_created_at,
         rl.updated_at as line_updated_at
       FROM receipts r
       LEFT JOIN receipt_lines rl ON r.id = rl.receipt_id AND rl.deleted_at IS NULL
       WHERE r.share_code = ${shareCode.toUpperCase()} AND r.deleted_at IS NULL
-      ORDER BY rl.created_at ASC
+      ORDER BY rl.line_position ASC, rl.created_at ASC
     `;
 
     if (result.length === 0) {
@@ -170,6 +173,7 @@ export class ReceiptService {
         quantity: row.quantity,
         unit_price: row.unit_price,
         line_type: row.line_type,
+        line_position: row.line_position,
         created_at: row.line_created_at,
         updated_at: row.line_updated_at,
         deleted_at: null,
@@ -242,25 +246,23 @@ export class ReceiptService {
       return [];
     }
 
-    // Build array of SQL insert promises
-    const insertPromises = parsedData.receiptLines.map((line) =>
+    const insertPromises = parsedData.receiptLines.map((line, index) =>
       sql`
-        INSERT INTO receipt_lines (receipt_id, line_type, item_name, unit_price, quantity)
+        INSERT INTO receipt_lines (receipt_id, line_type, item_name, unit_price, quantity, line_position)
         VALUES (
           ${receiptId},
           ${line.receiptLineType},
           ${line.itemName},
           ${line.unitPrice},
-          ${line.quantity}
+          ${line.quantity},
+          ${index}
         )
-        RETURNING id, receipt_id, line_type, item_name, unit_price, quantity, created_at
+        RETURNING id, receipt_id, line_type, item_name, unit_price, quantity, line_position, created_at
       `
     );
 
-    // Execute all inserts concurrently
     const results = await Promise.all(insertPromises);
 
-    // Flatten results (each query returns an array with one item)
     return results.map((result) => result[0]).filter(Boolean);
   }
 

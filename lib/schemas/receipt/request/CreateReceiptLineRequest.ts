@@ -14,6 +14,7 @@ export const CreateReceiptLineRequestSchema = z.object({
   quantity: z.number().positive('Quantity must be positive'),
   unitPrice: z.number({ error: 'Unit price must be a number' }),
   receiptLineType: ReceiptLineTypeSchema,
+  linePosition: z.number().int().nonnegative().optional(),
 });
 
 export type CreateReceiptLineRequest = z.infer<typeof CreateReceiptLineRequestSchema>;

@@ -17,7 +17,7 @@ export class ReceiptLineService {
       SELECT *
       FROM receipt_lines
       WHERE receipt_id = ${receiptId} AND deleted_at IS NULL
-      ORDER BY created_at ASC
+      ORDER BY line_position ASC, created_at ASC
     `;
 
     return result.map(row => toReceiptLine(toReceiptLineDTO(row)));
@@ -44,20 +44,27 @@ export class ReceiptLineService {
       throw new Error('Cannot modify finalized receipt');
     }
 
+    const position = lineData.linePosition ?? null;
     const result = await sql`
       INSERT INTO receipt_lines (
         receipt_id,
         item_name,
         quantity,
         unit_price,
-        line_type
+        line_type,
+        line_position
       )
       VALUES (
         ${receiptId},
         ${lineData.itemName},
         ${lineData.quantity},
         ${lineData.unitPrice},
-        ${lineData.receiptLineType}
+        ${lineData.receiptLineType},
+        COALESCE(
+          ${position},
+          (SELECT MAX(line_position) + 1 FROM receipt_lines WHERE receipt_id = ${receiptId} AND deleted_at IS NULL),
+          0
+        )
       )
       RETURNING *
     `;
