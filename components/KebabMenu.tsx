@@ -16,7 +16,7 @@ interface KebabMenuProps {
 
 export function KebabMenu({ items, className = '' }: KebabMenuProps) {
   return (
-    <div className={`absolute right-0 top-full mt-1 bg-white border-2 border-black shadow-[4px_4px_0px_0px_#000] rounded-lg overflow-hidden flex flex-col ${className}`}>
+    <div className={`absolute right-0 top-full mt-1 bg-white border-2 border-black shadow-[4px_4px_0px_0px_#000] rounded-xl overflow-hidden flex flex-col ${className}`}>
       {items.map((item, i) => (
         <button
           key={i}
