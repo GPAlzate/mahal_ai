@@ -123,6 +123,26 @@ export default function AssignPage({ params }: { params: Promise<{ id: string }>
   const getPurchaseSubtotal = () =>
     purchaseLines.reduce((sum, line) => sum + line.quantity * line.unitPrice, 0);
 
+  const handleSetShares = (lineId: number, participantId: number, quantity: number) => {
+    setAssignments(prev => {
+      const nextLineAssignments = { ...(prev[lineId] || {}) };
+      if (quantity === 0) {
+        delete nextLineAssignments[participantId];
+      } else {
+        nextLineAssignments[participantId] = quantity;
+      }
+      return { ...prev, [lineId]: nextLineAssignments };
+    });
+
+    if (unassignedLineIds.has(lineId) && quantity > 0) {
+      setUnassignedLineIds(prev => {
+        const next = new Set(prev);
+        next.delete(lineId);
+        return next;
+      });
+    }
+  };
+
   const toggleAssignment = (lineId: number, participantId: number) => {
     setAssignments((prev) => {
       const currentQuantity = prev[lineId]?.[participantId] || 0;
@@ -195,13 +215,12 @@ export default function AssignPage({ params }: { params: Promise<{ id: string }>
         setUnassignedLineIds(new Set());
 
         const purchaseLinesMap = new Map(purchaseLines.map(line => [+line.id, line]));
-        const assignmentsList = Object.entries(assignments).flatMap(([lineId, participants]) => {
+        const assignmentsList = Object.entries(assignments).flatMap(([lineId, lineParticipants]) => {
           const lineIdNum = +lineId;
-          const line = purchaseLinesMap.get(lineIdNum);
-          if (!line) return [];
-          const participantIds = Object.keys(participants);
-          const shareQuantity = line.quantity / participantIds.length;
-          return participantIds.map((participantId) => ({
+          if (!purchaseLinesMap.has(lineIdNum)) {
+            return [];
+          }
+          return Object.entries(lineParticipants).map(([participantId, shareQuantity]) => ({
             receiptLineId: lineIdNum,
             participantId: Number(participantId),
             shareQuantity,
@@ -807,7 +826,8 @@ export default function AssignPage({ params }: { params: Promise<{ id: string }>
         line={assignModalLine}
         participants={participants}
         lineAssignments={assignModalLine ? (assignments[assignModalLine.id] || {}) : {}}
-        onToggle={(participantId) => { if (assignModalLine) toggleAssignment(assignModalLine.id, participantId); }}
+        onToggle={(participantId) => { if (assignModalLine) { toggleAssignment(assignModalLine.id, participantId); } }}
+        onSetShares={(participantId, shares) => { if (assignModalLine) { handleSetShares(assignModalLine.id, participantId, shares); } }}
         onAssignAll={() => {
           if (!assignModalLine) return;
           setAssignments(prev => ({
