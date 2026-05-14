@@ -223,7 +223,7 @@ export default function AssignPage({ params }: { params: Promise<{ id: string }>
           return Object.entries(lineParticipants).map(([participantId, shareQuantity]) => ({
             receiptLineId: lineIdNum,
             participantId: Number(participantId),
-            shareQuantity,
+            shareQuantity: shareQuantity as number,
           }));
         });
 
