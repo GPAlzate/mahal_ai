@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import { DM_Sans, DM_Mono } from "next/font/google";
+import { ClerkProvider } from "@clerk/nextjs";
 import { BottomTabBar } from "@/components/BottomTabBar";
 
 const dmSans = DM_Sans({ subsets: ["latin"], variable: "--font-dm-sans" });
@@ -27,15 +28,17 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
-      <head>
-        <meta name="theme-color" content="#FFD700" />
-        <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
-      </head>
-      <body className={`${dmSans.variable} ${dmMono.variable}`}>
-        {children}
-        {/* <BottomTabBar /> */}
-      </body>
-    </html>
+    <ClerkProvider>
+      <html lang="en">
+        <head>
+          <meta name="theme-color" content="#FFD700" />
+          <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+        </head>
+        <body className={`${dmSans.variable} ${dmMono.variable}`}>
+          {children}
+          {/* <BottomTabBar /> */}
+        </body>
+      </html>
+    </ClerkProvider>
   );
 }
