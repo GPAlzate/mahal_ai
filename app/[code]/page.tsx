@@ -10,6 +10,7 @@ import { ReceiptCard } from '@/components/ReceiptCard';
 import { ParticipantSplits } from '@/components/ParticipantSplits';
 import { KebabMenu } from '@/components/KebabMenu';
 import { ShareCodeBadge } from '@/components/ShareCodeBadge';
+import { SaveSplitsNudge } from '@/components/SaveSplitsNudge';
 import { formatCurrency } from '@/lib/helpers/CurrencyHelper';
 
 export default function ShareCodePage({ params }: { params: Promise<{ code: string }> }) {
@@ -101,6 +102,9 @@ export default function ShareCodePage({ params }: { params: Promise<{ code: stri
 
         <ReceiptCard summary={summary} formatCurrency={formatCurrency} />
         <ParticipantSplits participantSplits={summary.participantSplits} formatCurrency={formatCurrency} />
+        <div className="mt-4">
+          <SaveSplitsNudge />
+        </div>
 
         {/* Bottom padding for fixed nav */}
         <div className="h-4" />

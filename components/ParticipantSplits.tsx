@@ -135,10 +135,17 @@ export function ParticipantSplits({ participantSplits, formatCurrency }: Props) 
                   )}
                 </div>
 
-                <div className="flex justify-between font-dm-mono border-t-4 border-black pt-3">
+                <div className="flex justify-between font-dm-mono border-t-4 border-black pt-3 mb-3">
                   <span className="font-bold text-sm uppercase">Total:</span>
                   <span className="font-bold text-sm">{formatCurrency(split.total)}</span>
                 </div>
+
+                <a
+                  href={`gcash://com.mynt.gcash/app/006300090100?amount=${split.total.toFixed(2)}`}
+                  className="flex items-center justify-center gap-2 w-full h-11 border-[3px] border-black rounded-lg font-dm-mono font-bold text-sm uppercase bg-[#0066FF] text-white shadow-[3px_3px_0px_0px_#000] hover:bg-[#0052cc] active:translate-x-[2px] active:translate-y-[2px] active:shadow-none transition-all"
+                >
+                  Pay via GCash
+                </a>
               </div>
             )}
           </article>
