@@ -31,6 +31,7 @@ interface ParticipantAssignModalProps {
   onDelete?: () => void;
   participantColors: string[];
   getInitials: (name: string) => string;
+  equalSplitOnly?: boolean;
 }
 
 export function ParticipantAssignModal({
@@ -47,6 +48,7 @@ export function ParticipantAssignModal({
   onDelete,
   participantColors,
   getInitials,
+  equalSplitOnly = false,
 }: ParticipantAssignModalProps) {
   const [splitMode, setSplitMode] = useState<'equal' | 'shares'>('equal');
 
@@ -142,23 +144,25 @@ export function ParticipantAssignModal({
         </div>
 
         {/* Split mode pill selector */}
-        <div className="px-4 pt-3 pb-2">
-          <div className="flex rounded-full border-2 border-black bg-white p-[3px] gap-[3px]">
-            {(['equal', 'shares'] as const).map(mode => (
-              <button
-                key={mode}
-                onClick={() => setSplitMode(mode)}
-                className={`flex-1 py-1.5 rounded-full font-dm-mono text-[10px] font-bold uppercase tracking-wide transition-all ${
-                  splitMode === mode
-                    ? 'bg-[#FFD700] border-2 border-black shadow-[1px_1px_0px_0px_#000] text-[#1b1b1b]'
-                    : 'text-[#7e7576]'
-                }`}
-              >
-                {mode}
-              </button>
-            ))}
+        {!equalSplitOnly && (
+          <div className="px-4 pt-3 pb-2">
+            <div className="flex rounded-full border-2 border-black bg-white p-[3px] gap-[3px]">
+              {(['equal', 'shares'] as const).map(mode => (
+                <button
+                  key={mode}
+                  onClick={() => setSplitMode(mode)}
+                  className={`flex-1 py-1.5 rounded-full font-dm-mono text-[10px] font-bold uppercase tracking-wide transition-all ${
+                    splitMode === mode
+                      ? 'bg-[#FFD700] border-2 border-black shadow-[1px_1px_0px_0px_#000] text-[#1b1b1b]'
+                      : 'text-[#7e7576]'
+                  }`}
+                >
+                  {mode}
+                </button>
+              ))}
+            </div>
           </div>
-        </div>
+        )}
 
         {/* Equal mode: chip grid */}
         {splitMode === 'equal' && (

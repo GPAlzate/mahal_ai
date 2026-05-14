@@ -21,6 +21,7 @@ interface LineItemModalProps {
   onCancel: () => void;
   hasAssignments?: boolean;
   showLineTypeSelector?: boolean;
+  lineType?: string;
 }
 
 export function LineItemModal({
@@ -31,6 +32,7 @@ export function LineItemModal({
   onCancel,
   hasAssignments = false,
   showLineTypeSelector = false,
+  lineType,
 }: LineItemModalProps) {
   const [itemName, setItemName] = useState('');
   const [quantity, setQuantity] = useState('1');
@@ -50,7 +52,7 @@ export function LineItemModal({
         setItemName('');
         setQuantity('1');
         setUnitPrice('0.00');
-        setReceiptLineType('');
+        setReceiptLineType(lineType || '');
       }
       setError(null);
       setSaving(false);
@@ -146,7 +148,7 @@ export function LineItemModal({
               className={inputClass}
               value={itemName}
               onChange={(e) => setItemName(e.target.value)}
-              placeholder="e.g. Burger"
+              placeholder={receiptLineType === 'DSCT' ? 'e.g. Senior Citizen' : 'e.g. Burger'}
               disabled={saving}
             />
           </div>

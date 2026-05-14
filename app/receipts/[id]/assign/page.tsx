@@ -629,19 +629,12 @@ export default function AssignPage({ params }: { params: Promise<{ id: string }>
 
             {discountLines.map((line) => {
               const assignedParticipants = getAssignedParticipants(line.id);
-              const isSelected = activeLineId === line.id;
-              const isAssignmentMode = activeParticipantId !== null;
-              const isAssignedToSelectedParticipant = activeParticipantId && assignments[line.id]?.[activeParticipantId];
 
               return (
                 <div
                   key={line.id}
-                  onClick={() => handleLineSelection(line.id)}
-                  className={`bg-white border-4 border-black p-[12px_16px] rounded-lg flex flex-col gap-2 cursor-pointer transition-all shadow-[3px_3px_0px_0px_#000] active:translate-x-[2px] active:translate-y-[2px] active:shadow-[1px_1px_0px_0px_#000] ${
-                    isSelected ? 'border-[#FFD700] bg-yellow-50' :
-                    isAssignedToSelectedParticipant ? 'border-green-500 bg-green-50' :
-                    isAssignmentMode ? 'hover:bg-purple-50 hover:border-purple-400' : 'hover:bg-[#f3f3f3]'
-                  }`}
+                  onClick={() => setAssignModalLine(line)}
+                  className="bg-white border-4 border-black p-[12px_16px] rounded-lg flex flex-col gap-2 cursor-pointer transition-all shadow-[3px_3px_0px_0px_#000] active:translate-x-[2px] active:translate-y-[2px] active:shadow-[1px_1px_0px_0px_#000] hover:bg-[#f3f3f3] hover:border-[#ccb800]"
                 >
                   <div className="flex items-center gap-2">
                     <h2 className="font-dm-sans font-bold text-[16px] uppercase leading-tight flex-1 truncate text-green-700">{line.itemName}</h2>
@@ -772,13 +765,14 @@ export default function AssignPage({ params }: { params: Promise<{ id: string }>
               const isActive = activeParticipantId === participant.id;
               const isAlreadyAssigned = activeLineId && assignments[activeLineId]?.[participant.id];
               const assignCount = getParticipantAssignmentCount(participant.id);
+              const participantTotal = getParticipantTotal(participant.id);
 
               return (
                 <button
                   key={participant.id}
                   type="button"
                   onClick={() => handleParticipantSelection(participant.id)}
-                  className={`flex flex-col items-center gap-1 min-w-[44px] flex-shrink-0 transition-opacity ${
+                  className={`flex flex-col items-center gap-0.5 min-w-[44px] flex-shrink-0 transition-opacity ${
                     isActive ? 'opacity-100' : 'opacity-55 hover:opacity-80'
                   } ${isAlreadyAssigned ? '!opacity-100' : ''}`}
                 >
@@ -798,6 +792,11 @@ export default function AssignPage({ params }: { params: Promise<{ id: string }>
                   <span className="font-dm-mono text-[10px] uppercase font-bold text-[#1b1b1b]">
                     {participant.displayName.split(' ')[0]}
                   </span>
+                  {participantTotal > 0 && (
+                    <span className="font-dm-mono text-[9px] font-bold text-[#4c4546]">
+                      {formatCurrency(participantTotal)}
+                    </span>
+                  )}
                 </button>
               );
             })}
@@ -834,6 +833,7 @@ export default function AssignPage({ params }: { params: Promise<{ id: string }>
         lineAssignments={assignModalLine ? (assignments[assignModalLine.id] || {}) : {}}
         onToggle={(participantId) => { if (assignModalLine) { toggleAssignment(assignModalLine.id, participantId); } }}
         onSetShares={(participantId, shares) => { if (assignModalLine) { handleSetShares(assignModalLine.id, participantId, shares); } }}
+        equalSplitOnly={assignModalLine?.receiptLineType === 'DSCT'}
         onAssignAll={() => {
           if (!assignModalLine) return;
           setAssignments(prev => ({
@@ -878,6 +878,7 @@ export default function AssignPage({ params }: { params: Promise<{ id: string }>
         }
         hasAssignments={editingLine ? hasAssignments(editingLine.id) : false}
         showLineTypeSelector={currentView === 'misc-charges'}
+        lineType={currentView === 'discounts' ? 'DSCT' : undefined}
         onSave={handleSaveLineItem}
         onCancel={handleCancelLineItemModal}
       />
@@ -897,7 +898,7 @@ export default function AssignPage({ params }: { params: Promise<{ id: string }>
                 Delete Item?
               </h2>
               <div className="text-center py-2">
-                <p className="font-['Work_Sans'] text-base text-[#4d4732]">"{deleteConfirmLine.itemName}"</p>
+                <p className="font-dm-sans text-base text-[#4d4732]">"{deleteConfirmLine.itemName}"</p>
                 <p className="font-dm-mono text-[10px] uppercase tracking-wide text-[#7e7576] mt-1">
                   This cannot be undone.
                 </p>

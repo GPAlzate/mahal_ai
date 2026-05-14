@@ -271,8 +271,12 @@ export default function Home() {
               className="flex-1 h-12 border-2 border-black rounded-lg px-4 font-dm-mono text-base focus:border-[4px] focus:outline-none focus:bg-[#cee7f0] bg-white placeholder:text-[#7e775f] transition-all"
               placeholder="e.g. ABCDE"
               value={shareCode}
-              onChange={(e) => { setShareCode(e.target.value.slice(0, 5)); setShareCodeLoading(false); setShareCodeError(null); }}
+              onChange={(e) => { setShareCode(e.target.value.toUpperCase().slice(0, 5)); setShareCodeLoading(false); setShareCodeError(null); }}
               maxLength={5}
+              autoCapitalize="characters"
+              autoCorrect="off"
+              autoComplete="off"
+              spellCheck={false}
             />
             <button
               type="submit"
