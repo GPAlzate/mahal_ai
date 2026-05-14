@@ -9,6 +9,7 @@ import type { ReceiptSummary } from '@/lib/schemas/receipt/public/ReceiptSummary
 import { ReceiptCard } from '@/components/ReceiptCard';
 import { ParticipantSplits } from '@/components/ParticipantSplits';
 import { KebabMenu } from '@/components/KebabMenu';
+import { ShareCodeBadge } from '@/components/ShareCodeBadge';
 import { formatCurrency } from '@/lib/helpers/CurrencyHelper';
 
 const stepLabels = [
@@ -158,11 +159,12 @@ export default function SummaryPage({ params }: { params: Promise<{ id: string }
           </div>
         </div>
 
-        {/* Row 2: receipt title (static) */}
-        <div className="px-5 pb-3">
+        {/* Row 2: receipt title + share code */}
+        <div className="px-5 pb-3 flex items-center justify-between gap-2">
           <span className="font-dm-sans font-black text-xl tracking-tight uppercase">
             {summary.receipt.title || 'Untitled receipt'}
           </span>
+          <ShareCodeBadge shareCode={summary.receipt.shareCode} title={summary.receipt.title || 'Receipt'} />
         </div>
 
         {/* Progress Stepper */}

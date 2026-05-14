@@ -4,6 +4,7 @@ import { useState, use, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { ArrowLeft, Plus, X } from 'lucide-react';
 import { api } from '@/lib/client/api-client';
+import { ShareCodeBadge } from '@/components/ShareCodeBadge';
 import type { ReceiptStatus } from '@/lib/schemas/receipt/public/Receipt';
 
 interface LocalParticipant {
@@ -25,6 +26,7 @@ export default function ParticipantsPage({ params }: { params: Promise<{ id: str
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [receiptTitle, setReceiptTitle] = useState('');
+  const [shareCode, setShareCode] = useState<string | null>(null);
 
   // Pre-populate participants if navigating back to this page
   useEffect(() => {
@@ -52,6 +54,7 @@ export default function ParticipantsPage({ params }: { params: Promise<{ id: str
         const receipt = await api.receipts.get(receiptId);
         if (cancelled) return;
 
+        setShareCode(receipt.shareCode);
         setParseStatus(receipt.status);
 
         if (receipt.status === 'FLZD') {
@@ -116,13 +119,16 @@ export default function ParticipantsPage({ params }: { params: Promise<{ id: str
 
         {/* Header */}
         <div className="mb-4">
-          <button
-            onClick={() => router.push('/')}
-            className="flex items-center gap-1 font-dm-mono text-xs font-bold uppercase tracking-widest text-[#4d4732] hover:text-black transition-colors mb-3"
-          >
-            <ArrowLeft className="w-4 h-4" />
-            Back
-          </button>
+          <div className="flex items-center justify-between mb-3">
+            <button
+              onClick={() => router.push('/')}
+              className="flex items-center gap-1 font-dm-mono text-xs font-bold uppercase tracking-widest text-[#4d4732] hover:text-black transition-colors"
+            >
+              <ArrowLeft className="w-4 h-4" />
+              Back
+            </button>
+            {shareCode && <ShareCodeBadge shareCode={shareCode} />}
+          </div>
           <h1 className="font-dm-sans text-2xl font-black uppercase px-3 py-2 bg-black text-white inline-block -rotate-1">
             mahal ai &lt;3
           </h1>

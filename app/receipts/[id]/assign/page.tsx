@@ -7,6 +7,7 @@ import LoadingScreen from '@/components/LoadingScreen';
 import { LineItemModal } from '@/components/LineItemModal';
 import { ParticipantAssignModal } from '@/components/ParticipantAssignModal';
 import { KebabMenu } from '@/components/KebabMenu';
+import { ShareCodeBadge } from '@/components/ShareCodeBadge';
 import { api } from '@/lib/client/api-client';
 import { formatCurrency } from '@/lib/helpers/CurrencyHelper';
 
@@ -49,6 +50,7 @@ export default function AssignPage({ params }: { params: Promise<{ id: string }>
   const [unassignedLineIds, setUnassignedLineIds] = useState<Set<number>>(new Set());
   const [receiptImageURI, setReceiptImageURI] = useState<string | null>(null);
   const [receiptTitle, setReceiptTitle] = useState<string>('');
+  const [receiptShareCode, setReceiptShareCode] = useState<string | null>(null);
   const titleInputRef = useRef<HTMLInputElement>(null);
   const [showReceiptImage, setShowReceiptImage] = useState(false);
   const [showKebabMenu, setShowKebabMenu] = useState(false);
@@ -85,6 +87,7 @@ export default function AssignPage({ params }: { params: Promise<{ id: string }>
         setParticipants(splitGroup.participants);
         setReceiptImageURI(splitGroup.receipt.imageURI || null);
         setReceiptTitle(splitGroup.receipt.title || '');
+        setReceiptShareCode(splitGroup.receipt.shareCode || null);
 
         const assignmentsData: LineAssignments = {};
         splitGroup.assignments.forEach((assignment) => {
@@ -473,28 +476,31 @@ export default function AssignPage({ params }: { params: Promise<{ id: string }>
           </div>
         </div>
 
-        {/* Row 2: editable receipt title */}
+        {/* Row 2: editable receipt title + share code */}
         <div className="px-5 pb-3 flex flex-col gap-0.5">
-          <div className="flex items-center gap-1 max-w-full overflow-hidden">
-            <input
-              ref={titleInputRef}
-              type="text"
-              value={receiptTitle}
-              onChange={(e) => setReceiptTitle(e.target.value)}
-              onBlur={handleTitleBlur}
-              onKeyDown={(e) => e.key === 'Enter' && titleInputRef.current?.blur()}
-              placeholder="Untitled receipt"
-              maxLength={100}
-              style={{ fieldSizing: 'content' } as React.CSSProperties}
-              className="bg-transparent border-none p-0 font-dm-sans font-black text-xl tracking-tight uppercase focus:outline-none min-w-[4ch] max-w-[calc(100vw-7rem)] placeholder:text-[#cfc4c5]"
-            />
-            <button
-              type="button"
-              onClick={() => titleInputRef.current?.focus()}
-              className="p-1 border-2 border-transparent hover:border-black hover:bg-[#f3f3f3] transition-colors flex items-center justify-center flex-shrink-0"
-            >
-              <Pencil className="w-3.5 h-3.5 text-[#7e7576]" />
-            </button>
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-1 overflow-hidden">
+              <input
+                ref={titleInputRef}
+                type="text"
+                value={receiptTitle}
+                onChange={(e) => setReceiptTitle(e.target.value)}
+                onBlur={handleTitleBlur}
+                onKeyDown={(e) => e.key === 'Enter' && titleInputRef.current?.blur()}
+                placeholder="Untitled receipt"
+                maxLength={100}
+                style={{ fieldSizing: 'content' } as React.CSSProperties}
+                className="bg-transparent border-none p-0 font-dm-sans font-black text-xl tracking-tight uppercase focus:outline-none min-w-[4ch] max-w-[calc(100vw-12rem)] placeholder:text-[#cfc4c5]"
+              />
+              <button
+                type="button"
+                onClick={() => titleInputRef.current?.focus()}
+                className="p-1 border-2 border-transparent hover:border-black hover:bg-[#f3f3f3] transition-colors flex items-center justify-center flex-shrink-0"
+              >
+                <Pencil className="w-3.5 h-3.5 text-[#7e7576]" />
+              </button>
+            </div>
+            {receiptShareCode && <ShareCodeBadge shareCode={receiptShareCode} title={receiptTitle || 'Receipt'} />}
           </div>
         </div>
 

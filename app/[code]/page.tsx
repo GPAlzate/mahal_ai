@@ -2,13 +2,14 @@
 
 import { useState, useEffect, use } from 'react';
 import { useRouter } from 'next/navigation';
-import { Eye, MoreVertical, X, Share2, Check } from 'lucide-react';
+import { Eye, MoreVertical, X } from 'lucide-react';
 import { api } from '@/lib/client/api-client';
 import LoadingScreen from '@/components/LoadingScreen';
 import type { ReceiptSummary } from '@/lib/schemas/receipt/public/ReceiptSummary';
 import { ReceiptCard } from '@/components/ReceiptCard';
 import { ParticipantSplits } from '@/components/ParticipantSplits';
 import { KebabMenu } from '@/components/KebabMenu';
+import { ShareCodeBadge } from '@/components/ShareCodeBadge';
 import { formatCurrency } from '@/lib/helpers/CurrencyHelper';
 
 export default function ShareCodePage({ params }: { params: Promise<{ code: string }> }) {
@@ -21,16 +22,19 @@ export default function ShareCodePage({ params }: { params: Promise<{ code: stri
   const [error, setError] = useState<string | null>(null);
   const [showReceiptImage, setShowReceiptImage] = useState(false);
   const [showKebabMenu, setShowKebabMenu] = useState(false);
-  const [shared, setShared] = useState(false);
 
   useEffect(() => {
     async function fetchSummary() {
       try {
         const data = await api.receipts.getByShareCode(shareCode);
+        const { status, id } = data.receipt;
 
-        if (data.receipt.status !== 'FLZD') {
-          setError('This receipt has not been finalized yet.');
-          setLoading(false);
+        if (status === 'ULIP' || status === 'PRSP') {
+          router.replace(`/receipts/${id}/participants`);
+          return;
+        }
+        if (status === 'DRFT') {
+          router.replace(`/receipts/${id}/assign`);
           return;
         }
 
@@ -43,23 +47,7 @@ export default function ShareCodePage({ params }: { params: Promise<{ code: stri
     }
 
     fetchSummary();
-  }, [shareCode]);
-
-  const handleShare = async () => {
-    const url = `${window.location.origin}/${summary?.receipt.shareCode}`;
-    const title = summary?.receipt.title || 'Receipt';
-    if (navigator.share) {
-      try {
-        await navigator.share({ title, url });
-      } catch {
-        // user dismissed the share sheet — no-op
-      }
-    } else {
-      await navigator.clipboard.writeText(url);
-      setShared(true);
-      setTimeout(() => setShared(false), 2000);
-    }
-  };
+  }, [shareCode, router]);
 
   if (loading) return <LoadingScreen message="Loading receipt..." />;
 
@@ -109,19 +97,7 @@ export default function ShareCodePage({ params }: { params: Promise<{ code: stri
         </div>
 
         {/* Share Code Badge */}
-        <button
-          onClick={handleShare}
-          className="flex items-center gap-2 bg-green-100 border-2 border-black rounded-lg px-3 py-2 self-start shadow-[2px_2px_0px_0px_#000] hover:bg-green-200 active:translate-x-[2px] active:translate-y-[2px] active:shadow-none transition-all cursor-pointer"
-        >
-          {shared
-            ? <Check className="w-3.5 h-3.5 text-green-800" strokeWidth={2.5} />
-            : <Share2 className="w-3.5 h-3.5 text-green-800" strokeWidth={2.5} />
-          }
-          <span className="font-dm-mono text-[10px] uppercase font-bold tracking-widest text-green-800">
-            {shared ? 'Copied!' : 'Share'}
-          </span>
-          <span className="font-dm-mono font-bold text-sm tracking-widest text-black">{summary.receipt.shareCode}</span>
-        </button>
+        <ShareCodeBadge shareCode={summary.receipt.shareCode} title={summary.receipt.title || 'Receipt'} />
 
         <ReceiptCard summary={summary} formatCurrency={formatCurrency} />
         <ParticipantSplits participantSplits={summary.participantSplits} formatCurrency={formatCurrency} />
