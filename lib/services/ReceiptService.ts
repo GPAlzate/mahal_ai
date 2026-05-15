@@ -68,6 +68,29 @@ export class ReceiptService {
     throw new Error('Failed to generate unique share code after multiple attempts');
   }
 
+  private parseReceiptWithLinesResult(result: any[]): Receipt {
+    if (result.length === 0) {
+      throw new Error('Receipt not found');
+    }
+
+    const linesDTOs = result
+      .filter((row: any) => row.line_id)
+      .map((row: any) => ReceiptLineDTOSchema.parse({
+        id: row.line_id,
+        receipt_id: row.receipt_id,
+        item_name: row.item_name,
+        quantity: row.quantity,
+        unit_price: row.unit_price,
+        line_type: row.line_type,
+        line_position: row.line_position,
+        created_at: row.line_created_at,
+        updated_at: row.line_updated_at,
+        deleted_at: null,
+      }));
+
+    return toReceipt(toReceiptDTO(result[0]), linesDTOs);
+  }
+
   /**
    * Get receipt by ID
    * @param receiptId - ID of the receipt
@@ -110,27 +133,7 @@ export class ReceiptService {
       ORDER BY rl.line_position ASC, rl.created_at ASC
     `;
 
-    if (result.length === 0) {
-      throw new Error(`Receipt ${receiptId} not found`);
-    }
-
-    // Map joined rows to ReceiptLineDTOs with schema validation for type coercion
-    const linesDTOs = result
-      .filter((row: any) => row.line_id) // Skip rows with no line (LEFT JOIN with no match)
-      .map((row: any) => ReceiptLineDTOSchema.parse({
-        id: row.line_id,
-        receipt_id: row.receipt_id,
-        item_name: row.item_name,
-        quantity: row.quantity,
-        unit_price: row.unit_price,
-        line_type: row.line_type,
-        line_position: row.line_position,
-        created_at: row.line_created_at,
-        updated_at: row.line_updated_at,
-        deleted_at: null,
-      }));
-
-    return toReceipt(toReceiptDTO(result[0]), linesDTOs);
+    return this.parseReceiptWithLinesResult(result);
   }
 
   /**
@@ -160,27 +163,7 @@ export class ReceiptService {
       ORDER BY rl.line_position ASC, rl.created_at ASC
     `;
 
-    if (result.length === 0) {
-      throw new Error('Receipt not found');
-    }
-
-    // Map joined rows to ReceiptLineDTOs with schema validation for type coercion
-    const linesDTOs = result
-      .filter((row: any) => row.line_id) // Skip rows with no line (LEFT JOIN with no match)
-      .map((row: any) => ReceiptLineDTOSchema.parse({
-        id: row.line_id,
-        receipt_id: row.receipt_id,
-        item_name: row.item_name,
-        quantity: row.quantity,
-        unit_price: row.unit_price,
-        line_type: row.line_type,
-        line_position: row.line_position,
-        created_at: row.line_created_at,
-        updated_at: row.line_updated_at,
-        deleted_at: null,
-      }));
-
-    return toReceipt(toReceiptDTO(result[0]), linesDTOs);
+    return this.parseReceiptWithLinesResult(result);
   }
 
   /**

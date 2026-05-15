@@ -2,9 +2,9 @@
 
 import { useState, useRef, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { useAuth, useUser } from '@clerk/nextjs';
+import { useAuth, useUser, useClerk } from '@clerk/nextjs';
 import { upload } from '@vercel/blob/client';
-import { Image, ArrowRight, Loader2 } from 'lucide-react';
+import { Image, ArrowRight, Loader2, LogIn, Settings, LogOut } from 'lucide-react';
 import { api, type MyReceipt } from '@/lib/client/api-client';
 function formatParticipants(names: string[], myName: string | null): string | null {
   const others = names.filter((n) => n !== myName);
@@ -43,12 +43,16 @@ export default function Home() {
 
   const { isSignedIn } = useAuth();
   const { user } = useUser();
+  const { signOut } = useClerk();
   const myName = user?.fullName ?? user?.firstName ?? null;
+  const [accountMenuOpen, setAccountMenuOpen] = useState(false);
+  const avatarInitial = (user?.firstName?.[0] ?? user?.emailAddresses?.[0]?.emailAddress?.[0] ?? '?').toUpperCase();
   const [myReceipts, setMyReceipts] = useState<MyReceipt[] | null>(null);
 
   useEffect(() => {
     if (!isSignedIn) return;
     api.receipts.getMyReceipts().then((data) => setMyReceipts(data.receipts)).catch(() => {});
+    fetch('/api/settings').catch(() => {});
   }, [isSignedIn]);
 
   const blobPromiseRef = useRef<Promise<{ url: string }> | null>(null);
@@ -199,10 +203,52 @@ export default function Home() {
       <div className="max-w-lg mx-auto p-4 pb-20">
 
         {/* Header */}
-        <div className="mb-4">
+        <div className="mb-4 flex items-center justify-between">
           <h1 className="font-dm-sans text-2xl font-black uppercase px-3 py-2 bg-black text-white inline-block -rotate-1">
             mahal ai &lt;3
           </h1>
+
+          {isSignedIn ? (
+            <div className="relative">
+              <button
+                onClick={() => setAccountMenuOpen((o) => !o)}
+                className="w-10 h-10 border-[3px] border-black bg-[#FFD700] rounded-full font-dm-sans font-black text-sm flex items-center justify-center cursor-pointer hover:bg-[#FFE44D] transition-colors shadow-[2px_2px_0px_0px_#000]"
+                aria-label="Account menu"
+              >
+                {avatarInitial}
+              </button>
+
+              {accountMenuOpen && (
+                <>
+                  <div className="fixed inset-0 z-10" onClick={() => setAccountMenuOpen(false)} />
+                  <div className="absolute right-0 top-12 z-20 bg-white border-[3px] border-black shadow-[4px_4px_0px_0px_#000] rounded-lg overflow-hidden min-w-[140px]">
+                    <button
+                      onClick={() => { router.push('/settings'); setAccountMenuOpen(false); }}
+                      className="w-full flex items-center gap-2 px-4 py-3 font-dm-mono text-sm hover:bg-[#fff9ef] transition-colors cursor-pointer text-left border-b-2 border-black"
+                    >
+                      <Settings className="w-4 h-4" strokeWidth={2.5} />
+                      Settings
+                    </button>
+                    <button
+                      onClick={() => signOut().then(() => setAccountMenuOpen(false))}
+                      className="w-full flex items-center gap-2 px-4 py-3 font-dm-mono text-sm hover:bg-[#fff9ef] transition-colors cursor-pointer text-left"
+                    >
+                      <LogOut className="w-4 h-4" strokeWidth={2.5} />
+                      Log out
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
+          ) : (
+            <a
+              href="/login"
+              className="h-10 px-4 border-[3px] border-black rounded-lg font-dm-mono font-bold text-sm uppercase bg-white text-black shadow-[2px_2px_0px_0px_#000] hover:bg-[#fff9ef] active:translate-x-[1px] active:translate-y-[1px] active:shadow-none transition-all cursor-pointer flex items-center gap-1.5"
+            >
+              <LogIn className="w-4 h-4" strokeWidth={2.5} />
+              Log in
+            </a>
+          )}
         </div>
 
         {/* Main card */}
@@ -276,6 +322,14 @@ export default function Home() {
               />
               <button
                 type="button"
+                onClick={handleSubmit}
+                disabled={loading}
+                className="w-full h-14 border-[4px] border-black rounded-lg font-dm-mono font-bold text-base uppercase bg-[#FFD700] text-black shadow-[4px_4px_0px_0px_#000] hover:bg-[#FFE44D] active:translate-x-[2px] active:translate-y-[2px] active:shadow-none transition-all disabled:opacity-50"
+              >
+                {loading ? 'Creating receipt...' : 'Continue →'}
+              </button>
+              <button
+                type="button"
                 onClick={() => {
                   uploadAbortRef.current?.abort();
                   uploadAbortRef.current = null;
@@ -292,22 +346,68 @@ export default function Home() {
           )}
         </div>
 
-        {/* My Receipts — signed-in only */}
-        {isSignedIn && (
-          <div className="mt-4 bg-white border-4 border-black shadow-[4px_4px_0px_0px_#000] rounded-xl p-5 flex flex-col gap-3">
-            <h2 className="font-dm-sans font-bold text-2xl">My Receipts</h2>
-            {myReceipts === null ? (
-              // Loading skeletons
-              <div className="flex flex-col gap-2">
-                {[0, 1].map((i) => (
-                  <div key={i} className="h-14 bg-[#f3f3f3] rounded-lg animate-pulse border-2 border-black" />
+        {/* My Receipts — teaser for guests, full list for signed-in users */}
+        <div className="mt-4 bg-white border-4 border-black shadow-[4px_4px_0px_0px_#000] rounded-xl p-5 flex flex-col gap-3">
+          <h2 className="font-dm-sans font-bold text-2xl">My Receipts</h2>
+          {!isSignedIn ? (
+            <div className="relative overflow-hidden rounded-lg">
+              {/* Ghost receipt rows — blurred to hint at the feature */}
+              <div className="flex flex-col border-2 border-black rounded-lg overflow-hidden select-none pointer-events-none blur-[2px]">
+                {[
+                  { title: 'Post-climbing Jiangnan', status: 'FLZD', date: 'May 10, 2025', with: 'with Maria, Juan' },
+                  { title: 'Manam family dinner', status: 'DRFT', date: 'May 7, 2025', with: 'with Bea and 2 others' },
+                  { title: 'Midnight Mcdonalds', status: 'FLZD', date: 'Apr 22, 2025', with: 'with Carlo, Ana' },
+                ].map((r, index) => (
+                  <div
+                    key={r.title}
+                    className={`flex items-center justify-between px-4 py-3 bg-white ${index > 0 ? 'border-t-2 border-black' : ''}`}
+                  >
+                    <div className="flex flex-col gap-0.5 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <span className="font-dm-sans font-bold text-sm truncate">{r.title}</span>
+                        <span className={`font-dm-mono text-[9px] font-bold uppercase tracking-widest px-1.5 py-0.5 rounded border flex-shrink-0 ${receiptStatusClass(r.status)}`}>
+                          {receiptStatusLabel(r.status)}
+                        </span>
+                      </div>
+                      <span className="font-dm-mono text-[10px] text-[#7e775f]">{r.date} · {r.with}</span>
+                    </div>
+                    <ArrowRight className="w-4 h-4 flex-shrink-0 ml-3 text-[#4d4732]" strokeWidth={2.5} />
+                  </div>
                 ))}
               </div>
-            ) : myReceipts.length === 0 ? (
-              <p className="font-dm-mono text-sm text-[#7e775f]">No receipts yet — split a bill to get started.</p>
-            ) : (
+              {/* Gradient overlay with sign-up CTA */}
+              <div className="absolute inset-0 flex flex-col items-center justify-center bg-gradient-to-b from-transparent via-white/50 to-white rounded-lg">
+                <p className="font-dm-sans font-bold text-sm mb-0.5 text-center">Never lose a receipt again</p>
+                <p className="font-dm-mono text-[10px] text-[#4d4732] mb-3 text-center">Sign up for free and track every group bill</p>
+                <a
+                  href="/sign-up"
+                  className="h-11 px-5 border-[4px] border-black rounded-lg font-dm-mono font-bold text-sm uppercase bg-[#FFD700] text-black shadow-[4px_4px_0px_0px_#000] hover:bg-[#FFE44D] active:translate-x-[2px] active:translate-y-[2px] active:shadow-none transition-all cursor-pointer flex items-center gap-2"
+                >
+                  Sign up <ArrowRight className="w-4 h-4" strokeWidth={2.5} />
+                </a>
+              </div>
+            </div>
+          ) : myReceipts === null ? (
+            <div className="flex flex-col border-2 border-black rounded-lg overflow-hidden">
+              {[0, 1, 2].map((i) => (
+                <div key={i} className={`flex items-center justify-between px-4 py-3 bg-white ${i > 0 ? 'border-t-2 border-black' : ''}`}>
+                  <div className="flex flex-col gap-1.5 min-w-0 flex-1">
+                    <div className="flex items-center gap-2">
+                      <div className="h-3.5 bg-[#f3f3f3] rounded animate-pulse w-28" />
+                      <div className="h-4 bg-[#f3f3f3] rounded animate-pulse w-10 flex-shrink-0" />
+                    </div>
+                    <div className="h-2.5 bg-[#f3f3f3] rounded animate-pulse w-36" />
+                  </div>
+                  <div className="w-4 h-4 bg-[#f3f3f3] rounded animate-pulse flex-shrink-0 ml-3" />
+                </div>
+              ))}
+            </div>
+          ) : myReceipts.length === 0 ? (
+            <p className="font-dm-mono text-sm text-[#7e775f]">No receipts yet — split a bill to get started.</p>
+          ) : (
+            <>
               <div className="flex flex-col border-2 border-black rounded-lg overflow-hidden">
-                {myReceipts.map((r, index) => (
+                {myReceipts.slice(0, 3).map((r, index) => (
                   <button
                     key={r.id}
                     type="button"
@@ -330,9 +430,18 @@ export default function Home() {
                   </button>
                 ))}
               </div>
-            )}
-          </div>
-        )}
+              {myReceipts.length > 3 && (
+                <button
+                  type="button"
+                  onClick={() => router.push('/receipts')}
+                  className="w-full font-dm-mono text-xs font-bold uppercase tracking-widest text-[#4d4732] hover:text-black transition-colors cursor-pointer text-center py-1"
+                >
+                  See all {myReceipts.length} receipts →
+                </button>
+              )}
+            </>
+          )}
+        </div>
 
         {/* Share code card */}
         <div className="mt-4 bg-white border-4 border-black shadow-[4px_4px_0px_0px_#000] rounded-xl p-5 flex flex-col gap-3">
@@ -375,17 +484,6 @@ export default function Home() {
           </div>
         )}
 
-        {/* Continue button — only when image selected */}
-        {file && (
-          <button
-            type="button"
-            onClick={handleSubmit}
-            disabled={loading}
-            className="w-full mt-4 h-14 border-[4px] border-black rounded-lg font-dm-mono font-bold text-base uppercase bg-[#FFD700] text-black shadow-[4px_4px_0px_0px_#000] hover:bg-[#FFE44D] active:translate-x-[2px] active:translate-y-[2px] active:shadow-none transition-all disabled:opacity-50"
-          >
-            {loading ? 'Creating receipt...' : 'Continue →'}
-          </button>
-        )}
 
       </div>
     </div>

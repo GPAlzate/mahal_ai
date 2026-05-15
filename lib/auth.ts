@@ -1,5 +1,3 @@
-import { getAuthEnabled, getAdminUserId } from '@/lib/env';
-
-export const AUTH_ENABLED = getAuthEnabled();
+import { getAdminUserId } from '@/lib/env';
 
 export const ADMIN_USER_ID = getAdminUserId();

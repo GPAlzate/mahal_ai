@@ -2,6 +2,7 @@ import { sql } from '@/lib/db';
 import { CreateParticipantRequest } from '@/lib/schemas/participant/request/CreateParticipantRequest';
 import { UpdateParticipantRequest } from '@/lib/schemas/participant/request/UpdateParticipantRequest';
 import { toParticipant, toParticipantDTO } from '@/lib/schemas/participant/dto/ParticipantDTO';
+import { validateReceiptIsModifiable } from '@/lib/services/receiptValidation';
 
 /**
  * Service for managing participants
@@ -43,18 +44,7 @@ export class ParticipantService {
     receiptId: number,
     createParticipantsRequest: CreateParticipantRequest[]
   ) {
-    const receipt = await sql`
-    SELECT id, status FROM receipts
-    WHERE id = ${receiptId} AND deleted_at IS NULL
-  `;
-
-    if (!receipt || receipt.length === 0) {
-      throw new Error('Receipt not found');
-    }
-
-    if (receipt[0].status === 'FLZD') {
-      throw new Error('Cannot modify finalized receipt');
-    }
+    await validateReceiptIsModifiable(receiptId);
 
     if (createParticipantsRequest.length === 0) {
       return [];
@@ -88,18 +78,7 @@ export class ParticipantService {
     participantData: UpdateParticipantRequest
   ) {
     // Verify receipt exists and is not finalized
-    const receipt = await sql`
-      SELECT id, status FROM receipts
-      WHERE id = ${receiptId} AND deleted_at IS NULL
-    `;
-
-    if (!receipt || receipt.length === 0) {
-      throw new Error('Receipt not found');
-    }
-
-    if (receipt[0].status === 'FLZD') {
-      throw new Error('Cannot modify finalized receipt');
-    }
+    await validateReceiptIsModifiable(receiptId);
 
     // Verify participant exists and belongs to receipt
     const participantCheck = await sql`
@@ -129,18 +108,7 @@ export class ParticipantService {
    */
   async deleteParticipant(receiptId: number, participantId: number) {
     // Verify receipt exists and is not finalized
-    const receipt = await sql`
-      SELECT id, status FROM receipts
-      WHERE id = ${receiptId} AND deleted_at IS NULL
-    `;
-
-    if (!receipt || receipt.length === 0) {
-      throw new Error('Receipt not found');
-    }
-
-    if (receipt[0].status === 'FLZD') {
-      throw new Error('Cannot modify finalized receipt');
-    }
+    await validateReceiptIsModifiable(receiptId);
 
     // Verify participant exists and belongs to receipt
     const participantCheck = await sql`

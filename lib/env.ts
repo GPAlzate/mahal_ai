@@ -52,13 +52,6 @@ export function getClerkSecretKey(): string {
 }
 
 /**
- * Whether sign-up/login UI is enabled for all users
- */
-export function getAuthEnabled(): boolean {
-  return process.env.NEXT_PUBLIC_AUTH_ENABLED === 'true';
-}
-
-/**
  * Clerk user ID of the admin/owner — gates early-access features
  */
 export function getAdminUserId(): string {

@@ -2,6 +2,7 @@ import { sql } from '@/lib/db';
 import { AssignLineParticipantRequest } from '@/lib/schemas/participant/request/AssignLineParticipantRequest';
 import { toLineParticipant, toLineParticipantDTO } from '@/lib/schemas/participant/dto/LineParticipantDTO';
 import { Logger } from '@/lib/utils/Logger';
+import { validateReceiptIsModifiable } from '@/lib/services/receiptValidation';
 
 /**
  * Service for managing line participant assignments
@@ -78,18 +79,7 @@ export class LineParticipantService {
   ) {
     // Verify receipt exists and is not finalized (once, not per assignment)
     this._logger.log(`Fetching receipt for receiptId ${receiptId}.`)
-    const receipt = await sql`
-      SELECT id, status FROM receipts
-      WHERE id = ${receiptId} AND deleted_at IS NULL
-    `;
-
-    if (!receipt || receipt.length === 0) {
-      throw new Error('Receipt not found');
-    }
-
-    if (receipt[0].status === 'FLZD') {
-      throw new Error('Cannot modify finalized receipt');
-    }
+    await validateReceiptIsModifiable(receiptId);
 
     // Group by receiptLineId so we can replace all assignments per line
     const byLine = new Map<number, typeof assignments>();
@@ -138,18 +128,7 @@ export class LineParticipantService {
     assignmentData: AssignLineParticipantRequest
   ) {
     // Verify receipt exists and is not finalized
-    const receipt = await sql`
-      SELECT id, status FROM receipts
-      WHERE id = ${receiptId} AND deleted_at IS NULL
-    `;
-
-    if (!receipt || receipt.length === 0) {
-      throw new Error('Receipt not found');
-    }
-
-    if (receipt[0].status === 'FLZD') {
-      throw new Error('Cannot modify finalized receipt');
-    }
+    await validateReceiptIsModifiable(receiptId);
 
     // Verify receipt line exists and belongs to receipt
     const lineCheck = await sql`
@@ -208,18 +187,7 @@ export class LineParticipantService {
    */
   async unassignParticipant(receiptId: number, receiptLineId: number, participantId: number) {
     // Verify receipt exists and is not finalized
-    const receipt = await sql`
-      SELECT id, status FROM receipts
-      WHERE id = ${receiptId} AND deleted_at IS NULL
-    `;
-
-    if (!receipt || receipt.length === 0) {
-      throw new Error('Receipt not found');
-    }
-
-    if (receipt[0].status === 'FLZD') {
-      throw new Error('Cannot modify finalized receipt');
-    }
+    await validateReceiptIsModifiable(receiptId);
 
     // Verify assignment exists
     const assignmentCheck = await sql`

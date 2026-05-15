@@ -35,6 +35,7 @@ export function ParticipantSplits({ participantSplits, formatCurrency }: Props) 
   return (
     <>
       <h2 className="font-dm-sans font-bold text-2xl uppercase mt-2">Participant Shares</h2>
+      <p className="font-dm-sans text-sm text-gray-500">Find your name and tap to pay your share.</p>
 
       {participantSplits.map((split, i) => {
         const isExpanded = expandedParticipants.has(split.participantId);
@@ -144,7 +145,7 @@ export function ParticipantSplits({ participantSplits, formatCurrency }: Props) 
                   href={`gcash://com.mynt.gcash/app/006300090100?amount=${split.total.toFixed(2)}`}
                   className="flex items-center justify-center gap-2 w-full h-11 border-[3px] border-black rounded-lg font-dm-mono font-bold text-sm uppercase bg-[#0066FF] text-white shadow-[3px_3px_0px_0px_#000] hover:bg-[#0052cc] active:translate-x-[2px] active:translate-y-[2px] active:shadow-none transition-all"
                 >
-                  Pay via GCash
+                  Pay {formatCurrency(split.total)} via GCash
                 </a>
               </div>
             )}

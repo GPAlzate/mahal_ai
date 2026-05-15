@@ -2,6 +2,7 @@ import { sql } from '@/lib/db';
 import { CreateReceiptLineRequest } from '@/lib/schemas/receipt/request/CreateReceiptLineRequest';
 import { UpdateReceiptLineRequest } from '@/lib/schemas/receipt/request/UpdateReceiptLineRequest';
 import { toReceiptLine, toReceiptLineDTO } from '@/lib/schemas/receipt/dto/ReceiptLineDTO';
+import { validateReceiptIsModifiable } from '@/lib/services/receiptValidation';
 
 /**
  * Service for managing receipt lines
@@ -31,18 +32,7 @@ export class ReceiptLineService {
    */
   async createReceiptLine(receiptId: number, lineData: CreateReceiptLineRequest) {
     // Verify receipt exists and is not finalized
-    const receipt = await sql`
-      SELECT id, status FROM receipts
-      WHERE id = ${receiptId} AND deleted_at IS NULL
-    `;
-
-    if (!receipt || receipt.length === 0) {
-      throw new Error('Receipt not found');
-    }
-
-    if (receipt[0].status === 'FLZD') {
-      throw new Error('Cannot modify finalized receipt');
-    }
+    await validateReceiptIsModifiable(receiptId);
 
     const position = lineData.linePosition ?? null;
     const result = await sql`
@@ -85,18 +75,7 @@ export class ReceiptLineService {
     lineData: UpdateReceiptLineRequest
   ) {
     // Verify receipt exists and is not finalized
-    const receipt = await sql`
-      SELECT id, status FROM receipts
-      WHERE id = ${receiptId} AND deleted_at IS NULL
-    `;
-
-    if (!receipt || receipt.length === 0) {
-      throw new Error('Receipt not found');
-    }
-
-    if (receipt[0].status === 'FLZD') {
-      throw new Error('Cannot modify finalized receipt');
-    }
+    await validateReceiptIsModifiable(receiptId);
 
     // Verify line exists and belongs to receipt
     const lineCheck = await sql`
@@ -162,18 +141,7 @@ export class ReceiptLineService {
    */
   async deleteReceiptLine(receiptId: number, lineId: number) {
     // Verify receipt exists and is not finalized
-    const receipt = await sql`
-      SELECT id, status FROM receipts
-      WHERE id = ${receiptId} AND deleted_at IS NULL
-    `;
-
-    if (!receipt || receipt.length === 0) {
-      throw new Error('Receipt not found');
-    }
-
-    if (receipt[0].status === 'FLZD') {
-      throw new Error('Cannot modify finalized receipt');
-    }
+    await validateReceiptIsModifiable(receiptId);
 
     // Verify line exists and belongs to receipt
     const lineCheck = await sql`

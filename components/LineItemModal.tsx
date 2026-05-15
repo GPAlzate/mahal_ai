@@ -35,8 +35,8 @@ export function LineItemModal({
   lineType,
 }: LineItemModalProps) {
   const [itemName, setItemName] = useState('');
-  const [quantity, setQuantity] = useState('1');
-  const [unitPrice, setUnitPrice] = useState('0.00');
+  const [quantity, setQuantity] = useState('');
+  const [unitPrice, setUnitPrice] = useState('');
   const [receiptLineType, setReceiptLineType] = useState<string>('');
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
@@ -50,8 +50,8 @@ export function LineItemModal({
         setReceiptLineType(initialData.receiptLineType || '');
       } else {
         setItemName('');
-        setQuantity('1');
-        setUnitPrice('0.00');
+        setQuantity('');
+        setUnitPrice('');
         setReceiptLineType(lineType || '');
       }
       setError(null);
@@ -65,17 +65,35 @@ export function LineItemModal({
     e.preventDefault();
     setError(null);
 
-    if (!itemName.trim()) { setError('Item name is required'); return; }
-    const qtyNum = parseFloat(quantity);
-    if (isNaN(qtyNum) || qtyNum <= 0) { setError('Quantity must be greater than 0'); return; }
-    const priceNum = parseFloat(unitPrice);
-    if (isNaN(priceNum)) { setError('Price must be a valid number'); return; }
-    if (receiptLineType === 'DSCT' && priceNum >= 0) {
-      setError('Discount price must be negative (e.g., -10.00)'); return;
-    } else if (receiptLineType !== 'DSCT' && priceNum < 0) {
-      setError('Price cannot be negative (only discounts can be negative)'); return;
+    if (!itemName.trim()) {
+      setError('Item name is required');
+      return;
     }
-    if (showLineTypeSelector && !receiptLineType) { setError('Please select a line type'); return; }
+
+    const qtyNum = parseFloat(quantity);
+    if (isNaN(qtyNum) || qtyNum <= 0) {
+      setError('Quantity must be greater than 0');
+      return;
+    }
+
+    const priceNum = parseFloat(unitPrice);
+    if (isNaN(priceNum) || unitPrice === '-') {
+      setError('Price must be a valid number');
+      return;
+    }
+
+    if (receiptLineType === 'DSCT' && priceNum >= 0) {
+      setError('Discount price must be negative (e.g., -10.00)');
+      return;
+    } else if (receiptLineType !== 'DSCT' && priceNum < 0) {
+      setError('Price cannot be negative (only discounts can be negative)');
+      return;
+    }
+
+    if (showLineTypeSelector && !receiptLineType) {
+      setError('Please select a line type');
+      return;
+    }
 
     try {
       setSaving(true);
@@ -91,17 +109,38 @@ export function LineItemModal({
     }
   };
 
-  const handleCancel = () => { if (!saving) onCancel(); };
+  const handleCancel = () => {
+    if (!saving) onCancel();
+  };
 
   const handleLineTypeChange = (newType: string) => {
     setReceiptLineType(newType);
     if (newType === 'DSCT') {
-      const cur = parseFloat(unitPrice);
-      if (!isNaN(cur) && cur >= 0) setUnitPrice((-Math.abs(cur)).toFixed(2));
-      else if (unitPrice === '0.00' || unitPrice === '') setUnitPrice('-0.00');
+      const stripped = unitPrice.replace(/^-/, '');
+      setUnitPrice(`-${stripped}`);
     } else if (receiptLineType === 'DSCT') {
-      const cur = parseFloat(unitPrice);
-      if (!isNaN(cur) && cur < 0) setUnitPrice(Math.abs(cur).toFixed(2));
+      setUnitPrice(unitPrice.replace(/^-/, ''));
+    }
+  };
+
+  const handleUnitPriceChange = (val: string) => {
+    if (receiptLineType === 'DSCT') {
+      const stripped = val.replace(/^-*/, '');
+      setUnitPrice(`-${stripped}`);
+    } else {
+      setUnitPrice(val);
+    }
+  };
+
+  const handleUnitPriceFocus = () => {
+    if (receiptLineType === 'DSCT' && unitPrice === '') {
+      setUnitPrice('-');
+    }
+  };
+
+  const handleUnitPriceBlur = () => {
+    if (unitPrice === '-') {
+      setUnitPrice('');
     }
   };
 
@@ -165,7 +204,6 @@ export function LineItemModal({
               >
                 <option value="">Select type...</option>
                 <option value="TAX">Tax</option>
-                <option value="TAX">Tax</option>
                 <option value="TIP">Tip</option>
                 <option value="SRVC">Service Charge</option>
                 <option value="DSCT">Discount</option>
@@ -181,6 +219,7 @@ export function LineItemModal({
               <input
                 className={inputClass}
                 type="number"
+                inputMode="numeric"
                 value={quantity}
                 onChange={(e) => setQuantity(e.target.value)}
                 placeholder="1"
@@ -194,11 +233,13 @@ export function LineItemModal({
               </label>
               <input
                 className={inputClass}
-                type="number"
+                type="text"
+                inputMode="decimal"
                 value={unitPrice}
-                onChange={(e) => setUnitPrice(e.target.value)}
-                placeholder={receiptLineType === 'DSCT' ? '-10.00' : '0.00'}
-                step="0.5"
+                onChange={(e) => handleUnitPriceChange(e.target.value)}
+                onFocus={handleUnitPriceFocus}
+                onBlur={handleUnitPriceBlur}
+                placeholder={receiptLineType === 'DSCT' ? '-100.00' : '0.00'}
                 disabled={saving}
               />
             </div>
@@ -214,7 +255,9 @@ export function LineItemModal({
           {/* Error */}
           {error && (
             <div className="border-2 border-red-600 bg-red-50 px-4 py-3 rounded-lg">
-              <p className="font-dm-mono text-xs font-bold uppercase tracking-wider text-red-600">{error}</p>
+              <p className="font-dm-mono text-xs font-bold uppercase tracking-wider text-red-600">
+                {error}
+              </p>
             </div>
           )}
 

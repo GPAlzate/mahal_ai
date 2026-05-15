@@ -3,8 +3,6 @@
 import { useState } from 'react';
 import { useAuth, SignUpButton } from '@clerk/nextjs';
 import { Check } from 'lucide-react';
-import { AUTH_ENABLED } from '@/lib/auth';
-
 const FEATURES = [
   'See your receipt history',
   'Split with friends in real time',
@@ -34,25 +32,17 @@ export function SaveSplitsNudge() {
         ))}
       </ul>
 
-      {AUTH_ENABLED ? (
-        <>
-          <SignUpButton mode="redirect" signInFallbackRedirectUrl="/" forceRedirectUrl="/sign-up">
-            <button className="w-full h-12 border-[4px] border-black rounded-lg font-dm-sans font-bold text-sm uppercase bg-[#FFD700] text-black shadow-[4px_4px_0px_0px_#000] hover:bg-[#FFE44D] active:translate-x-[2px] active:translate-y-[2px] active:shadow-none transition-all cursor-pointer">
-              Create Free Account →
-            </button>
-          </SignUpButton>
-          <button
-            onClick={() => setDismissed(true)}
-            className="text-center font-dm-mono text-[10px] uppercase tracking-widest text-[#7e7576] hover:text-black transition-colors cursor-pointer"
-          >
-            Maybe later
-          </button>
-        </>
-      ) : (
-        <button disabled className="w-full h-12 border-[4px] border-[#d0c6ab] rounded-lg font-dm-sans font-bold text-sm uppercase bg-[#e7e2d8] text-[#7e775f] cursor-not-allowed">
-          Sign Up <span className="normal-case font-normal">(coming soon!)</span>
+      <SignUpButton mode="redirect" signInFallbackRedirectUrl="/" forceRedirectUrl="/sign-up">
+        <button className="w-full h-12 border-[4px] border-black rounded-lg font-dm-sans font-bold text-sm uppercase bg-black text-white hover:bg-[#1a1a1a] transition-all cursor-pointer">
+          Sign Up Free →
         </button>
-      )}
+      </SignUpButton>
+      <button
+        onClick={() => setDismissed(true)}
+        className="text-center font-dm-mono text-[10px] uppercase tracking-widest text-[#7e7576] hover:text-black transition-colors cursor-pointer"
+      >
+        Maybe later
+      </button>
     </div>
   );
 }
