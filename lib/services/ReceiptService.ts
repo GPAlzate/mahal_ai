@@ -38,13 +38,14 @@ export class ReceiptService {
 
       try {
         const result = await sql`
-          INSERT INTO receipts (share_code, status, image_uri, title, receipt_time)
+          INSERT INTO receipts (share_code, status, image_uri, title, receipt_time, owner_id)
           VALUES (
             ${shareCode},
             ${request.status},
             ${request.imageURI || null},
             ${request.title || null},
-            ${receiptTimeValue}
+            ${receiptTimeValue},
+            ${request.ownerId || null}
           )
           RETURNING *
         `;
@@ -180,6 +181,38 @@ export class ReceiptService {
       }));
 
     return toReceipt(toReceiptDTO(result[0]), linesDTOs);
+  }
+
+  /**
+   * Get all non-deleted receipts owned by a user, with participant count.
+   * @param ownerId - Clerk user ID
+   */
+  async findByOwnerId(ownerId: string) {
+    const rows = await sql`
+      SELECT
+        r.id,
+        r.title,
+        r.share_code,
+        r.receipt_time,
+        r.status,
+        array_agg(p.display_name ORDER BY p.created_at) FILTER (WHERE p.id IS NOT NULL) AS participant_names
+      FROM receipts r
+      LEFT JOIN participants p ON p.receipt_id = r.id AND p.deleted_at IS NULL
+      WHERE r.deleted_at IS NULL
+        AND r.status != 'DLTD'
+        AND r.owner_id = ${ownerId}
+      GROUP BY r.id
+      ORDER BY r.receipt_time DESC
+    `;
+
+    return rows.map((row: any) => ({
+      id: row.id as number,
+      title: row.title as string | null,
+      shareCode: row.share_code as string,
+      receiptTime: row.receipt_time as Date,
+      status: row.status as string,
+      participantNames: (row.participant_names ?? []) as string[],
+    }));
   }
 
   /**

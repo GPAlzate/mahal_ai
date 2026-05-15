@@ -1,10 +1,32 @@
 'use client';
 
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import { useAuth, useUser } from '@clerk/nextjs';
 import { upload } from '@vercel/blob/client';
 import { Image, ArrowRight, Loader2 } from 'lucide-react';
-import { api } from '@/lib/client/api-client';
+import { api, type MyReceipt } from '@/lib/client/api-client';
+function formatParticipants(names: string[], myName: string | null): string | null {
+  const others = names.filter((n) => n !== myName);
+  if (others.length === 0) { return null; }
+  const shown = others.slice(0, 2);
+  const rest = others.length - shown.length;
+  const suffix = rest > 0 ? ` and ${rest} other${rest > 1 ? 's' : ''}` : '';
+  return 'with ' + shown.join(', ') + suffix;
+}
+
+function receiptStatusLabel(status: string): string {
+  if (status === 'FLZD') { return 'Done'; }
+  if (status === 'DRFT') { return 'Draft'; }
+  return 'Processing';
+}
+
+function receiptStatusClass(status: string): string {
+  if (status === 'FLZD') { return 'bg-[#98FB98] border-black text-black'; }
+  if (status === 'DRFT') { return 'bg-[#cee7f0] border-black text-black'; }
+  return 'bg-[#f3f3f3] border-black text-[#7e775f]';
+}
+
 export default function Home() {
   const router = useRouter();
   const [file, setFile] = useState<File | null>(null);
@@ -18,6 +40,16 @@ export default function Home() {
   const [shareCode, setShareCode] = useState('');
   const [shareCodeError, setShareCodeError] = useState<string | null>(null);
   const [shareCodeLoading, setShareCodeLoading] = useState(false);
+
+  const { isSignedIn } = useAuth();
+  const { user } = useUser();
+  const myName = user?.fullName ?? user?.firstName ?? null;
+  const [myReceipts, setMyReceipts] = useState<MyReceipt[] | null>(null);
+
+  useEffect(() => {
+    if (!isSignedIn) return;
+    api.receipts.getMyReceipts().then((data) => setMyReceipts(data.receipts)).catch(() => {});
+  }, [isSignedIn]);
 
   const blobPromiseRef = useRef<Promise<{ url: string }> | null>(null);
   const uploadAbortRef = useRef<AbortController | null>(null);
@@ -259,6 +291,48 @@ export default function Home() {
             </>
           )}
         </div>
+
+        {/* My Receipts — signed-in only */}
+        {isSignedIn && (
+          <div className="mt-4 bg-white border-4 border-black shadow-[4px_4px_0px_0px_#000] rounded-xl p-5 flex flex-col gap-3">
+            <h2 className="font-dm-sans font-bold text-2xl">My Receipts</h2>
+            {myReceipts === null ? (
+              // Loading skeletons
+              <div className="flex flex-col gap-2">
+                {[0, 1].map((i) => (
+                  <div key={i} className="h-14 bg-[#f3f3f3] rounded-lg animate-pulse border-2 border-black" />
+                ))}
+              </div>
+            ) : myReceipts.length === 0 ? (
+              <p className="font-dm-mono text-sm text-[#7e775f]">No receipts yet — split a bill to get started.</p>
+            ) : (
+              <div className="flex flex-col border-2 border-black rounded-lg overflow-hidden">
+                {myReceipts.map((r, index) => (
+                  <button
+                    key={r.id}
+                    type="button"
+                    onClick={() => router.push(`/${r.shareCode}`)}
+                    className={`flex items-center justify-between px-4 py-3 bg-white hover:bg-[#fff9ef] active:bg-[#f3f3f3] transition-colors cursor-pointer text-left ${index > 0 ? 'border-t-2 border-black' : ''}`}
+                  >
+                    <div className="flex flex-col gap-0.5 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <span className="font-dm-sans font-bold text-sm truncate">{r.title || 'Untitled receipt'}</span>
+                        <span className={`font-dm-mono text-[9px] font-bold uppercase tracking-widest px-1.5 py-0.5 rounded border flex-shrink-0 ${receiptStatusClass(r.status)}`}>
+                          {receiptStatusLabel(r.status)}
+                        </span>
+                      </div>
+                      <span className="font-dm-mono text-[10px] text-[#7e775f]">
+                        {new Date(r.receiptTime).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                        {formatParticipants(r.participantNames, myName) && ` · ${formatParticipants(r.participantNames, myName)}`}
+                      </span>
+                    </div>
+                    <ArrowRight className="w-4 h-4 flex-shrink-0 ml-3 text-[#4d4732]" strokeWidth={2.5} />
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Share code card */}
         <div className="mt-4 bg-white border-4 border-black shadow-[4px_4px_0px_0px_#000] rounded-xl p-5 flex flex-col gap-3">

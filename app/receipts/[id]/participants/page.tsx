@@ -2,6 +2,7 @@
 
 import { useState, use, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import { useUser } from '@clerk/nextjs';
 import { ArrowLeft, Plus, X } from 'lucide-react';
 import { api } from '@/lib/client/api-client';
 import { ShareCodeBadge } from '@/components/ShareCodeBadge';
@@ -17,6 +18,7 @@ export default function ParticipantsPage({ params }: { params: Promise<{ id: str
   const resolvedParams = use(params);
   const receiptId = parseInt(resolvedParams.id);
   const router = useRouter();
+  const { user } = useUser();
 
   const [participantName, setParticipantName] = useState('');
   const [participants, setParticipants] = useState<LocalParticipant[]>([]);
@@ -39,9 +41,15 @@ export default function ParticipantsPage({ params }: { params: Promise<{ id: str
             displayName: p.displayName,
           }))
         );
+      } else if (user) {
+        // Auto-add signed-in user as the first participant
+        const name = user.fullName ?? user.firstName ?? '';
+        if (name) {
+          setParticipants([{ tempId: `creator-${user.id}`, displayName: name }]);
+        }
       }
     }).catch(() => {});
-  }, [receiptId]);
+  }, [receiptId, user]);
 
   // Poll until parsing completes. Parse is triggered on the home page as soon as
   // the blob upload finishes, so by the time the user is done entering names it

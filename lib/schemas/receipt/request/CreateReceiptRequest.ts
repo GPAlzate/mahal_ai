@@ -12,6 +12,7 @@ export const CreateReceiptRequestSchema = z.object({
   title: z.string().nullable().optional(),
   receiptTime: z.string().nullable().optional(), // Can be YYYY-MM-DD or ISO timestamp
   status: ReceiptStatusSchema, // Required: PRSP for parse, DRFT for manual
+  ownerId: z.string().nullable().optional(),
 });
 
 export type CreateReceiptRequest = z.infer<typeof CreateReceiptRequestSchema>;

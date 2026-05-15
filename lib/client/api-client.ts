@@ -9,6 +9,15 @@ import type { LineParticipant } from '@/lib/schemas/participant/public/LineParti
 import type { ReceiptSummary } from '@/lib/schemas/receipt/public/ReceiptSummary';
 import type { SplitGroup } from '@/lib/schemas/receipt/public/SplitGroup';
 
+export interface MyReceipt {
+  id: number;
+  title: string | null;
+  shareCode: string;
+  receiptTime: string;
+  status: string;
+  participantNames: string[];
+}
+
 class APIError extends Error {
   constructor(
     message: string,
@@ -80,6 +89,8 @@ export const api = {
       fetchAPI<ReceiptSummary>(`/api/receipts?shareCode=${shareCode}`),
 
     getSummary: (id: number) => fetchAPI<ReceiptSummary>(`/api/receipts/${id}/summary`),
+
+    getMyReceipts: () => fetchAPI<{ receipts: MyReceipt[] }>('/api/receipts/my'),
 
     finalize: (id: number) =>
       fetchAPI<ReceiptSummary>(`/api/receipts/${id}/finalize`, { method: 'PUT' }),

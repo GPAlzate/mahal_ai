@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
+import { auth } from '@clerk/nextjs/server';
 import { receiptSummaryService } from '@/lib/services/ReceiptSummaryService';
 import { receiptService } from '@/lib/services/ReceiptService';
 import { FindReceiptByShareCodeRequestSchema } from '@/lib/schemas/receipt/request/FindReceiptByShareCodeRequest';
@@ -97,8 +98,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Create receipt with title and receiptTime
-    const receipt = await receiptService.createReceipt(createReceiptRequest.data);
+    const { userId } = await auth();
+    const receipt = await receiptService.createReceipt({ ...createReceiptRequest.data, ownerId: userId ?? null });
 
     return NextResponse.json({ receiptId: receipt.id }, { status: 201 });
   } catch (error) {
