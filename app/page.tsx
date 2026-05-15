@@ -5,7 +5,6 @@ import { useRouter } from 'next/navigation';
 import { upload } from '@vercel/blob/client';
 import { Image, ArrowRight, Loader2 } from 'lucide-react';
 import { api } from '@/lib/client/api-client';
-
 export default function Home() {
   const router = useRouter();
   const [file, setFile] = useState<File | null>(null);

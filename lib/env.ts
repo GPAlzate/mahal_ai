@@ -36,3 +36,31 @@ export function getOpenAIAPIKey(): string {
 export function getBlobBaseURL(): string {
   return getEnvVar('BLOB_BASE_URL') as string;
 }
+
+/**
+ * Retrieves the Clerk publishable key (client-safe)
+ */
+export function getClerkPublishableKey(): string {
+  return getEnvVar('NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY') as string;
+}
+
+/**
+ * Retrieves the Clerk secret key (server-only)
+ */
+export function getClerkSecretKey(): string {
+  return getEnvVar('CLERK_SECRET_KEY') as string;
+}
+
+/**
+ * Whether sign-up/login UI is enabled for all users
+ */
+export function getAuthEnabled(): boolean {
+  return process.env.NEXT_PUBLIC_AUTH_ENABLED === 'true';
+}
+
+/**
+ * Clerk user ID of the admin/owner — gates early-access features
+ */
+export function getAdminUserId(): string {
+  return getEnvVar('NEXT_PUBLIC_ADMIN_USER_ID', false) ?? '';
+}
