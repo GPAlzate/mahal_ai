@@ -76,12 +76,12 @@ export function ReceiptCard({ summary, formatCurrency }: Props) {
               ?.filter(line => line.receiptLineType === 'DADJ')
               .map(line => (
                 <div key={line.id}>
-                  <div className="flex justify-between font-dm-mono text-[12px] py-1 text-[#4d4732]">
+                  <div className="flex justify-between font-dm-mono text-[12px] py-1 text-red-700">
                     <span className="flex-1 italic flex items-center gap-1">
                       {line.itemName}
                       <button
                         onClick={() => setAdjInfoLineId(adjInfoLineId === line.id ? null : line.id)}
-                        className="flex-shrink-0 text-[#7e775f] hover:text-black transition-colors"
+                        className="flex-shrink-0 text-red-700 hover:text-red-900 transition-colors"
                       >
                         <Info className="w-3 h-3" />
                       </button>
