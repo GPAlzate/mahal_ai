@@ -6,24 +6,33 @@ import { useAuth, useUser, useClerk } from '@clerk/nextjs';
 import { upload } from '@vercel/blob/client';
 import { Image, ArrowRight, Loader2, LogIn, Settings, LogOut } from 'lucide-react';
 import { api, type MyReceipt } from '@/lib/client/api-client';
-function formatParticipants(names: string[], myName: string | null): string | null {
-  const others = names.filter((n) => n !== myName);
-  if (others.length === 0) { return null; }
-  const shown = others.slice(0, 2);
-  const rest = others.length - shown.length;
+function formatParticipants(names: string[]): string | null {
+  if (names.length === 0) {
+    return null;
+  }
+  const shown = names.slice(0, 2);
+  const rest = names.length - shown.length;
   const suffix = rest > 0 ? ` and ${rest} other${rest > 1 ? 's' : ''}` : '';
   return 'with ' + shown.join(', ') + suffix;
 }
 
 function receiptStatusLabel(status: string): string {
-  if (status === 'FLZD') { return 'Done'; }
-  if (status === 'DRFT') { return 'Draft'; }
+  if (status === 'FLZD') {
+    return 'Done';
+  }
+  if (status === 'DRFT') {
+    return 'Draft';
+  }
   return 'Processing';
 }
 
 function receiptStatusClass(status: string): string {
-  if (status === 'FLZD') { return 'bg-[#98FB98] border-black text-black'; }
-  if (status === 'DRFT') { return 'bg-[#cee7f0] border-black text-black'; }
+  if (status === 'FLZD') {
+    return 'bg-[#98FB98] border-black text-black';
+  }
+  if (status === 'DRFT') {
+    return 'bg-[#cee7f0] border-black text-black';
+  }
   return 'bg-[#f3f3f3] border-black text-[#7e775f]';
 }
 
@@ -423,7 +432,7 @@ export default function Home() {
                       </div>
                       <span className="font-dm-mono text-[10px] text-[#7e775f]">
                         {new Date(r.receiptTime).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
-                        {formatParticipants(r.participantNames, myName) && ` · ${formatParticipants(r.participantNames, myName)}`}
+                        {formatParticipants(r.participantNames) && ` · ${formatParticipants(r.participantNames)}`}
                       </span>
                     </div>
                     <ArrowRight className="w-4 h-4 flex-shrink-0 ml-3 text-[#4d4732]" strokeWidth={2.5} />

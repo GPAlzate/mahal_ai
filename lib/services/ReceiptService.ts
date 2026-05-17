@@ -178,7 +178,7 @@ export class ReceiptService {
         r.share_code,
         r.receipt_time,
         r.status,
-        array_agg(p.display_name ORDER BY p.created_at) FILTER (WHERE p.id IS NOT NULL) AS participant_names
+        array_agg(p.display_name ORDER BY p.created_at) FILTER (WHERE p.id IS NOT NULL AND p.user_id IS DISTINCT FROM ${ownerId}) AS participant_names
       FROM receipts r
       LEFT JOIN participants p ON p.receipt_id = r.id AND p.deleted_at IS NULL
       WHERE r.deleted_at IS NULL
