@@ -121,7 +121,7 @@ export const api = {
     list: (receiptId: number) =>
       fetchAPI<Participant[]>(`/api/receipts/${receiptId}/participants`),
 
-    create: (receiptId: number, participants: Array<{ displayName: string }>) =>
+    create: (receiptId: number, participants: Array<{ displayName: string; userId?: string }>) =>
       fetchAPI<Participant[]>(`/api/receipts/${receiptId}/participants`, {
         method: 'POST',
         body: JSON.stringify(participants),

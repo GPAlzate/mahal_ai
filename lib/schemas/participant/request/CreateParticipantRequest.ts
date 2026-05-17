@@ -6,6 +6,7 @@ import { z } from 'zod';
  */
 export const CreateParticipantRequestSchema = z.object({
   displayName: z.string().min(1, 'Name is required').max(100, 'Name too long'),
+  userId: z.string().optional(),
 });
 
 export type CreateParticipantRequest = z.infer<typeof CreateParticipantRequestSchema>;

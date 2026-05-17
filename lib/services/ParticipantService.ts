@@ -50,16 +50,21 @@ export class ParticipantService {
       return [];
     }
 
-    const rows = createParticipantsRequest.map(p => [receiptId, p.displayName]);
+    const rows = createParticipantsRequest.map(p => ({
+      receiptId,
+      displayName: p.displayName,
+      userId: p.userId ?? null,
+    }));
 
     const result = await sql`
-    INSERT INTO participants (receipt_id, display_name)
-    SELECT * FROM UNNEST(
-      ${rows.map(r => r[0])}::int[],
-      ${rows.map(r => r[1])}::text[]
-    )
-    RETURNING *
-  `;
+      INSERT INTO participants (receipt_id, display_name, user_id)
+      SELECT * FROM UNNEST(
+        ${rows.map(r => r.receiptId)}::bigint[],
+        ${rows.map(r => r.displayName)}::text[],
+        ${rows.map(r => r.userId)}::text[]
+      )
+      RETURNING *
+    `;
 
     return result.map(r => toParticipant(toParticipantDTO(r)));
   }

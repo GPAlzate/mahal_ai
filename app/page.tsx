@@ -261,9 +261,9 @@ export default function Home() {
         </div>
 
         {/* Main card */}
-        <div className="bg-white border-4 border-black shadow-[4px_4px_0px_0px_#000] rounded-xl p-5 flex flex-col gap-4">
+        <div className="bg-white border-4 border-black shadow-[6px_6px_0px_0px_#000] rounded-xl p-5 flex flex-col gap-4">
 
-          <h2 className="font-dm-sans font-bold text-2xl">Upload a receipt 😀</h2>
+          <h2 className="font-dm-sans font-black text-3xl">New Split</h2>
 
           {!previewUrl ? (
             <>
@@ -356,7 +356,7 @@ export default function Home() {
         </div>
 
         {/* My Receipts — teaser for guests, full list for signed-in users */}
-        <div className="mt-4 bg-white border-4 border-black shadow-[4px_4px_0px_0px_#000] rounded-xl p-5 flex flex-col gap-3">
+        <div className="mt-4 bg-white border-[3px] border-black shadow-[3px_3px_0px_0px_#000] rounded-xl p-5 flex flex-col gap-3">
           <h2 className="font-dm-sans font-bold text-2xl">My Receipts</h2>
           {!isSignedIn ? (
             <div className="relative overflow-hidden rounded-lg">
@@ -452,33 +452,32 @@ export default function Home() {
           )}
         </div>
 
-        {/* Share code card */}
-        <div className="mt-4 bg-white border-4 border-black shadow-[4px_4px_0px_0px_#000] rounded-xl p-5 flex flex-col gap-3">
-          <h2 className="font-dm-sans font-bold text-2xl">View a shared receipt</h2>
-          <form onSubmit={handleShareCodeSubmit} className="flex flex-col gap-2">
-            <label className={labelClass}>Enter Receipt Share Code</label>
+        {/* Share code — compact tertiary strip */}
+        <div className="mt-3 bg-white border-2 border-black shadow-[2px_2px_0px_0px_#000] rounded-xl p-4 flex flex-col gap-2">
+          <p className={labelClass}>Have a share code?</p>
+          <form onSubmit={handleShareCodeSubmit}>
             <div className="flex gap-2">
-            <input
-              className="flex-1 h-12 border-2 border-black rounded-lg px-4 font-dm-mono text-base focus:border-[4px] focus:outline-none focus:bg-[#cee7f0] bg-white placeholder:text-[#7e775f] transition-all"
-              placeholder="e.g. ABCDE"
-              value={shareCode}
-              onChange={(e) => { setShareCode(e.target.value.toUpperCase().slice(0, 5)); setShareCodeLoading(false); setShareCodeError(null); }}
-              maxLength={5}
-              autoCapitalize="characters"
-              autoCorrect="off"
-              autoComplete="off"
-              spellCheck={false}
-            />
-            <button
-              type="submit"
-              disabled={!shareCode.trim() || shareCodeLoading}
-              className="h-12 px-4 border-[4px] border-black rounded-lg bg-green-100 text-black shadow-[4px_4px_0px_0px_#000] hover:bg-green-200 active:translate-x-[2px] active:translate-y-[2px] active:shadow-none transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
-            >
-              {shareCodeLoading
-                ? <Loader2 strokeWidth={2.5} className="h-5 w-5 animate-spin" />
-                : <ArrowRight strokeWidth={2.5} className="h-5 w-5" />
-              }
-            </button>
+              <input
+                className="flex-1 h-11 border-2 border-black rounded-lg px-4 font-dm-mono text-sm focus:border-[3px] focus:outline-none focus:bg-[#cee7f0] bg-white placeholder:text-[#7e775f] transition-all"
+                placeholder="e.g. ABCDE"
+                value={shareCode}
+                onChange={(e) => { setShareCode(e.target.value.toUpperCase().slice(0, 5)); setShareCodeLoading(false); setShareCodeError(null); }}
+                maxLength={5}
+                autoCapitalize="characters"
+                autoCorrect="off"
+                autoComplete="off"
+                spellCheck={false}
+              />
+              <button
+                type="submit"
+                disabled={!shareCode.trim() || shareCodeLoading}
+                className="h-11 px-4 border-[3px] border-black rounded-lg bg-[#FFD700] text-black shadow-[3px_3px_0px_0px_#000] hover:bg-[#FFE44D] active:translate-x-[2px] active:translate-y-[2px] active:shadow-none transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
+              >
+                {shareCodeLoading
+                  ? <Loader2 strokeWidth={2.5} className="h-4 w-4 animate-spin" />
+                  : <ArrowRight strokeWidth={2.5} className="h-4 w-4" />
+                }
+              </button>
             </div>
           </form>
           {shareCodeError && (

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { auth } from '@clerk/nextjs/server';
 import { participantService } from '@/lib/services/ParticipantService';
 import { BatchCreateParticipantsRequestSchema } from '@/lib/schemas/participant/request/CreateParticipantRequest';
 
@@ -77,6 +78,7 @@ export async function POST(
       return NextResponse.json({ error: 'Invalid receipt ID' }, { status: 400 });
     }
 
+    const { userId: authedUserId } = await auth();
     const body = await request.json();
 
     // Validate request body (expects array of participants)
@@ -89,9 +91,15 @@ export async function POST(
       );
     }
 
+    // Only allow userId to be saved if it matches the authenticated user
+    const sanitized = validation.data.map((p) => ({
+      ...p,
+      userId: p.userId === authedUserId ? p.userId : undefined,
+    }));
+
     const participants = await participantService.batchCreateParticipants(
       receiptId,
-      validation.data
+      sanitized
     );
 
     return NextResponse.json(participants, { status: 201 });

@@ -12,6 +12,7 @@ interface LocalParticipant {
   tempId: string;
   participantId?: number;
   displayName: string;
+  userId?: string;
 }
 
 export default function ParticipantsPage({ params }: { params: Promise<{ id: string }> }) {
@@ -47,7 +48,7 @@ export default function ParticipantsPage({ params }: { params: Promise<{ id: str
         const profile = await api.user.get().catch(() => null);
         const name = profile?.displayName ?? user.fullName ?? user.firstName ?? '';
         if (name) {
-          setParticipants([{ tempId: `creator-${user.id}`, displayName: name }]);
+          setParticipants([{ tempId: `creator-${user.id}`, displayName: name, userId: user.id }]);
         }
       }
     }).catch(() => {});
@@ -109,7 +110,9 @@ export default function ParticipantsPage({ params }: { params: Promise<{ id: str
     setSaving(true);
     setError(null);
     try {
-      const newParticipants = participants.filter((p) => !p.participantId);
+      const newParticipants = participants
+        .filter((p) => !p.participantId)
+        .map(({ displayName, userId }) => ({ displayName, ...(userId ? { userId } : {}) }));
       await Promise.all([
         newParticipants.length > 0 ? api.participants.create(receiptId, newParticipants) : Promise.resolve(),
         receiptTitle.trim() ? api.receipts.updateTitle(receiptId, receiptTitle.trim()) : Promise.resolve(),
