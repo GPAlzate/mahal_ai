@@ -44,7 +44,7 @@ export default function ParticipantsPage({ params }: { params: Promise<{ id: str
       } else if (user) {
         // Auto-add signed-in user as the first participant, preferring their
         // DB display name (set in settings) over the Clerk name.
-        const profile = await api.settings.get().catch(() => null);
+        const profile = await api.user.get().catch(() => null);
         const name = profile?.displayName ?? user.fullName ?? user.firstName ?? '';
         if (name) {
           setParticipants([{ tempId: `creator-${user.id}`, displayName: name }]);

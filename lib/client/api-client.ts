@@ -170,8 +170,8 @@ export const api = {
       fetchAPI<SplitGroup>(`/api/split-groups?receiptId=${receiptId}`),
   },
 
-  settings: {
-    get: () => fetchAPI<{ displayName: string | null; gcashNumber: string | null }>('/api/settings'),
+  user: {
+    get: () => fetchAPI<{ displayName: string | null; gcashNumber: string | null }>('/api/user'),
   },
 };
 
