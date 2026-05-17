@@ -169,6 +169,10 @@ export const api = {
     get: (receiptId: number) =>
       fetchAPI<SplitGroup>(`/api/split-groups?receiptId=${receiptId}`),
   },
+
+  user: {
+    get: () => fetchAPI<{ displayName: string | null; gcashNumber: string | null }>('/api/user'),
+  },
 };
 
 export { APIError };

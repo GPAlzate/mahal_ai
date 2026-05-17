@@ -52,7 +52,7 @@ export default function Home() {
   useEffect(() => {
     if (!isSignedIn) return;
     api.receipts.getMyReceipts().then((data) => setMyReceipts(data.receipts)).catch(() => {});
-    fetch('/api/settings').catch(() => {});
+    fetch('/api/user').catch(() => {});
   }, [isSignedIn]);
 
   const blobPromiseRef = useRef<Promise<{ url: string }> | null>(null);

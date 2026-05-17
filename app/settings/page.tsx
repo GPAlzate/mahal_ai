@@ -31,7 +31,7 @@ export default function SettingsPage() {
     if (!isLoaded) return;
     if (!isSignedIn) { router.replace('/login'); return; }
 
-    fetch('/api/settings')
+    fetch('/api/user')
       .then((r) => r.json())
       .then((data) => {
         setProfile({ displayName: data.displayName ?? '', gcashNumber: data.gcashNumber ?? '' });
