@@ -32,7 +32,7 @@ export default function ParticipantsPage({ params }: { params: Promise<{ id: str
 
   // Pre-populate participants if navigating back to this page
   useEffect(() => {
-    api.participants.list(receiptId).then((existing) => {
+    api.participants.list(receiptId).then(async (existing) => {
       if (existing.length > 0) {
         setParticipants(
           existing.map((p) => ({
