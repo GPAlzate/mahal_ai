@@ -213,7 +213,15 @@ export default function SummaryPage({ params }: { params: Promise<{ id: string }
 
       {/* Main Content */}
       <main className="flex-1 px-5 pt-5 pb-2 flex flex-col gap-4 max-w-lg mx-auto w-full">
-        <ReceiptCard summary={summary} formatCurrency={formatCurrency} />
+        <ReceiptCard
+          summary={summary}
+          formatCurrency={formatCurrency}
+          receiptId={receiptId}
+          onSummaryUpdate={async () => {
+            const updated = await api.receipts.getSummary(receiptId);
+            setSummary(updated);
+          }}
+        />
         <ParticipantSplits participantSplits={summary.participantSplits} formatCurrency={formatCurrency} />
       </main>
 

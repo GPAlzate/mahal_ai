@@ -19,6 +19,7 @@ interface LineItemModalProps {
     receiptLineType?: string;
   }) => Promise<void>;
   onCancel: () => void;
+  onDelete?: () => Promise<void>;
   hasAssignments?: boolean;
   showLineTypeSelector?: boolean;
   lineType?: string;
@@ -30,6 +31,7 @@ export function LineItemModal({
   initialData,
   onSave,
   onCancel,
+  onDelete,
   hasAssignments = false,
   showLineTypeSelector = false,
   lineType,
@@ -40,6 +42,8 @@ export function LineItemModal({
   const [receiptLineType, setReceiptLineType] = useState<string>('');
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     if (isOpen) {
@@ -56,6 +60,8 @@ export function LineItemModal({
       }
       setError(null);
       setSaving(false);
+      setConfirmingDelete(false);
+      setDeleting(false);
     }
   }, [isOpen, mode, initialData]);
 
@@ -110,7 +116,23 @@ export function LineItemModal({
   };
 
   const handleCancel = () => {
-    if (!saving) onCancel();
+    if (!saving && !deleting) {
+      onCancel();
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!onDelete) {
+      return;
+    }
+    try {
+      setDeleting(true);
+      await onDelete();
+    } catch (err: any) {
+      setError(err.message || 'Failed to delete item');
+      setDeleting(false);
+      setConfirmingDelete(false);
+    }
   };
 
   const handleLineTypeChange = (newType: string) => {
@@ -266,19 +288,59 @@ export function LineItemModal({
             <button
               type="button"
               onClick={handleCancel}
-              disabled={saving}
+              disabled={saving || deleting}
               className="flex-1 h-12 border-2 border-black rounded font-dm-mono font-bold text-sm uppercase bg-white shadow-[2px_2px_0px_0px_#000] hover:bg-[#f3f3f3] active:translate-x-[2px] active:translate-y-[2px] active:shadow-none transition-all disabled:opacity-50"
             >
               Cancel
             </button>
             <button
               type="submit"
-              disabled={saving}
+              disabled={saving || deleting}
               className="flex-1 h-12 border-[4px] border-black rounded font-dm-mono font-bold text-sm uppercase bg-[#FFD700] text-black shadow-[4px_4px_0px_0px_#000] hover:bg-[#FFE44D] active:translate-x-[2px] active:translate-y-[2px] active:shadow-none transition-all disabled:opacity-50"
             >
               {saving ? 'Saving...' : mode === 'create' ? 'Add Item' : 'Save Changes'}
             </button>
           </div>
+
+          {/* Delete — edit mode only */}
+          {mode === 'edit' && onDelete && (
+            <div className="border-t-2 border-[#e2e2e2] pt-3">
+              {confirmingDelete ? (
+                <div className="flex flex-col gap-2">
+                  <p className="font-dm-mono text-[11px] text-center text-[#4d4732]">
+                    Remove this item and all its assignments?
+                  </p>
+                  <div className="flex gap-3">
+                    <button
+                      type="button"
+                      onClick={() => setConfirmingDelete(false)}
+                      disabled={deleting}
+                      className="flex-1 h-10 border-2 border-black rounded font-dm-mono font-bold text-xs uppercase bg-white shadow-[2px_2px_0px_0px_#000] active:translate-x-[2px] active:translate-y-[2px] active:shadow-none transition-all disabled:opacity-50"
+                    >
+                      Keep
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleDelete}
+                      disabled={deleting}
+                      className="flex-1 h-10 border-2 border-red-600 rounded font-dm-mono font-bold text-xs uppercase bg-red-50 text-red-600 shadow-[2px_2px_0px_0px_#991b1b] active:translate-x-[2px] active:translate-y-[2px] active:shadow-none transition-all disabled:opacity-50"
+                    >
+                      {deleting ? 'Deleting...' : 'Yes, Delete'}
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setConfirmingDelete(true)}
+                  disabled={saving || deleting}
+                  className="w-full font-dm-mono text-[11px] uppercase tracking-widest text-[#7e7576] hover:text-red-600 transition-colors text-center py-1 disabled:opacity-50"
+                >
+                  Delete Item
+                </button>
+              )}
+            </div>
+          )}
 
         </form>
       </div>
