@@ -37,13 +37,8 @@ export function DiscrepancyReviewWizard({
   const [fixedIds, setFixedIds] = useState<Set<number>>(new Set());
   const [localLines, setLocalLines] = useState<ReceiptLine[]>(lines);
   const [editingLine, setEditingLine] = useState<ReceiptLine | null>(null);
-  const [imageLoaded, setImageLoaded] = useState(false);
   const [done, setDone] = useState(false);
 
-  const imageRef = useRef<HTMLImageElement>(null);
-  const imageZoneRef = useRef<HTMLDivElement>(null);
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const loadedImgRef = useRef<HTMLImageElement | null>(null);
   const touchStartRef = useRef<{ x: number; y: number } | null>(null);
 
   useEffect(() => {
@@ -53,73 +48,7 @@ export function DiscrepancyReviewWizard({
     setLocalLines(lines);
     setEditingLine(null);
     setDone(false);
-    setImageLoaded(false);
-    loadedImgRef.current = null;
   }, [isOpen]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  // Load image for canvas thumbnail
-  useEffect(() => {
-    if (!isOpen || !imageURI) return;
-    const img = new Image();
-    img.crossOrigin = 'anonymous';
-    img.onload = () => {
-      loadedImgRef.current = img;
-      setImageLoaded(true);
-    };
-    img.onerror = () => {
-      const fallback = new Image();
-      fallback.onload = () => {
-        loadedImgRef.current = fallback;
-        setImageLoaded(true);
-      };
-      fallback.src = imageURI;
-    };
-    img.src = imageURI;
-  }, [isOpen, imageURI]);
-
-  // Draw thumbnail crop when step or image changes
-  useEffect(() => {
-    if (!imageLoaded || !loadedImgRef.current || !canvasRef.current || done) return;
-    const line = localLines[currentIndex];
-    const bbox = line?.lineSourceBbox;
-    if (!bbox) return;
-
-    const img = loadedImgRef.current;
-    const iw = img.naturalWidth;
-    const ih = img.naturalHeight;
-    const padX = bbox.w * 0.25;
-    const padY = bbox.h * 0.5;
-
-    const sx = Math.max(0, ((bbox.x - padX) / 100) * iw);
-    const sy = Math.max(0, ((bbox.y - padY) / 100) * ih);
-    const sw = Math.min(iw - sx, ((bbox.w + padX * 2) / 100) * iw);
-    const sh = Math.min(ih - sy, ((bbox.h + padY * 2) / 100) * ih);
-
-    const canvas = canvasRef.current;
-    canvas.width = 72;
-    canvas.height = 80;
-
-    try {
-      const ctx = canvas.getContext('2d');
-      ctx?.drawImage(img, sx, sy, sw, sh, 0, 0, 72, 80);
-    } catch {
-      // CORS-tainted canvas — thumbnail hidden gracefully
-    }
-  }, [currentIndex, imageLoaded, localLines, done]);
-
-  // Scroll image zone to center on bbox when step changes
-  useEffect(() => {
-    if (!imageRef.current || !imageZoneRef.current || !imageLoaded || done) return;
-    const line = localLines[currentIndex];
-    const bbox = line?.lineSourceBbox;
-    if (!bbox) return;
-
-    const imgH = imageRef.current.offsetHeight;
-    const zoneH = imageZoneRef.current.offsetHeight;
-    const bboxCenterY = ((bbox.y + bbox.h / 2) / 100) * imgH;
-
-    imageZoneRef.current.scrollTo({ top: Math.max(0, bboxCenterY - zoneH / 2), behavior: 'smooth' });
-  }, [currentIndex, imageLoaded, done, localLines]);
 
   const goNext = useCallback(() => {
     if (currentIndex < localLines.length - 1) {
@@ -184,7 +113,6 @@ export function DiscrepancyReviewWizard({
   if (!isOpen) return null;
 
   const currentLine = localLines[currentIndex];
-  const bbox = currentLine?.lineSourceBbox;
   const fixedCount = fixedIds.size;
 
   if (done) {
@@ -262,82 +190,36 @@ export function DiscrepancyReviewWizard({
           </div>
         </header>
 
-        {/* Image Zone */}
-        <div ref={imageZoneRef} className="flex-1 overflow-y-auto min-h-0">
-          <div className="relative">
-            <img
-              ref={imageRef}
-              src={imageURI}
-              alt="Receipt"
-              className="w-full h-auto block"
-            />
-            {bbox && (
-              <>
-                <div
-                  className="absolute inset-x-0 top-0 bg-black/50 pointer-events-none"
-                  style={{ height: `${bbox.y}%` }}
-                />
-                <div
-                  className="absolute inset-x-0 bg-black/50 pointer-events-none"
-                  style={{ top: `${bbox.y + bbox.h}%`, bottom: 0 }}
-                />
-                <div
-                  className="absolute bg-black/50 pointer-events-none"
-                  style={{ top: `${bbox.y}%`, height: `${bbox.h}%`, left: 0, width: `${bbox.x}%` }}
-                />
-                <div
-                  className="absolute bg-black/50 pointer-events-none"
-                  style={{ top: `${bbox.y}%`, height: `${bbox.h}%`, left: `${bbox.x + bbox.w}%`, right: 0 }}
-                />
-                <div
-                  className="absolute border border-[#FFD700] pointer-events-none transition-all duration-300"
-                  style={{ left: `${bbox.x}%`, top: `${bbox.y}%`, width: `${bbox.w}%`, height: `${bbox.h}%` }}
-                />
-              </>
-            )}
-          </div>
+        {/* Image Zone — reference only, user scrolls to find the item */}
+        <div className="flex-1 overflow-y-auto min-h-0">
+          <img
+            src={imageURI}
+            alt="Receipt"
+            className="w-full h-auto block"
+          />
         </div>
 
         {/* Bottom Panel */}
         <div className="flex-shrink-0 bg-[#fff9ef] border-t-4 border-black">
-          <div className="flex items-stretch gap-3 px-4 pt-4 pb-3">
-            {bbox ? (
-              <canvas
-                ref={canvasRef}
-                className="border-2 border-black flex-shrink-0"
-                style={{ width: 72, height: 80 }}
-              />
-            ) : (
-              <div
-                className="border-2 border-[#d0c6ab] bg-[#f3f3f3] flex-shrink-0 flex items-center justify-center"
-                style={{ width: 72, height: 80 }}
-              >
-                <span className="font-dm-mono text-[8px] uppercase text-[#7e7576] text-center px-1 leading-tight">
-                  No source
+          <div className="flex flex-col px-4 pt-4 pb-3 gap-1">
+            <div className="flex items-center gap-1.5 flex-wrap">
+              <span className="font-dm-mono text-[9px] uppercase tracking-widest bg-black text-white px-1.5 py-0.5">
+                {LINE_TYPE_LABELS[currentLine.receiptLineType] ?? currentLine.receiptLineType}
+              </span>
+              {fixedIds.has(currentLine.id) && (
+                <span className="font-dm-mono text-[9px] uppercase tracking-widest bg-[#bbf7d0] border border-[#16a34a] text-[#15803d] px-1.5 py-0.5">
+                  Fixed
                 </span>
-              </div>
-            )}
-
-            <div className="flex-1 flex flex-col justify-center gap-1 min-w-0">
-              <div className="flex items-center gap-1.5 flex-wrap">
-                <span className="font-dm-mono text-[9px] uppercase tracking-widest bg-black text-white px-1.5 py-0.5">
-                  {LINE_TYPE_LABELS[currentLine.receiptLineType] ?? currentLine.receiptLineType}
-                </span>
-                {fixedIds.has(currentLine.id) && (
-                  <span className="font-dm-mono text-[9px] uppercase tracking-widest bg-[#bbf7d0] border border-[#16a34a] text-[#15803d] px-1.5 py-0.5">
-                    Fixed
-                  </span>
-                )}
-              </div>
-              <p className="font-dm-sans font-bold text-[15px] uppercase leading-tight truncate">
-                {currentLine.itemName}
-              </p>
-              <p className="font-dm-mono text-xs text-[#4d4732]">
-                {currentLine.quantity} × {formatCurrency(currentLine.unitPrice)}
-                {' = '}
-                <span className="font-bold text-[#1b1b1b]">{formatCurrency(currentLine.totalPrice)}</span>
-              </p>
+              )}
             </div>
+            <p className="font-dm-sans font-bold text-[15px] uppercase leading-tight truncate">
+              {currentLine.itemName}
+            </p>
+            <p className="font-dm-mono text-xs text-[#4d4732]">
+              {currentLine.quantity} × {formatCurrency(currentLine.unitPrice)}
+              {' = '}
+              <span className="font-bold text-[#1b1b1b]">{formatCurrency(currentLine.totalPrice)}</span>
+            </p>
           </div>
 
           <div className="flex gap-3 px-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
