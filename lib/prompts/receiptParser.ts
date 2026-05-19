@@ -36,7 +36,13 @@ Each item in the receiptLines array must have:
    - Must equal unitPrice × quantity
    - For discounts: MUST be negative (e.g., -50.00 not 50.00)
 
-5. **receiptLineType** (enum: "PRCH" | "TIP" | "SRVC" | "DSCT" | "DADJ", required):
+5. **lineSourceBbox** (object, optional):
+   - The bounding box of this line's text on the receipt image, expressed as percentages of the image's total width and height
+   - Fields: x (left edge %), y (top edge %), w (width %), h (height %)
+   - Example: top-left corner at 5% from left, 32% from top, spanning 90% wide, 3% tall → { "x": 5, "y": 32, "w": 90, "h": 3 }
+   - Use null if the line location cannot be reliably determined
+
+6. **receiptLineType** (enum: "PRCH" | "TIP" | "SRVC" | "DSCT" | "DADJ", required):
    - "PRCH" (Purchase): Food, drinks, products, merchandise, any item being bought
    - "TIP" (Tip/Gratuity): Tip, gratuity, service tip
    - "SRVC" (Service Charge): Service charge, service fee, delivery fee, convenience fee
@@ -157,28 +163,32 @@ const EXAMPLE_OUTPUT = `
       "quantity": 2,
       "unitPrice": 120.00,
       "totalPrice": 240.00,
-      "receiptLineType": "PRCH"
+      "receiptLineType": "PRCH",
+      "lineSourceBbox": { "x": 5, "y": 28, "w": 90, "h": 3 }
     },
     {
       "itemName": "Croissant",
       "quantity": 1,
       "unitPrice": 85.00,
       "totalPrice": 85.00,
-      "receiptLineType": "PRCH"
+      "receiptLineType": "PRCH",
+      "lineSourceBbox": { "x": 5, "y": 32, "w": 90, "h": 3 }
     },
     {
       "itemName": "PWD",
       "quantity": 1,
       "unitPrice": -32.50,
       "totalPrice": -32.50,
-      "receiptLineType": "DSCT"
+      "receiptLineType": "DSCT",
+      "lineSourceBbox": { "x": 5, "y": 58, "w": 90, "h": 3 }
     },
     {
       "itemName": "Service Charge",
       "quantity": 1,
       "unitPrice": 20.00,
       "totalPrice": 20.00,
-      "receiptLineType": "SRVC"
+      "receiptLineType": "SRVC",
+      "lineSourceBbox": { "x": 5, "y": 62, "w": 90, "h": 3 }
     }
   ],
   "currency": "PHP",

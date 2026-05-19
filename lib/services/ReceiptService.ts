@@ -83,6 +83,7 @@ export class ReceiptService {
         unit_price: row.unit_price,
         line_type: row.line_type,
         line_position: row.line_position,
+        line_source_bbox: row.line_source_bbox ?? null,
         created_at: row.line_created_at,
         updated_at: row.line_updated_at,
         deleted_at: null,
@@ -125,6 +126,7 @@ export class ReceiptService {
         rl.unit_price,
         rl.line_type,
         rl.line_position,
+        rl.line_source_bbox,
         rl.created_at as line_created_at,
         rl.updated_at as line_updated_at
       FROM receipts r
@@ -155,6 +157,7 @@ export class ReceiptService {
         rl.unit_price,
         rl.line_type,
         rl.line_position,
+        rl.line_source_bbox,
         rl.created_at as line_created_at,
         rl.updated_at as line_updated_at
       FROM receipts r
@@ -264,16 +267,17 @@ export class ReceiptService {
 
     const insertPromises = parsedData.receiptLines.map((line, index) =>
       sql`
-        INSERT INTO receipt_lines (receipt_id, line_type, item_name, unit_price, quantity, line_position)
+        INSERT INTO receipt_lines (receipt_id, line_type, item_name, unit_price, quantity, line_position, line_source_bbox)
         VALUES (
           ${receiptId},
           ${line.receiptLineType},
           ${line.itemName},
           ${line.unitPrice},
           ${line.quantity},
-          ${index}
+          ${index},
+          ${line.lineSourceBbox ? JSON.stringify(line.lineSourceBbox) : null}
         )
-        RETURNING id, receipt_id, line_type, item_name, unit_price, quantity, line_position, created_at
+        RETURNING id, receipt_id, line_type, item_name, unit_price, quantity, line_position, line_source_bbox, created_at
       `
     );
 
