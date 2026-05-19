@@ -175,6 +175,11 @@ export function ReceiptCard({ summary, formatCurrency, receiptId, onSummaryUpdat
               <span className="font-bold">Subtotal:</span>
               <span className="font-bold">{formatCurrency(summary.subtotal)}</span>
             </div>
+            {scannedSubtotalDiff != null && (
+              <p className="font-dm-mono text-[10px] text-[#4d4732] text-right -mt-1 pb-1">
+                receipt says {formatCurrency(scannedSubtotal!)} ({scannedSubtotalDiff >= 0 ? '+' : ''}{formatCurrency(scannedSubtotalDiff)})
+              </p>
+            )}
 
             <div className="space-y-0.5 mt-1">
               {summary.receipt.lines

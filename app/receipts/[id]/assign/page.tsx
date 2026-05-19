@@ -51,10 +51,15 @@ export default function AssignPage({ params }: { params: Promise<{ id: string }>
   const [receiptImageURI, setReceiptImageURI] = useState<string | null>(null);
   const [receiptTitle, setReceiptTitle] = useState<string>('');
   const [receiptShareCode, setReceiptShareCode] = useState<string | null>(null);
+  const [scannedSubtotal, setScannedSubtotal] = useState<number | null>(null);
   const titleInputRef = useRef<HTMLInputElement>(null);
   const [showReceiptImage, setShowReceiptImage] = useState(false);
   const [showKebabMenu, setShowKebabMenu] = useState(false);
   const [deleteConfirmLine, setDeleteConfirmLine] = useState<ReceiptLine | null>(null);
+  const [pendingLineEdit, setPendingLineEdit] = useState<{
+    data: { itemName: string; quantity: number; unitPrice: number; receiptLineType?: string };
+    line: ReceiptLine;
+  } | null>(null);
   const [showHelpModal, setShowHelpModal] = useState(false);
   const [assignModalLine, setAssignModalLine] = useState<ReceiptLine | null>(null);
   const [openKebabId, setOpenKebabId] = useState<number | null>(null);
@@ -88,6 +93,7 @@ export default function AssignPage({ params }: { params: Promise<{ id: string }>
         setReceiptImageURI(splitGroup.receipt.imageURI || null);
         setReceiptTitle(splitGroup.receipt.title || '');
         setReceiptShareCode(splitGroup.receipt.shareCode || null);
+        setScannedSubtotal(splitGroup.receipt.scannedSubtotal ?? null);
 
         const assignmentsData: LineAssignments = {};
         splitGroup.assignments.forEach((assignment) => {
@@ -125,6 +131,9 @@ export default function AssignPage({ params }: { params: Promise<{ id: string }>
 
   const getPurchaseSubtotal = () =>
     purchaseLines.reduce((sum, line) => sum + line.quantity * line.unitPrice, 0);
+
+  const subtotalMismatch =
+    scannedSubtotal != null && Math.abs(scannedSubtotal - getPurchaseSubtotal()) > 0.01;
 
   const handleSetShares = (lineId: number, participantId: number, quantity: number) => {
     setAssignments(prev => {
@@ -332,6 +341,17 @@ export default function AssignPage({ params }: { params: Promise<{ id: string }>
   }) => {
     try {
       if (lineItemModalMode === 'edit' && editingLine) {
+        if (
+          editingLine.receiptLineType === 'PRCH' &&
+          (data.quantity !== editingLine.quantity || data.unitPrice !== editingLine.unitPrice) &&
+          hasAssignments(editingLine.id)
+        ) {
+          setPendingLineEdit({ data, line: editingLine });
+          setShowLineItemModal(false);
+          setEditingLine(null);
+          return;
+        }
+
         const updateData: any = {
           itemName: data.itemName,
           quantity: data.quantity,
@@ -347,17 +367,6 @@ export default function AssignPage({ params }: { params: Promise<{ id: string }>
               : line
           )
         );
-
-        if (
-          editingLine.receiptLineType === 'PRCH' &&
-          (data.quantity !== editingLine.quantity || data.unitPrice !== editingLine.unitPrice)
-        ) {
-          setAssignments((prev) => {
-            const next = { ...prev };
-            delete next[editingLine.id];
-            return next;
-          });
-        }
       } else {
         const receiptLineType = data.receiptLineType || (currentView === 'items' ? 'PRCH' : currentView === 'discounts' ? 'DSCT' : 'SRVC');
         const newLine = await api.lines.create(receiptId, {
@@ -380,6 +389,36 @@ export default function AssignPage({ params }: { params: Promise<{ id: string }>
   const handleCancelLineItemModal = () => {
     setShowLineItemModal(false);
     setEditingLine(null);
+  };
+
+  const confirmLineEdit = async () => {
+    if (!pendingLineEdit) return;
+    const { data, line } = pendingLineEdit;
+    setPendingLineEdit(null);
+    try {
+      const updateData: any = {
+        itemName: data.itemName,
+        quantity: data.quantity,
+        unitPrice: data.unitPrice,
+      };
+      if (data.receiptLineType) updateData.receiptLineType = data.receiptLineType;
+
+      await api.lines.update(receiptId, line.id, updateData);
+      setAllLines((prev) =>
+        prev.map((l) =>
+          l.id === line.id
+            ? { ...l, ...data, receiptLineType: data.receiptLineType || l.receiptLineType }
+            : l
+        )
+      );
+      setAssignments((prev) => {
+        const next = { ...prev };
+        delete next[line.id];
+        return next;
+      });
+    } catch (err: any) {
+      setError(err.message || 'Failed to save item');
+    }
   };
 
   const handleDeleteLineItem = (line: ReceiptLine) => {
@@ -543,8 +582,10 @@ export default function AssignPage({ params }: { params: Promise<{ id: string }>
         {/* Items view */}
         {currentView === 'items' && (
           <>
-            {purchaseLines.length === 0 && (
+            {purchaseLines.length === 0 ? (
               <p className="text-center font-bold py-4 font-dm-sans text-sm">No items yet — add one below.</p>
+            ) : participants.length > 0 && (
+              <p className="font-dm-mono text-xs text-[#4c4546] px-1">Tap any item to choose who shared it, or select a person below first.</p>
             )}
 
             {purchaseLines.map((line) => {
@@ -707,7 +748,7 @@ export default function AssignPage({ params }: { params: Promise<{ id: string }>
             <p className="font-dm-mono text-xs text-[#4c4546] px-1">Review tax, tip, and service charges.</p>
 
             {miscChargeLines.map((line) => (
-              <div key={line.id} className="bg-white border-4 border-black p-[10px_14px] rounded-lg flex flex-col gap-1 shadow-[3px_3px_0px_0px_#000]">
+              <div key={line.id} className="bg-white border-2 border-[#c5bdb7] p-[10px_14px] rounded-lg flex flex-col gap-1">
                 {/* Row 1: name (left) + total (right) + kebab */}
                 <div className="flex items-center gap-2">
                   <h2 className="font-dm-sans font-bold text-[14px] uppercase leading-tight flex-1">{line.itemName}</h2>
@@ -747,7 +788,7 @@ export default function AssignPage({ params }: { params: Promise<{ id: string }>
               <div className="p-1 bg-black text-white rounded-full group-hover:scale-110 transition-transform flex items-center justify-center">
                 <Plus className="w-4 h-4" />
               </div>
-              <span className="font-dm-sans font-bold uppercase text-sm">ADD ITEM</span>
+              <span className="font-dm-sans font-bold uppercase text-sm">ADD CHARGE</span>
             </button>
           </>
         )}
@@ -807,11 +848,16 @@ export default function AssignPage({ params }: { params: Promise<{ id: string }>
         {/* Action row: subtotal + continue */}
         <div className="flex items-stretch h-12">
           {/* Subtotal */}
-          <div className="flex flex-col items-center justify-center w-1/3 border-r-4 border-black px-3 gap-0.5">
+          <div className="flex flex-col items-center justify-center w-1/3 border-r-4 border-black px-3 gap-0">
             <span className="font-dm-mono text-[7px] uppercase font-bold text-[#7e7576] tracking-wider">Subtotal</span>
             <span className="font-dm-sans font-bold text-xs leading-tight">
               {formatCurrency(getPurchaseSubtotal())}
             </span>
+            {subtotalMismatch && (
+              <span className="font-dm-mono text-[8px] text-[#4d4732] leading-tight">
+                rcpt {formatCurrency(scannedSubtotal!)}
+              </span>
+            )}
           </div>
 
           {/* Continue button */}
@@ -883,6 +929,45 @@ export default function AssignPage({ params }: { params: Promise<{ id: string }>
         onSave={handleSaveLineItem}
         onCancel={handleCancelLineItemModal}
       />
+
+      {/* Clear Assignments Confirmation Modal */}
+      {pendingLineEdit && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4"
+          onClick={() => setPendingLineEdit(null)}
+        >
+          <div
+            className="bg-white border-[4px] border-black shadow-[6px_6px_0px_0px_#000] rounded-lg p-4 w-full max-w-sm flex flex-col gap-4"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex flex-col gap-1">
+              <h2 className="font-dm-sans font-bold text-xl uppercase text-center border-b-2 border-black pb-2">
+                Clear Assignments?
+              </h2>
+              <div className="text-center py-2">
+                <p className="font-dm-sans text-base text-[#4d4732]">"{pendingLineEdit.line.itemName}"</p>
+                <p className="font-dm-mono text-[10px] uppercase tracking-wide text-[#7e7576] mt-1">
+                  Changing the price or quantity will remove everyone assigned to this item.
+                </p>
+              </div>
+            </div>
+            <div className="flex gap-2">
+              <button
+                onClick={() => setPendingLineEdit(null)}
+                className="flex-1 py-2 px-3 bg-white border-2 border-black font-dm-mono font-bold text-sm uppercase shadow-[2px_2px_0px_0px_#000] active:translate-x-[2px] active:translate-y-[2px] active:shadow-none transition-all"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={confirmLineEdit}
+                className="flex-1 py-2 px-3 bg-black text-white border-2 border-black font-dm-mono font-bold text-sm uppercase shadow-[2px_2px_0px_0px_#000] active:translate-x-[2px] active:translate-y-[2px] active:shadow-none transition-all"
+              >
+                Update Item
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Delete Confirmation Modal */}
       {deleteConfirmLine && (
@@ -968,7 +1053,7 @@ export default function AssignPage({ params }: { params: Promise<{ id: string }>
                     </div>
                   </div>
                   <p className="font-dm-sans font-bold text-sm text-center">
-                    Tap an <span className="bg-[#FFD700] px-1">item</span> then select the <span className="underline">friends</span> who shared it.
+                    Tap an <span className="bg-[#FFD700] px-1">item</span> — a picker opens so you choose which friends shared it.
                   </p>
                 </div>
 
