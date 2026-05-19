@@ -11,6 +11,7 @@ import { ParticipantSplits } from '@/components/ParticipantSplits';
 import { KebabMenu } from '@/components/KebabMenu';
 import { ShareCodeBadge } from '@/components/ShareCodeBadge';
 import { formatCurrency } from '@/lib/helpers/CurrencyHelper';
+import { DiscrepancyReviewWizard } from '@/components/DiscrepancyReviewWizard';
 
 const stepLabels = [
   { num: '01', label: 'Receipt Items' },
@@ -34,6 +35,7 @@ export default function SummaryPage({ params }: { params: Promise<{ id: string }
   const [mismatchDismissed, setMismatchDismissed] = useState(false);
   const [addingAdjustment, setAddingAdjustment] = useState(false);
   const [showDiscrepancyInfo, setShowDiscrepancyInfo] = useState(false);
+  const [showReviewWizard, setShowReviewWizard] = useState(false);
 
   useEffect(() => {
     async function fetchSummary() {
@@ -102,6 +104,21 @@ export default function SummaryPage({ params }: { params: Promise<{ id: string }
     }
   };
 
+  const handleWizardDone = async () => {
+    setShowReviewWizard(false);
+    setShowMismatchModal(false);
+    setMismatchDismissed(false);
+    const updated = await api.receipts.getSummary(receiptId);
+    setSummary(updated);
+    const hasAdjustment = updated.receipt.lines?.some(l => l.receiptLineType === 'DADJ') ?? false;
+    if (updated.receipt.scannedTotal != null && !hasAdjustment) {
+      const diff = updated.receipt.scannedTotal - updated.total;
+      if (Math.abs(diff) > 0.01) {
+        setShowMismatchModal(true);
+      }
+    }
+  };
+
   if (loading) return <LoadingScreen message="Loading summary..." />;
 
   if (!summary) {
@@ -122,7 +139,7 @@ export default function SummaryPage({ params }: { params: Promise<{ id: string }
   }
 
   return (
-    <div className="min-h-dvh flex flex-col bg-[#fff9ef] text-[#1b1b1b] pb-[148px]">
+    <div className="min-h-dvh flex flex-col bg-[#fff9ef] text-[#1b1b1b] pb-[196px]">
 
       {/* Sticky Header */}
       <header className="sticky top-0 z-40 bg-white border-b-4 border-black w-full">
@@ -226,7 +243,7 @@ export default function SummaryPage({ params }: { params: Promise<{ id: string }
       </main>
 
       {/* Fixed Bottom Nav */}
-      <nav className="fixed bottom-0 left-0 w-full z-50 bg-white border-t-4 border-black px-4 pt-3 pb-[max(1rem,env(safe-area-inset-bottom))]">
+      <nav className="fixed bottom-0 left-0 w-full z-50 bg-white border-t-4 border-black px-4 pt-3 pb-[max(1rem,env(safe-area-inset-bottom))] flex flex-col gap-2">
         <button
           onClick={handleFinalize}
           disabled={finalizing}
@@ -234,6 +251,21 @@ export default function SummaryPage({ params }: { params: Promise<{ id: string }
         >
           {finalizing ? 'Finalizing...' : 'Finalize Receipt →'}
         </button>
+        {summary.receipt.imageURI && summary.receipt.lines && summary.receipt.lines.length > 0 ? (
+          <button
+            onClick={() => setShowReviewWizard(true)}
+            className="w-full h-10 border-2 border-black rounded-lg font-dm-mono font-bold text-sm uppercase bg-white shadow-[2px_2px_0px_0px_#000] hover:bg-[#f3f3f3] active:translate-x-[2px] active:translate-y-[2px] active:shadow-none transition-all"
+          >
+            Review Lines
+          </button>
+        ) : (
+          <button
+            onClick={() => router.push(`/receipts/${receiptId}/assign`)}
+            className="w-full h-10 border-2 border-black rounded-lg font-dm-mono font-bold text-sm uppercase bg-white shadow-[2px_2px_0px_0px_#000] hover:bg-[#f3f3f3] active:translate-x-[2px] active:translate-y-[2px] active:shadow-none transition-all"
+          >
+            ← Edit Lines
+          </button>
+        )}
       </nav>
 
       {/* Mismatch Bottom Sheet */}
@@ -302,12 +334,21 @@ export default function SummaryPage({ params }: { params: Promise<{ id: string }
                 >
                   {addingAdjustment ? 'Adding...' : `Add ${sign}${formatCurrency(discrepancy)} Adjustment`}
                 </button>
-                <button
-                  onClick={() => router.push(`/receipts/${receiptId}/assign`)}
-                  className="w-full h-12 border-4 border-black rounded-lg font-dm-mono font-bold text-sm uppercase bg-white shadow-[2px_2px_0px_0px_#000] hover:bg-[#f3f3f3] active:translate-x-[2px] active:translate-y-[2px] active:shadow-none transition-all"
-                >
-                  Go Back and Review Lines
-                </button>
+                {summary?.receipt.imageURI && summary.receipt.lines && summary.receipt.lines.length > 0 ? (
+                  <button
+                    onClick={() => { setShowMismatchModal(false); setShowReviewWizard(true); }}
+                    className="w-full h-12 border-4 border-black rounded-lg font-dm-mono font-bold text-sm uppercase bg-white shadow-[2px_2px_0px_0px_#000] hover:bg-[#f3f3f3] active:translate-x-[2px] active:translate-y-[2px] active:shadow-none transition-all"
+                  >
+                    Review Line by Line
+                  </button>
+                ) : (
+                  <button
+                    onClick={() => router.push(`/receipts/${receiptId}/assign`)}
+                    className="w-full h-12 border-4 border-black rounded-lg font-dm-mono font-bold text-sm uppercase bg-white shadow-[2px_2px_0px_0px_#000] hover:bg-[#f3f3f3] active:translate-x-[2px] active:translate-y-[2px] active:shadow-none transition-all"
+                  >
+                    Go Back and Review Lines
+                  </button>
+                )}
                 <button
                   onClick={() => { setShowMismatchModal(false); setMismatchDismissed(true); }}
                   className="font-dm-mono text-[10px] uppercase tracking-widest text-[#4d4732] hover:text-black transition-colors text-center py-1"
@@ -319,6 +360,18 @@ export default function SummaryPage({ params }: { params: Promise<{ id: string }
           </>
         );
       })()}
+
+      {/* Discrepancy Review Wizard */}
+      {summary?.receipt.imageURI && summary.receipt.lines && (
+        <DiscrepancyReviewWizard
+          isOpen={showReviewWizard}
+          receiptId={receiptId}
+          imageURI={summary.receipt.imageURI}
+          lines={summary.receipt.lines}
+          onClose={() => setShowReviewWizard(false)}
+          onDone={handleWizardDone}
+        />
+      )}
 
       {/* Receipt Image Modal */}
       {showReceiptImage && summary.receipt.imageURI && (

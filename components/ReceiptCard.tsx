@@ -3,9 +3,7 @@
 import React, { useState } from 'react';
 import { ChevronDown, ChevronUp, Info, Pencil } from 'lucide-react';
 import type { ReceiptSummary } from '@/lib/schemas/receipt/public/ReceiptSummary';
-import type { ReceiptLine } from '@/lib/schemas/receipt/public/ReceiptLine';
 import { api } from '@/lib/client/api-client';
-import { LineItemModal } from './LineItemModal';
 
 interface Props {
   summary: ReceiptSummary;
@@ -20,39 +18,9 @@ export function ReceiptCard({ summary, formatCurrency, receiptId, onSummaryUpdat
   const editable = receiptId !== undefined && onSummaryUpdate !== undefined;
   const [isExpanded, setIsExpanded] = useState(false);
   const [adjInfoLineId, setAdjInfoLineId] = useState<number | null>(null);
-  const [editingLine, setEditingLine] = useState<ReceiptLine | null>(null);
   const [editingTitle, setEditingTitle] = useState(false);
   const [titleValue, setTitleValue] = useState('');
   const [savingTitle, setSavingTitle] = useState(false);
-
-  function lineHasAssignments(lineId: number): boolean {
-    return summary.participantSplits.some(split =>
-      split.lineItems.some(item => item.receiptLineId === lineId)
-    );
-  }
-
-  const handleLineSave = async (data: {
-    itemName: string;
-    quantity: number;
-    unitPrice: number;
-    receiptLineType?: string;
-  }) => {
-    if (!editingLine || !editable) {
-      return;
-    }
-    await api.lines.update(receiptId!, editingLine.id, data);
-    setEditingLine(null);
-    onSummaryUpdate!();
-  };
-
-  const handleLineDelete = async () => {
-    if (!editingLine || !editable) {
-      return;
-    }
-    await api.lines.delete(receiptId!, editingLine.id);
-    setEditingLine(null);
-    onSummaryUpdate!();
-  };
 
   const handleTitleEdit = () => {
     setTitleValue(summary.receipt.title || '');
@@ -158,15 +126,6 @@ export function ReceiptCard({ summary, formatCurrency, receiptId, onSummaryUpdat
                   <div key={line.id} className="flex justify-between items-center font-dm-mono text-[12px] py-1">
                     <span className="flex-1">{line.itemName}{line.quantity !== 1 && ` (×${line.quantity})`}</span>
                     <span className="font-bold ml-4">{formatCurrency(line.totalPrice)}</span>
-                    {editable && (
-                      <button
-                        onClick={() => setEditingLine(line)}
-                        className="p-2 -mr-2 flex-shrink-0 text-[#7e7576] hover:text-black transition-colors"
-                        aria-label={`Edit ${line.itemName}`}
-                      >
-                        <Pencil className="w-3.5 h-3.5" />
-                      </button>
-                    )}
                   </div>
                 ))}
             </div>
@@ -182,15 +141,6 @@ export function ReceiptCard({ summary, formatCurrency, receiptId, onSummaryUpdat
                   <div key={line.id} className="flex justify-between items-center font-dm-mono text-[12px] py-1 text-[#4d4732]">
                     <span className="flex-1">{line.itemName}{line.quantity !== 1 && ` (×${line.quantity})`}</span>
                     <span className="font-bold ml-4">{formatCurrency(line.totalPrice)}</span>
-                    {editable && (
-                      <button
-                        onClick={() => setEditingLine(line)}
-                        className="p-2 -mr-2 flex-shrink-0 text-[#4d4732] hover:text-black transition-colors"
-                        aria-label={`Edit ${line.itemName}`}
-                      >
-                        <Pencil className="w-3.5 h-3.5" />
-                      </button>
-                    )}
                   </div>
                 ))}
               {summary.receipt.lines
@@ -199,15 +149,6 @@ export function ReceiptCard({ summary, formatCurrency, receiptId, onSummaryUpdat
                   <div key={line.id} className="flex justify-between items-center font-dm-mono text-[12px] py-1 text-green-700">
                     <span className="flex-1">{line.itemName}{line.quantity !== 1 && ` (×${line.quantity})`}</span>
                     <span className="font-bold ml-4">{formatCurrency(line.totalPrice)}</span>
-                    {editable && (
-                      <button
-                        onClick={() => setEditingLine(line)}
-                        className="p-2 -mr-2 flex-shrink-0 text-green-700 hover:text-green-900 transition-colors"
-                        aria-label={`Edit ${line.itemName}`}
-                      >
-                        <Pencil className="w-3.5 h-3.5" />
-                      </button>
-                    )}
                   </div>
                 ))}
               {summary.receipt.lines
@@ -243,20 +184,6 @@ export function ReceiptCard({ summary, formatCurrency, receiptId, onSummaryUpdat
         )}
       </section>
 
-      <LineItemModal
-        isOpen={editable && editingLine !== null}
-        mode="edit"
-        initialData={editingLine ? {
-          itemName: editingLine.itemName,
-          quantity: Number(editingLine.quantity),
-          unitPrice: Number(editingLine.unitPrice),
-          receiptLineType: editingLine.receiptLineType,
-        } : undefined}
-        hasAssignments={editingLine ? lineHasAssignments(editingLine.id) : false}
-        onSave={handleLineSave}
-        onCancel={() => setEditingLine(null)}
-        onDelete={handleLineDelete}
-      />
     </>
   );
 }
