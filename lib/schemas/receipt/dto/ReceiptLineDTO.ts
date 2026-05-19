@@ -16,7 +16,6 @@ export const ReceiptLineDTOSchema = z.object({
   unit_price: z.coerce.number(),
   line_type: ReceiptLineTypeSchema,
   line_position: z.coerce.number().default(0),
-  line_source_bbox: z.any().nullable().optional(),
   created_at: z.date(),
   updated_at: z.date(),
   deleted_at: z.date().nullable(),
@@ -45,7 +44,6 @@ export function toReceiptLine(dto: ReceiptLineDTO) {
     totalPrice: dto.unit_price * dto.quantity, // derived
     receiptLineType: dto.line_type,
     linePosition: dto.line_position,
-    lineSourceBbox: dto.line_source_bbox ?? null,
     createdAt: dto.created_at,
     updatedAt: dto.updated_at,
     deletedAt: dto.deleted_at,

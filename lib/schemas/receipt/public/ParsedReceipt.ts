@@ -4,22 +4,12 @@ import { ReceiptLineTypeSchema } from './ReceiptLineType';
 /**
  * Zod schema for parsed receipt line
  */
-const BBOXSchema = z.object({
-  x: z.number().describe('Left edge as % of image width (0–100)'),
-  y: z.number().describe('Top edge as % of image height (0–100)'),
-  w: z.number().describe('Width as % of image width (0–100)'),
-  h: z.number().describe('Height as % of image height (0–100)'),
-});
-
 const ParsedReceiptLineSchema = z.object({
   itemName: z.string().max(255).describe('The item or charge description'),
   quantity: z.number().positive().describe('The quantity'),
   unitPrice: z.number().describe('The price per unit'),
   totalPrice: z.number().describe('Total for this line (unitPrice × quantity)'),
   receiptLineType: ReceiptLineTypeSchema.describe('Type of line item'),
-  lineSourceBbox: BBOXSchema.nullable().optional().describe(
-    'Bounding box of this line on the receipt image, as percentages of image dimensions. x/y = top-left corner, w/h = size. Null if not determinable.'
-  ),
 });
 
 /**
