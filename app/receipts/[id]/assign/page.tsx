@@ -557,23 +557,24 @@ export default function AssignPage({ params }: { params: Promise<{ id: string }>
                 <div
                   key={line.id}
                   onClick={() => activeParticipantId ? handleLineSelection(line.id) : setAssignModalLine(line)}
-                  className={`bg-white border-4 border-black p-[12px_16px] rounded-lg flex flex-col gap-2 cursor-pointer transition-all shadow-[3px_3px_0px_0px_#000] active:translate-x-[2px] active:translate-y-[2px] active:shadow-[1px_1px_0px_0px_#000] ${
+                  className={`bg-white border-4 border-black p-[10px_14px] rounded-lg flex flex-col gap-1 cursor-pointer transition-all shadow-[3px_3px_0px_0px_#000] active:translate-x-[2px] active:translate-y-[2px] active:shadow-[1px_1px_0px_0px_#000] ${
                     isUnassigned ? 'border-orange-500 bg-orange-50' :
                     isAssignedToSelectedParticipant ? 'border-green-500 bg-green-50' :
                     isAssignmentMode ? 'hover:bg-purple-50 hover:border-purple-400' :
                     'hover:bg-[#f9f9f0] hover:border-[#ccb800]'
                   }`}
                 >
-                  {/* Row 1: name only */}
-                  <h2 className="font-dm-sans font-bold text-[16px] uppercase leading-tight">{line.itemName}</h2>
+                  {/* Row 1: name (left) + total (right) */}
+                  <div className="flex items-center justify-between gap-2">
+                    <h2 className="font-dm-sans font-bold text-[14px] uppercase leading-tight flex-1">{line.itemName}</h2>
+                    <span className="font-dm-mono font-bold text-[12px] tabular-nums flex-shrink-0">{formatCurrency(line.quantity * line.unitPrice)}</span>
+                  </div>
 
-                  {/* Row 2: price pill + participant circles */}
-                  <div className="flex justify-between items-end">
-                    <div className="bg-[#e2e2e2] border-2 border-black rounded-full px-2 py-0.5 flex items-center w-max">
-                      <span className="font-dm-mono text-[10px] uppercase font-bold text-[#1b1b1b]">
-                        {line.quantity} × {formatCurrency(line.unitPrice)} = {formatCurrency(line.quantity * line.unitPrice)}
-                      </span>
-                    </div>
+                  {/* Row 2: unit price (left) + participant circles (right) */}
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="font-dm-mono text-[10px] text-[#7e7576]">
+                      {line.quantity} × {formatCurrency(line.unitPrice)}
+                    </span>
                     <div className="flex -space-x-2">
                       {assignedParticipants.length > 0 ? assignedParticipants.map((p, idx) => {
                         const colorIdx = participants.findIndex(pp => pp.id === p.id);
@@ -634,10 +635,12 @@ export default function AssignPage({ params }: { params: Promise<{ id: string }>
                 <div
                   key={line.id}
                   onClick={() => setAssignModalLine(line)}
-                  className="bg-white border-4 border-black p-[12px_16px] rounded-lg flex flex-col gap-2 cursor-pointer transition-all shadow-[3px_3px_0px_0px_#000] active:translate-x-[2px] active:translate-y-[2px] active:shadow-[1px_1px_0px_0px_#000] hover:bg-[#f3f3f3] hover:border-[#ccb800]"
+                  className="bg-white border-4 border-black p-[10px_14px] rounded-lg flex flex-col gap-1 cursor-pointer transition-all shadow-[3px_3px_0px_0px_#000] active:translate-x-[2px] active:translate-y-[2px] active:shadow-[1px_1px_0px_0px_#000] hover:bg-[#f3f3f3] hover:border-[#ccb800]"
                 >
+                  {/* Row 1: name (left) + total (right) + kebab */}
                   <div className="flex items-center gap-2">
-                    <h2 className="font-dm-sans font-bold text-[16px] uppercase leading-tight flex-1 truncate text-green-700">{line.itemName}</h2>
+                    <h2 className="font-dm-sans font-bold text-[14px] uppercase leading-tight flex-1 text-green-700">{line.itemName}</h2>
+                    <span className="font-dm-mono font-bold text-[12px] tabular-nums text-green-700 flex-shrink-0">{formatCurrency(line.quantity * line.unitPrice)}</span>
                     <div className="relative flex-shrink-0" onClick={e => e.stopPropagation()}>
                       <button
                         onClick={() => setOpenKebabId(openKebabId === line.id ? null : line.id)}
@@ -659,12 +662,9 @@ export default function AssignPage({ params }: { params: Promise<{ id: string }>
                       )}
                     </div>
                   </div>
-                  <div className="flex justify-between items-end">
-                    <div className="bg-green-100 border-2 border-green-600 rounded-full px-2 py-0.5 flex items-center w-max">
-                      <span className="font-dm-mono text-[10px] uppercase font-bold text-green-700">
-                        {formatCurrency(line.quantity * line.unitPrice)}
-                      </span>
-                    </div>
+
+                  {/* Row 2: participant circles (or proportional) */}
+                  <div className="flex justify-end">
                     <div className="flex -space-x-2">
                       {assignedParticipants.length > 0 ? assignedParticipants.map((p, idx) => {
                         const colorIdx = participants.findIndex(pp => pp.id === p.id);
@@ -707,9 +707,11 @@ export default function AssignPage({ params }: { params: Promise<{ id: string }>
             <p className="font-dm-mono text-xs text-[#4c4546] px-1">Review tax, tip, and service charges.</p>
 
             {miscChargeLines.map((line) => (
-              <div key={line.id} className="bg-white border-4 border-black p-[12px_16px] rounded-lg flex flex-col gap-2 shadow-[3px_3px_0px_0px_#000]">
+              <div key={line.id} className="bg-white border-4 border-black p-[10px_14px] rounded-lg flex flex-col gap-1 shadow-[3px_3px_0px_0px_#000]">
+                {/* Row 1: name (left) + total (right) + kebab */}
                 <div className="flex items-center gap-2">
-                  <h2 className="font-dm-sans font-bold text-[16px] uppercase leading-tight flex-1 truncate">{line.itemName}</h2>
+                  <h2 className="font-dm-sans font-bold text-[14px] uppercase leading-tight flex-1">{line.itemName}</h2>
+                  <span className="font-dm-mono font-bold text-[12px] tabular-nums flex-shrink-0">{formatCurrency(line.quantity * line.unitPrice)}</span>
                   <div className="relative flex-shrink-0">
                     <button
                       onClick={() => setOpenKebabId(openKebabId === line.id ? null : line.id)}
@@ -731,11 +733,10 @@ export default function AssignPage({ params }: { params: Promise<{ id: string }>
                     )}
                   </div>
                 </div>
-                <div className="bg-[#e2e2e2] border-2 border-black rounded-full px-2 py-0.5 flex items-center w-max">
-                  <span className="font-dm-mono text-[10px] uppercase font-bold text-[#1b1b1b]">
-                    {line.quantity} × {formatCurrency(line.unitPrice)} = {formatCurrency(line.quantity * line.unitPrice)}
-                  </span>
-                </div>
+                {/* Row 2: unit price breakdown */}
+                <span className="font-dm-mono text-[10px] text-[#7e7576]">
+                  {line.quantity} × {formatCurrency(line.unitPrice)}
+                </span>
               </div>
             ))}
 
