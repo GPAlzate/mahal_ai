@@ -51,7 +51,6 @@ export default function AssignPage({ params }: { params: Promise<{ id: string }>
   const [receiptImageURI, setReceiptImageURI] = useState<string | null>(null);
   const [receiptTitle, setReceiptTitle] = useState<string>('');
   const [receiptShareCode, setReceiptShareCode] = useState<string | null>(null);
-  const [scannedSubtotal, setScannedSubtotal] = useState<number | null>(null);
   const titleInputRef = useRef<HTMLInputElement>(null);
   const [showReceiptImage, setShowReceiptImage] = useState(false);
   const [showKebabMenu, setShowKebabMenu] = useState(false);
@@ -93,8 +92,6 @@ export default function AssignPage({ params }: { params: Promise<{ id: string }>
         setReceiptImageURI(splitGroup.receipt.imageURI || null);
         setReceiptTitle(splitGroup.receipt.title || '');
         setReceiptShareCode(splitGroup.receipt.shareCode || null);
-        setScannedSubtotal(splitGroup.receipt.scannedSubtotal ?? null);
-
         const assignmentsData: LineAssignments = {};
         splitGroup.assignments.forEach((assignment) => {
           if (!assignmentsData[assignment.receiptLineId]) {
@@ -131,9 +128,6 @@ export default function AssignPage({ params }: { params: Promise<{ id: string }>
 
   const getPurchaseSubtotal = () =>
     purchaseLines.reduce((sum, line) => sum + line.quantity * line.unitPrice, 0);
-
-  const subtotalMismatch =
-    scannedSubtotal != null && Math.abs(scannedSubtotal - getPurchaseSubtotal()) > 0.01;
 
   const handleSetShares = (lineId: number, participantId: number, quantity: number) => {
     setAssignments(prev => {
@@ -853,11 +847,6 @@ export default function AssignPage({ params }: { params: Promise<{ id: string }>
             <span className="font-dm-sans font-bold text-xs leading-tight">
               {formatCurrency(getPurchaseSubtotal())}
             </span>
-            {subtotalMismatch && (
-              <span className="font-dm-mono text-[8px] text-[#4d4732] leading-tight">
-                rcpt {formatCurrency(scannedSubtotal!)}
-              </span>
-            )}
           </div>
 
           {/* Continue button */}
