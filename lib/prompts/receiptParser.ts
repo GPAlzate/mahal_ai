@@ -164,8 +164,7 @@ const EXAMPLE_OUTPUT = `
       "quantity": 1,
       "unitPrice": 85.00,
       "totalPrice": 85.00,
-      "receiptLineType": "PRCH",
-      "lineSourceBbox": { "x": 5, "y": 32, "w": 90, "h": 3 }
+      "receiptLineType": "PRCH"
     },
     {
       "itemName": "PWD",
