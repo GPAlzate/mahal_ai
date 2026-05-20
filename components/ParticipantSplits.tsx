@@ -208,7 +208,7 @@ export function ParticipantSplits({ receiptId, participantSplits, ownerId, forma
                   <span className="font-bold text-sm">{formatCurrency(split.total)}</span>
                 </div>
 
-                {isOwner ? (
+                {showOwnerUI ? (
                   <>
                     {needsConfirmation && (
                       <button
