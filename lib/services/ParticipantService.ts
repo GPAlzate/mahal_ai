@@ -135,7 +135,6 @@ export class ParticipantService {
 
     return toParticipant(toParticipantDTO(result[0]));
   }
-}
 
   async updatePaymentStatus(
     receiptId: number,

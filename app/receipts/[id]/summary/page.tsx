@@ -239,7 +239,12 @@ export default function SummaryPage({ params }: { params: Promise<{ id: string }
             setSummary(updated);
           }}
         />
-        <ParticipantSplits participantSplits={summary.participantSplits} formatCurrency={formatCurrency} />
+        <ParticipantSplits
+          receiptId={receiptId}
+          participantSplits={summary.participantSplits}
+          ownerId={summary.receipt.ownerId}
+          formatCurrency={formatCurrency}
+        />
       </main>
 
       {/* Fixed Bottom Nav */}

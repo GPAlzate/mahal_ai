@@ -3,24 +3,53 @@
 import { useState } from 'react';
 import { ChevronDown, ChevronUp } from 'lucide-react';
 import type { ParticipantSplit } from '@/lib/schemas/receipt/public/ParticipantSplit';
+import type { PaymentStatus } from '@/lib/schemas/participant/public/PaymentStatus';
+import { api } from '@/lib/client/api-client';
 
 const PARTICIPANT_COLORS = ['#ffd9de', '#cee7f0', '#ffe16d', '#b5ead7', '#e2d1f9', '#fce1a4', '#b8e0ff'];
 
 function getInitials(name: string) {
   const parts = name.trim().split(/\s+/);
-  if (parts.length >= 2) return (parts[0][0] + parts[1][0]).toUpperCase();
+  if (parts.length >= 2) {
+    return (parts[0][0] + parts[1][0]).toUpperCase();
+  }
   return name.slice(0, 2).toUpperCase();
 }
 
+function PaymentBadge({ status }: { status: PaymentStatus }) {
+  if (status === 'PNYP') {
+    return null;
+  }
+
+  if (status === 'PAID') {
+    return (
+      <span className="inline-flex items-center px-2 py-0.5 border-2 border-black bg-[#b5ead7] font-dm-mono text-[9px] font-bold uppercase tracking-widest shadow-[1px_1px_0px_0px_#000]">
+        PAID
+      </span>
+    );
+  }
+
+  // PMIP or PCIP — awaiting owner confirmation
+  return (
+    <span className="inline-flex items-center px-2 py-0.5 border-2 border-black bg-[#FFD700] font-dm-mono text-[9px] font-bold uppercase tracking-widest shadow-[1px_1px_0px_0px_#000]">
+      CONFIRM?
+    </span>
+  );
+}
+
 interface Props {
+  receiptId: number;
   participantSplits: ParticipantSplit[];
   ownerId: string | null | undefined;
   formatCurrency: (amount: number) => string;
+  isOwner?: boolean;
 }
 
-export function ParticipantSplits({ participantSplits, ownerId, formatCurrency }: Props) {
+export function ParticipantSplits({ receiptId, participantSplits, ownerId, formatCurrency, isOwner }: Props) {
   const ownerName = participantSplits.find(p => p.userId === ownerId)?.displayName ?? null;
   const [expandedParticipants, setExpandedParticipants] = useState<Set<number>>(new Set());
+  const [confirmingIds, setConfirmingIds] = useState<Set<number>>(new Set());
+  const [localStatuses, setLocalStatuses] = useState<Map<number, PaymentStatus>>(new Map());
 
   const toggleParticipantExpanded = (participantId: number) => {
     setExpandedParticipants((prev) => {
@@ -34,14 +63,46 @@ export function ParticipantSplits({ participantSplits, ownerId, formatCurrency }
     });
   };
 
+  const handleGcashClick = (participantId: number, gcashUrl: string) => {
+    // Fire-and-forget: mark as payment confirmation in progress
+    api.participants.updatePaymentStatus(receiptId, participantId, 'PCIP').catch(() => {});
+    setLocalStatuses(prev => new Map(prev).set(participantId, 'PCIP'));
+    window.location.href = gcashUrl;
+  };
+
+  const handleConfirmPaid = async (participantId: number) => {
+    setConfirmingIds(prev => new Set(prev).add(participantId));
+    try {
+      await api.participants.updatePaymentStatus(receiptId, participantId, 'PAID');
+      setLocalStatuses(prev => new Map(prev).set(participantId, 'PAID'));
+    } catch {
+      // silent — owner can retry
+    } finally {
+      setConfirmingIds(prev => {
+        const next = new Set(prev);
+        next.delete(participantId);
+        return next;
+      });
+    }
+  };
+
   return (
     <>
-      <h2 className="font-dm-sans font-bold text-2xl uppercase mt-2">What do you owe?</h2>
-      <p className="font-dm-sans text-sm text-gray-500">Tap your own name to see what you owe.</p>
+      <h2 className="font-dm-sans font-bold text-2xl uppercase mt-2">
+        {isOwner ? 'Payment Status' : 'What do you owe?'}
+      </h2>
+      <p className="font-dm-sans text-sm text-gray-500">
+        {isOwner ? 'Confirm payments as you receive them.' : 'Tap your own name to see what you owe.'}
+      </p>
 
       {participantSplits.map((split, i) => {
         const isExpanded = expandedParticipants.has(split.participantId);
         const color = PARTICIPANT_COLORS[i % PARTICIPANT_COLORS.length];
+        const effectiveStatus: PaymentStatus = localStatuses.get(split.participantId) ?? split.paymentStatus ?? 'PNYP';
+        const isConfirming = confirmingIds.has(split.participantId);
+        const needsConfirmation = isOwner && (effectiveStatus === 'PMIP' || effectiveStatus === 'PCIP');
+        const isPaid = effectiveStatus === 'PAID';
+        const gcashUrl = `gcash://com.mynt.gcash/app/006300090100?amount=${split.total.toFixed(2)}`;
 
         return (
           <article key={split.participantId} className="bg-white border-4 border-black rounded-xl shadow-[3px_3px_0px_0px_#000] overflow-hidden">
@@ -50,14 +111,15 @@ export function ParticipantSplits({ participantSplits, ownerId, formatCurrency }
               style={{ backgroundColor: isExpanded ? color : 'white' }}
               onClick={() => toggleParticipantExpanded(split.participantId)}
             >
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-3 min-w-0">
                 <div
                   className="w-10 h-10 rounded-full border-2 border-black flex items-center justify-center font-dm-sans text-[10px] font-bold shadow-[2px_2px_0px_0px_#000] flex-shrink-0"
                   style={{ backgroundColor: isExpanded ? 'white' : color }}
                 >
                   {getInitials(split.displayName)}
                 </div>
-                <span className="font-dm-sans font-bold text-base uppercase">{split.displayName}</span>
+                <span className="font-dm-sans font-bold text-base uppercase truncate">{split.displayName}</span>
+                {isOwner && <PaymentBadge status={effectiveStatus} />}
               </div>
               <div className="flex items-center gap-2 flex-shrink-0">
                 <span className="font-dm-mono font-bold text-lg">{formatCurrency(split.total)}</span>
@@ -144,12 +206,36 @@ export function ParticipantSplits({ participantSplits, ownerId, formatCurrency }
                   <span className="font-bold text-sm">{formatCurrency(split.total)}</span>
                 </div>
 
-                <a
-                  href={`gcash://com.mynt.gcash/app/006300090100?amount=${split.total.toFixed(2)}`}
-                  className="flex items-center justify-center gap-2 w-full h-11 border-[3px] border-black rounded-lg font-dm-mono font-bold text-sm uppercase bg-[#0066FF] text-white shadow-[3px_3px_0px_0px_#000] hover:bg-[#0052cc] active:translate-x-[2px] active:translate-y-[2px] active:shadow-none transition-all"
-                >
-                  {ownerName ? `Pay ${ownerName} via GCash` : 'Pay via GCash'}
-                </a>
+                {isOwner ? (
+                  <>
+                    {needsConfirmation && (
+                      <button
+                        onClick={() => handleConfirmPaid(split.participantId)}
+                        disabled={isConfirming}
+                        className="w-full h-11 border-[3px] border-black rounded-lg font-dm-mono font-bold text-sm uppercase bg-[#FFD700] text-black shadow-[3px_3px_0px_0px_#000] hover:bg-[#FFE44D] active:translate-x-[2px] active:translate-y-[2px] active:shadow-none transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        {isConfirming ? 'Confirming...' : `Mark ${split.displayName} as Paid`}
+                      </button>
+                    )}
+                    {isPaid && (
+                      <div className="flex items-center justify-center w-full h-11 border-[3px] border-black rounded-lg bg-[#b5ead7] font-dm-mono font-bold text-sm uppercase shadow-[3px_3px_0px_0px_#000]">
+                        Payment confirmed
+                      </div>
+                    )}
+                    {effectiveStatus === 'PNYP' && (
+                      <div className="flex items-center justify-center w-full h-11 border-[3px] border-dashed border-[#c0b9a8] rounded-lg font-dm-mono text-[11px] uppercase tracking-widest text-[#7e7576]">
+                        Awaiting payment
+                      </div>
+                    )}
+                  </>
+                ) : (
+                  <button
+                    onClick={() => handleGcashClick(split.participantId, gcashUrl)}
+                    className="flex items-center justify-center gap-2 w-full h-11 border-[3px] border-black rounded-lg font-dm-mono font-bold text-sm uppercase bg-[#0066FF] text-white shadow-[3px_3px_0px_0px_#000] hover:bg-[#0052cc] active:translate-x-[2px] active:translate-y-[2px] active:shadow-none transition-all"
+                  >
+                    {ownerName ? `Pay ${ownerName} via GCash` : 'Pay via GCash'}
+                  </button>
+                )}
               </div>
             )}
           </article>

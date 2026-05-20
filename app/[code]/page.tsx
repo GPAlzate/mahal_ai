@@ -2,6 +2,7 @@
 
 import { useState, useEffect, use } from 'react';
 import { useRouter } from 'next/navigation';
+import { useAuth } from '@clerk/nextjs';
 import { Eye, MoreVertical, X } from 'lucide-react';
 import { api } from '@/lib/client/api-client';
 import LoadingScreen from '@/components/LoadingScreen';
@@ -17,6 +18,7 @@ export default function ShareCodePage({ params }: { params: Promise<{ code: stri
   const resolvedParams = use(params);
   const shareCode = resolvedParams.code.toUpperCase();
   const router = useRouter();
+  const { userId } = useAuth();
 
   const [summary, setSummary] = useState<ReceiptSummary | null>(null);
   const [loading, setLoading] = useState(true);
@@ -101,7 +103,13 @@ export default function ShareCodePage({ params }: { params: Promise<{ code: stri
         <ShareCodeBadge shareCode={summary.receipt.shareCode} title={summary.receipt.title || 'Receipt'} />
 
         <ReceiptCard summary={summary} formatCurrency={formatCurrency} />
-        <ParticipantSplits participantSplits={summary.participantSplits} ownerId={summary.receipt.ownerId} formatCurrency={formatCurrency} />
+        <ParticipantSplits
+          receiptId={summary.receipt.id}
+          participantSplits={summary.participantSplits}
+          ownerId={summary.receipt.ownerId}
+          formatCurrency={formatCurrency}
+          isOwner={!!userId && userId === summary.receipt.ownerId}
+        />
         <div className="mt-4">
           <SaveSplitsNudge />
         </div>
