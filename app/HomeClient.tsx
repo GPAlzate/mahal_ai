@@ -18,8 +18,11 @@ function formatParticipants(names: string[]): string | null {
 }
 
 function receiptStatusLabel(status: string): string {
+  if (status === 'STLD') {
+    return 'Settled';
+  }
   if (status === 'FLZD') {
-    return 'Done';
+    return 'Finalized';
   }
   if (status === 'DRFT') {
     return 'Draft';
@@ -28,6 +31,9 @@ function receiptStatusLabel(status: string): string {
 }
 
 function receiptStatusClass(status: string): string {
+  if (status === 'STLD') {
+    return 'bg-[#b8f5b8] border-black text-black';
+  }
   if (status === 'FLZD') {
     return 'bg-[#98FB98] border-black text-black';
   }

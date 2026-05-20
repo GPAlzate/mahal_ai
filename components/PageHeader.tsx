@@ -1,4 +1,5 @@
 import { ArrowLeft, Eye } from 'lucide-react';
+import Link from 'next/link';
 
 interface PageHeaderProps {
   onBack?: () => void;
@@ -18,9 +19,11 @@ export function PageHeader({ onBack, onViewReceipt }: PageHeaderProps) {
         </button>
       )}
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold px-3 py-2 bg-black text-white inline-block transform -rotate-1">
-          mahal ai &lt;3
-        </h1>
+        <Link href="/">
+          <h1 className="text-2xl font-bold px-3 py-2 bg-black text-white inline-block transform -rotate-1">
+            mahal ai &lt;3
+          </h1>
+        </Link>
         {onViewReceipt && (
           <button
             onClick={onViewReceipt}

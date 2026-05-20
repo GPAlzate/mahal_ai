@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, use, useEffect } from 'react';
+import { useState, use, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useUser } from '@clerk/nextjs';
 import { ArrowLeft, Plus, X } from 'lucide-react';
@@ -30,9 +30,16 @@ export default function ParticipantsPage({ params }: { params: Promise<{ id: str
   const [saving, setSaving] = useState(false);
   const [receiptTitle, setReceiptTitle] = useState('');
   const [shareCode, setShareCode] = useState<string | null>(null);
+  const participantsInitialized = useRef(false);
 
-  // Pre-populate participants if navigating back to this page
+  // Pre-populate participants if navigating back to this page.
+  // Guard with a ref so Clerk's async user resolution doesn't re-fire this
+  // and wipe names the user has already typed.
   useEffect(() => {
+    if (participantsInitialized.current) return;
+    if (user === undefined) return;
+    participantsInitialized.current = true;
+
     api.participants.list(receiptId).then(async (existing) => {
       if (existing.length > 0) {
         setParticipants(
@@ -43,8 +50,6 @@ export default function ParticipantsPage({ params }: { params: Promise<{ id: str
           }))
         );
       } else if (user) {
-        // Auto-add signed-in user as the first participant, preferring their
-        // DB display name (set in settings) over the Clerk name.
         const profile = await api.user.get().catch(() => null);
         const name = profile?.displayName ?? user.fullName ?? user.firstName ?? '';
         if (name) {
