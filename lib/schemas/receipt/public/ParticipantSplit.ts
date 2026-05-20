@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { PaymentStatusSchema } from '@/lib/schemas/participant/public/PaymentStatus';
 
 /**
  * Schema for a participant's share of a receipt line
@@ -9,6 +10,7 @@ export const LineItemSplitSchema = z.object({
   quantity: z.number(),
   unitPrice: z.number(),
   shareQuantity: z.number(),
+  totalShares: z.number(),
   shareAmount: z.number(),
 });
 
@@ -20,6 +22,8 @@ export type LineItemSplit = z.infer<typeof LineItemSplitSchema>;
 export const ParticipantSplitSchema = z.object({
   participantId: z.number(),
   displayName: z.string(),
+  userId: z.string().nullable(),
+  paymentStatus: PaymentStatusSchema.default('PNYP'),
   lineItems: z.array(LineItemSplitSchema),
   subtotal: z.number(),
   taxShare: z.number(),

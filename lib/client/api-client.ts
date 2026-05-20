@@ -8,6 +8,7 @@ import type { Participant } from '@/lib/schemas/participant/public/Participant';
 import type { LineParticipant } from '@/lib/schemas/participant/public/LineParticipant';
 import type { ReceiptSummary } from '@/lib/schemas/receipt/public/ReceiptSummary';
 import type { SplitGroup } from '@/lib/schemas/receipt/public/SplitGroup';
+import type { PaymentStatus } from '@/lib/schemas/participant/public/PaymentStatus';
 
 export interface MyReceipt {
   id: number;
@@ -137,6 +138,15 @@ export const api = {
       fetchAPI<void>(`/api/receipts/${receiptId}/participants/${participantId}`, {
         method: 'DELETE',
       }),
+
+    updatePaymentStatus: (receiptId: number, participantId: number, status: PaymentStatus) =>
+      fetchAPI<Participant>(
+        `/api/receipts/${receiptId}/participants/${participantId}/payment-status`,
+        {
+          method: 'PATCH',
+          body: JSON.stringify({ status }),
+        }
+      ),
   },
 
   assignments: {

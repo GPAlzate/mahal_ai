@@ -3,6 +3,7 @@ import { CreateParticipantRequest } from '@/lib/schemas/participant/request/Crea
 import { UpdateParticipantRequest } from '@/lib/schemas/participant/request/UpdateParticipantRequest';
 import { toParticipant, toParticipantDTO } from '@/lib/schemas/participant/dto/ParticipantDTO';
 import { validateReceiptIsModifiable } from '@/lib/services/receiptValidation';
+import { PaymentStatus } from '@/lib/schemas/participant/public/PaymentStatus';
 
 /**
  * Service for managing participants
@@ -128,6 +129,31 @@ export class ParticipantService {
     const result = await sql`
       UPDATE participants
       SET deleted_at = NOW(), updated_at = NOW()
+      WHERE id = ${participantId}
+      RETURNING *
+    `;
+
+    return toParticipant(toParticipantDTO(result[0]));
+  }
+}
+
+  async updatePaymentStatus(
+    receiptId: number,
+    participantId: number,
+    paymentStatus: PaymentStatus
+  ) {
+    const participantCheck = await sql`
+      SELECT id FROM participants
+      WHERE id = ${participantId} AND receipt_id = ${receiptId} AND deleted_at IS NULL
+    `;
+
+    if (participantCheck.length === 0) {
+      throw new Error('Participant not found');
+    }
+
+    const result = await sql`
+      UPDATE participants
+      SET payment_status = ${paymentStatus}, updated_at = NOW()
       WHERE id = ${participantId}
       RETURNING *
     `;

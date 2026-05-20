@@ -185,7 +185,7 @@ export class ReceiptService {
         AND r.status != 'DLTD'
         AND r.owner_id = ${ownerId}
       GROUP BY r.id
-      ORDER BY r.receipt_time DESC
+      ORDER BY r.updated_at DESC
     `;
 
     return rows.map((row: any) => ({

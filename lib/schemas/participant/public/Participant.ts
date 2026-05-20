@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { PaymentStatusSchema } from '@/lib/schemas/participant/public/PaymentStatus';
 
 /**
  * Schema for Participant database entity
@@ -11,6 +12,7 @@ export const ParticipantSchema = z.object({
   id: z.number(),
   receiptId: z.number(),
   displayName: z.string(),
+  paymentStatus: PaymentStatusSchema.default('PNYP'),
   createdAt: z.date(),
   updatedAt: z.date(),
   deletedAt: z.date().nullable(),

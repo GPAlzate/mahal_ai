@@ -136,6 +136,7 @@ export class ReceiptSummaryService {
             quantity: line.quantity,
             unitPrice: line.unitPrice,
             shareQuantity: assignment.shareQuantity,
+            totalShares,
             shareAmount,
           };
         });
@@ -156,6 +157,7 @@ export class ReceiptSummaryService {
             quantity: line.quantity,
             unitPrice: line.unitPrice,
             shareQuantity: assignment.shareQuantity,
+            totalShares,
             shareAmount,
           };
         });
@@ -190,6 +192,8 @@ export class ReceiptSummaryService {
       return {
         participantId: participant.id,
         displayName: participant.displayName,
+        userId: participant.userId,
+        paymentStatus: participant.paymentStatus,
         lineItems,
         subtotal: participantSubtotal,
         taxShare,

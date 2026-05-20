@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { PaymentStatusSchema } from '@/lib/schemas/participant/public/PaymentStatus';
 
 /**
  * DTO schema for Participant from database (snake_case)
@@ -12,6 +13,7 @@ export const ParticipantDTOSchema = z.object({
   receipt_id: z.coerce.number(),
   display_name: z.string(),
   user_id: z.string().nullable(),
+  payment_status: PaymentStatusSchema.default('PNYP'),
   created_at: z.date(),
   updated_at: z.date(),
   deleted_at: z.date().nullable(),
@@ -36,6 +38,7 @@ export function toParticipant(dto: ParticipantDTO) {
     receiptId: dto.receipt_id,
     displayName: dto.display_name,
     userId: dto.user_id,
+    paymentStatus: dto.payment_status,
     createdAt: dto.created_at,
     updatedAt: dto.updated_at,
     deletedAt: dto.deleted_at,

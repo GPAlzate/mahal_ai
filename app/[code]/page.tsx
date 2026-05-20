@@ -101,7 +101,7 @@ export default function ShareCodePage({ params }: { params: Promise<{ code: stri
         <ShareCodeBadge shareCode={summary.receipt.shareCode} title={summary.receipt.title || 'Receipt'} />
 
         <ReceiptCard summary={summary} formatCurrency={formatCurrency} />
-        <ParticipantSplits participantSplits={summary.participantSplits} formatCurrency={formatCurrency} />
+        <ParticipantSplits participantSplits={summary.participantSplits} ownerId={summary.receipt.ownerId} formatCurrency={formatCurrency} />
         <div className="mt-4">
           <SaveSplitsNudge />
         </div>
