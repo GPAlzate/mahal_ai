@@ -46,7 +46,7 @@ interface Props {
 }
 
 export function ParticipantSplits({ receiptId, participantSplits, ownerId, formatCurrency, isOwner }: Props) {
-  const ownerName = participantSplits.find(p => p.userId === ownerId)?.displayName ?? null;
+  const ownerName = ownerId ? (participantSplits.find(p => p.userId === ownerId)?.displayName ?? null) : null;
   const [expandedParticipants, setExpandedParticipants] = useState<Set<number>>(new Set());
   const [confirmingIds, setConfirmingIds] = useState<Set<number>>(new Set());
   const [localStatuses, setLocalStatuses] = useState<Map<number, PaymentStatus>>(new Map());
@@ -100,7 +100,9 @@ export function ParticipantSplits({ receiptId, participantSplits, ownerId, forma
         const color = PARTICIPANT_COLORS[i % PARTICIPANT_COLORS.length];
         const effectiveStatus: PaymentStatus = localStatuses.get(split.participantId) ?? split.paymentStatus ?? 'PNYP';
         const isConfirming = confirmingIds.has(split.participantId);
-        const needsConfirmation = isOwner && (effectiveStatus === 'PMIP' || effectiveStatus === 'PCIP');
+        const isOwnEntry = isOwner && split.userId === ownerId;
+        const showOwnerUI = isOwner && (!isOwnEntry || effectiveStatus !== 'PNYP');
+        const needsConfirmation = showOwnerUI && (effectiveStatus === 'PMIP' || effectiveStatus === 'PCIP');
         const isPaid = effectiveStatus === 'PAID';
         const gcashUrl = `gcash://com.mynt.gcash/app/006300090100?amount=${split.total.toFixed(2)}`;
 
