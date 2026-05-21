@@ -78,6 +78,12 @@ export async function PATCH(
       return NextResponse.json(receipt, { status: 200 });
     }
 
+    if (body.gcashNumber !== undefined) {
+      const val = body.gcashNumber === null ? null : String(body.gcashNumber);
+      const receipt = await receiptService.updateGcashNumber(receiptId, val);
+      return NextResponse.json(receipt, { status: 200 });
+    }
+
     if (body.payerParticipantId !== undefined) {
       if (typeof body.payerParticipantId !== 'number') {
         return NextResponse.json({ error: 'Invalid payerParticipantId value' }, { status: 400 });

@@ -1,6 +1,21 @@
 'use client';
 
 import { useState, useEffect, use } from 'react';
+
+function normalizeGcash(raw: string): string | null {
+  const digits = raw.replace(/\D/g, '');
+  if (digits.length === 11 && digits.startsWith('0')) {
+    return digits.slice(1);
+  }
+  if (digits.length === 10 && digits.startsWith('9')) {
+    return digits;
+  }
+  return null;
+}
+
+function formatGcashDisplay(raw: string): string {
+  return `0${raw.slice(0, 3)} ${raw.slice(3, 6)} ${raw.slice(6)}`;
+}
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@clerk/nextjs';
 import { Eye, MoreVertical, X, Lock, Share2, Check, HelpCircle } from 'lucide-react';
@@ -29,6 +44,11 @@ export default function ShareCodePage({ params }: { params: Promise<{ code: stri
   const [linkCopied, setLinkCopied] = useState(false);
   const [shareCodeCopied, setShareCodeCopied] = useState(false);
   const [showHelpModal, setShowHelpModal] = useState(false);
+  const [gcashInput, setGcashInput] = useState('');
+  const [gcashSaving, setGcashSaving] = useState(false);
+  const [gcashSaved, setGcashSaved] = useState(false);
+  const [gcashError, setGcashError] = useState('');
+  const [gcashCopied, setGcashCopied] = useState(false);
 
   const isReceiptOwner = !!userId && !!summary?.receipt.ownerId && userId === summary.receipt.ownerId;
 
@@ -65,6 +85,7 @@ export default function ShareCodePage({ params }: { params: Promise<{ code: stri
         }
 
         setSummary(data);
+        setGcashInput(data.receipt.gcashNumber ? formatGcashDisplay(data.receipt.gcashNumber) : '');
         setLoading(false);
       } catch (err: any) {
         setError(err.message || 'Failed to load receipt');
@@ -106,6 +127,55 @@ export default function ShareCodePage({ params }: { params: Promise<{ code: stri
       setLinkCopied(true);
       setTimeout(() => setLinkCopied(false), 2000);
     });
+  };
+
+  const handleSaveGcash = async () => {
+    if (!summary) {
+      return;
+    }
+    const trimmed = gcashInput.trim();
+    if (trimmed === '') {
+      setGcashError('');
+      setGcashSaving(true);
+      try {
+        await api.receipts.updateGcashNumber(summary.receipt.id, null);
+        setSummary(prev => prev ? { ...prev, receipt: { ...prev.receipt, gcashNumber: null }, payerGcashNumber: null } : prev);
+        setGcashSaved(true);
+        setTimeout(() => setGcashSaved(false), 2000);
+      } catch {
+        // silent
+      } finally {
+        setGcashSaving(false);
+      }
+      return;
+    }
+    const normalized = normalizeGcash(trimmed);
+    if (normalized === null) {
+      setGcashError('Enter a valid PH number (09XX XXX XXXX)');
+      return;
+    }
+    setGcashError('');
+    setGcashSaving(true);
+    try {
+      await api.receipts.updateGcashNumber(summary.receipt.id, normalized);
+      setSummary(prev => prev ? { ...prev, receipt: { ...prev.receipt, gcashNumber: normalized }, payerGcashNumber: normalized } : prev);
+      setGcashInput(formatGcashDisplay(normalized));
+      setGcashSaved(true);
+      setTimeout(() => setGcashSaved(false), 2000);
+    } catch {
+      // silent
+    } finally {
+      setGcashSaving(false);
+    }
+  };
+
+  const handleCopyGcash = () => {
+    if (!summary?.payerGcashNumber) {
+      return;
+    }
+    navigator.clipboard.writeText(formatGcashDisplay(summary.payerGcashNumber));
+    setGcashCopied(true);
+    setTimeout(() => setGcashCopied(false), 2000);
   };
 
   if (loading) {
@@ -198,6 +268,64 @@ export default function ShareCodePage({ params }: { params: Promise<{ code: stri
           </div>
         ) : (
           <ShareCodeBadge shareCode={summary.receipt.shareCode} title={summary.receipt.title || 'Receipt'} />
+        )}
+
+        {isPayer && (
+          <div className="border-4 border-black rounded-xl bg-white shadow-[3px_3px_0px_0px_#000] overflow-hidden">
+            <div className="bg-[#0066FF] px-4 py-2.5">
+              <p className="font-dm-mono text-[10px] font-bold uppercase tracking-widest text-white">GCash number</p>
+              <p className="font-dm-mono text-[11px] text-blue-200">So people know where to send payment</p>
+            </div>
+            <div className="px-4 py-3 flex flex-col gap-2">
+              <div className="flex gap-2 items-center">
+                <input
+                  type="tel"
+                  inputMode="numeric"
+                  placeholder="09XX XXX XXXX"
+                  value={gcashInput}
+                  onChange={e => {
+                    setGcashInput(e.target.value);
+                    setGcashSaved(false);
+                    setGcashError('');
+                  }}
+                  className="flex-1 h-10 border-2 border-black rounded-lg px-3 font-dm-mono text-sm bg-white focus:outline-none focus:border-[#0066FF] transition-colors"
+                />
+                <button
+                  onClick={handleSaveGcash}
+                  disabled={gcashSaving}
+                  className="h-10 px-4 border-2 border-black rounded-lg font-dm-mono text-xs font-bold uppercase bg-[#FFD700] shadow-[2px_2px_0px_0px_#000] active:shadow-none active:translate-x-[2px] active:translate-y-[2px] transition-all disabled:opacity-50"
+                >
+                  {gcashSaving ? '...' : gcashSaved ? 'Saved!' : 'Save'}
+                </button>
+              </div>
+              {gcashError && (
+                <p className="font-dm-mono text-[11px] text-red-600">{gcashError}</p>
+              )}
+            </div>
+          </div>
+        )}
+
+        {!isPayer && summary.payerGcashNumber && (
+          <div className="border-4 border-black rounded-xl bg-white shadow-[3px_3px_0px_0px_#000] overflow-hidden">
+            <div className="bg-[#0066FF] px-4 py-2.5">
+              <p className="font-dm-mono text-[10px] font-bold uppercase tracking-widest text-white">
+                {payerParticipant
+                  ? `${payerParticipant.displayName}${payerParticipant.displayName.endsWith('s') ? "'" : "'s"} GCash`
+                  : "GCash Number"}
+              </p>
+            </div>
+            <div className="px-4 py-3 flex items-center justify-between">
+              <p className="font-dm-mono font-bold text-xl tracking-wider">
+                {formatGcashDisplay(summary.payerGcashNumber)}
+              </p>
+              <button
+                onClick={handleCopyGcash}
+                className="h-9 px-4 border-2 border-black rounded-lg font-dm-mono text-xs font-bold bg-white hover:bg-[#fff9ef] shadow-[2px_2px_0px_0px_#000] active:translate-x-[2px] active:translate-y-[2px] active:shadow-none transition-all"
+              >
+                {gcashCopied ? 'Copied!' : 'Copy'}
+              </button>
+            </div>
+          </div>
         )}
 
         <ParticipantSplits

@@ -247,13 +247,49 @@ export class ReceiptService {
    */
   async updatePayerParticipant(receiptId: number, payerParticipantId: number) {
     const result = await sql`
+      UPDATE receipts r
+      SET
+        payer_participant_id = ${payerParticipantId},
+        gcash_number = CASE
+          WHEN r.gcash_number IS NULL
+            AND p.user_id IS NOT NULL
+            AND p.user_id = r.owner_id
+            AND u.gcash_number IS NOT NULL
+          THEN u.gcash_number
+          ELSE r.gcash_number
+        END,
+        updated_at = NOW()
+      FROM participants p
+      LEFT JOIN users u ON u.clerk_user_id = r.owner_id AND u.deleted_at IS NULL
+      WHERE r.id = ${receiptId}
+        AND r.deleted_at IS NULL
+        AND p.id = ${payerParticipantId}
+        AND p.deleted_at IS NULL
+      RETURNING r.*
+    `;
+
+    if (!result || result.length === 0) {
+      throw new Error('Receipt not found');
+    }
+
+    await sql`
+      UPDATE participants
+      SET payment_status = 'PAID', updated_at = NOW()
+      WHERE id = ${payerParticipantId} AND deleted_at IS NULL
+    `;
+
+    return toReceipt(toReceiptDTO(result[0]));
+  }
+
+  async updateGcashNumber(receiptId: number, gcashNumber: string | null): Promise<Receipt> {
+    const result = await sql`
       UPDATE receipts
-      SET payer_participant_id = ${payerParticipantId}, updated_at = NOW()
+      SET gcash_number = ${gcashNumber}, updated_at = NOW()
       WHERE id = ${receiptId} AND deleted_at IS NULL
       RETURNING *
     `;
 
-    if (!result || result.length === 0) {
+    if (result.length === 0) {
       throw new Error('Receipt not found');
     }
 

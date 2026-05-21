@@ -215,6 +215,7 @@ export class ReceiptSummaryService {
       discount,
       adjustment,
       total,
+      payerGcashNumber: receipt.gcashNumber ?? null,
     };
     this._logger.log('Final summary result:', JSON.stringify(result, null, 2));
 

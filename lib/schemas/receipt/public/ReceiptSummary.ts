@@ -16,6 +16,7 @@ export const ReceiptSummarySchema = z.object({
   discount: z.number(),
   adjustment: z.number(),
   total: z.number(),
+  payerGcashNumber: z.string().nullable(),
 });
 
 export type ReceiptSummary = z.infer<typeof ReceiptSummarySchema>;

@@ -4,7 +4,6 @@ import { useState, use, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useUser } from '@clerk/nextjs';
 import { ArrowLeft, Plus, X } from 'lucide-react';
-import Link from 'next/link';
 import { api } from '@/lib/client/api-client';
 import { ShareCodeBadge } from '@/components/ShareCodeBadge';
 import type { ReceiptStatus } from '@/lib/schemas/receipt/public/Receipt';
@@ -160,27 +159,26 @@ export default function ParticipantsPage({ params }: { params: Promise<{ id: str
   const canContinue = participants.length > 0 && linesReady && !saving;
 
   return (
-    <div className="min-h-screen bg-[#fff9ef] p-4 pb-20">
-      <div className="max-w-lg mx-auto">
+    <div className="min-h-screen bg-[#fff9ef] pb-20">
 
-        {/* Header */}
-        <div className="mb-4">
-          <div className="flex items-center justify-between mb-3">
-            <button
-              onClick={() => router.push('/')}
-              className="flex items-center gap-1 font-dm-mono text-xs font-bold uppercase tracking-widest text-[#4d4732] hover:text-black transition-colors"
-            >
-              <ArrowLeft className="w-4 h-4" />
-              Back
-            </button>
-            {shareCode && <ShareCodeBadge shareCode={shareCode} />}
-          </div>
-          <Link href="/">
-            <h1 className="font-dm-sans text-2xl font-black uppercase px-3 py-2 bg-black text-white inline-block -rotate-1">
-              mahal ai &lt;3
-            </h1>
-          </Link>
+      {/* Header */}
+      <header className="sticky top-0 z-40 bg-white border-b-4 border-black w-full">
+        <div className="px-5 h-14 flex items-center justify-between">
+          <button
+            onClick={() => router.push('/')}
+            className="p-1.5 border-2 border-black rounded bg-white shadow-[2px_2px_0px_0px_#000] active:shadow-none active:translate-x-[2px] active:translate-y-[2px] transition-all flex items-center justify-center"
+          >
+            <ArrowLeft className="w-4 h-4" />
+          </button>
+          <span className="font-dm-sans font-black text-sm uppercase tracking-tight text-[#7e7576]">Participants</span>
+          {shareCode
+            ? <ShareCodeBadge shareCode={shareCode} />
+            : <div className="w-8" />
+          }
         </div>
+      </header>
+
+      <div className="max-w-lg mx-auto p-4">
 
         {/* Main card */}
         <div className="bg-white border-4 border-black shadow-[4px_4px_0px_0px_#000] rounded-xl p-5 flex flex-col gap-4">

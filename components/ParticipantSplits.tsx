@@ -251,6 +251,10 @@ export function ParticipantSplits({ receiptId, participantSplits, payerParticipa
                       </div>
                     )}
                   </>
+                ) : isPaid ? (
+                  <div className="flex items-center justify-center w-full h-11 border-[3px] border-black rounded-lg bg-[#b5ead7] font-dm-mono font-bold text-sm uppercase shadow-[3px_3px_0px_0px_#000]">
+                    Payment confirmed
+                  </div>
                 ) : (
                   <button
                     onClick={() => handleGcashClick(split.participantId, gcashUrl)}

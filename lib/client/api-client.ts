@@ -89,6 +89,12 @@ export const api = {
         body: JSON.stringify({ payerParticipantId }),
       }),
 
+    updateGcashNumber: (id: number, gcashNumber: string | null) =>
+      fetchAPI<Receipt>(`/api/receipts/${id}`, {
+        method: 'PATCH',
+        body: JSON.stringify({ gcashNumber }),
+      }),
+
     verifyCollector: (id: number, secret: string) =>
       fetchAPI<{ valid: boolean }>(`/api/receipts/${id}/collector?secret=${encodeURIComponent(secret)}`),
 
