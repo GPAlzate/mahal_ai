@@ -55,10 +55,6 @@ export default function AssignPage({ params }: { params: Promise<{ id: string }>
   const [showReceiptImage, setShowReceiptImage] = useState(false);
   const [showKebabMenu, setShowKebabMenu] = useState(false);
   const [deleteConfirmLine, setDeleteConfirmLine] = useState<ReceiptLine | null>(null);
-  const [pendingLineEdit, setPendingLineEdit] = useState<{
-    data: { itemName: string; quantity: number; unitPrice: number; receiptLineType?: string };
-    line: ReceiptLine;
-  } | null>(null);
   const [showHelpModal, setShowHelpModal] = useState(false);
   const [assignModalLine, setAssignModalLine] = useState<ReceiptLine | null>(null);
   const [openKebabId, setOpenKebabId] = useState<number | null>(null);
@@ -291,10 +287,6 @@ export default function AssignPage({ params }: { params: Promise<{ id: string }>
     }, 0);
   };
 
-  const hasAssignments = (lineId: number) => {
-    return assignments[lineId] && Object.keys(assignments[lineId]).length > 0;
-  };
-
   const getParticipantTotal = (participantId: number) => {
     return purchaseLines.reduce((total, line) => {
       if (assignments[line.id]?.[participantId]) {
@@ -335,17 +327,6 @@ export default function AssignPage({ params }: { params: Promise<{ id: string }>
   }) => {
     try {
       if (lineItemModalMode === 'edit' && editingLine) {
-        if (
-          editingLine.receiptLineType === 'PRCH' &&
-          (data.quantity !== editingLine.quantity || data.unitPrice !== editingLine.unitPrice) &&
-          hasAssignments(editingLine.id)
-        ) {
-          setPendingLineEdit({ data, line: editingLine });
-          setShowLineItemModal(false);
-          setEditingLine(null);
-          return;
-        }
-
         const updateData: any = {
           itemName: data.itemName,
           quantity: data.quantity,
@@ -383,36 +364,6 @@ export default function AssignPage({ params }: { params: Promise<{ id: string }>
   const handleCancelLineItemModal = () => {
     setShowLineItemModal(false);
     setEditingLine(null);
-  };
-
-  const confirmLineEdit = async () => {
-    if (!pendingLineEdit) return;
-    const { data, line } = pendingLineEdit;
-    setPendingLineEdit(null);
-    try {
-      const updateData: any = {
-        itemName: data.itemName,
-        quantity: data.quantity,
-        unitPrice: data.unitPrice,
-      };
-      if (data.receiptLineType) updateData.receiptLineType = data.receiptLineType;
-
-      await api.lines.update(receiptId, line.id, updateData);
-      setAllLines((prev) =>
-        prev.map((l) =>
-          l.id === line.id
-            ? { ...l, ...data, receiptLineType: data.receiptLineType || l.receiptLineType }
-            : l
-        )
-      );
-      setAssignments((prev) => {
-        const next = { ...prev };
-        delete next[line.id];
-        return next;
-      });
-    } catch (err: any) {
-      setError(err.message || 'Failed to save item');
-    }
   };
 
   const handleDeleteLineItem = (line: ReceiptLine) => {
@@ -912,51 +863,11 @@ export default function AssignPage({ params }: { params: Promise<{ id: string }>
               }
             : undefined
         }
-        hasAssignments={editingLine ? hasAssignments(editingLine.id) : false}
-        showLineTypeSelector={currentView === 'misc-charges'}
+showLineTypeSelector={currentView === 'misc-charges'}
         lineType={currentView === 'discounts' ? 'DSCT' : undefined}
         onSave={handleSaveLineItem}
         onCancel={handleCancelLineItemModal}
       />
-
-      {/* Clear Assignments Confirmation Modal */}
-      {pendingLineEdit && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4"
-          onClick={() => setPendingLineEdit(null)}
-        >
-          <div
-            className="bg-white border-[4px] border-black shadow-[6px_6px_0px_0px_#000] rounded-lg p-4 w-full max-w-sm flex flex-col gap-4"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex flex-col gap-1">
-              <h2 className="font-dm-sans font-bold text-xl uppercase text-center border-b-2 border-black pb-2">
-                Clear Assignments?
-              </h2>
-              <div className="text-center py-2">
-                <p className="font-dm-sans text-base text-[#4d4732]">"{pendingLineEdit.line.itemName}"</p>
-                <p className="font-dm-mono text-[10px] uppercase tracking-wide text-[#7e7576] mt-1">
-                  Changing the price or quantity will remove everyone assigned to this item.
-                </p>
-              </div>
-            </div>
-            <div className="flex gap-2">
-              <button
-                onClick={() => setPendingLineEdit(null)}
-                className="flex-1 py-2 px-3 bg-white border-2 border-black font-dm-mono font-bold text-sm uppercase shadow-[2px_2px_0px_0px_#000] active:translate-x-[2px] active:translate-y-[2px] active:shadow-none transition-all"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={confirmLineEdit}
-                className="flex-1 py-2 px-3 bg-black text-white border-2 border-black font-dm-mono font-bold text-sm uppercase shadow-[2px_2px_0px_0px_#000] active:translate-x-[2px] active:translate-y-[2px] active:shadow-none transition-all"
-              >
-                Update Item
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* Delete Confirmation Modal */}
       {deleteConfirmLine && (

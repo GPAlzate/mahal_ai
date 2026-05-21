@@ -192,14 +192,6 @@ export function LineItemModal({
           </button>
         </div>
 
-        {/* Warning banner */}
-        {mode === 'edit' && hasAssignments && (
-          <div className="bg-[#FFD700] border-[4px] border-black p-2 flex items-center gap-2">
-            <span className="text-base">⚠</span>
-            <span className="font-dm-mono text-xs font-bold">Editing qty or price clears assignments</span>
-          </div>
-        )}
-
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
 
           {/* Item Name */}

@@ -123,7 +123,9 @@ export function ParticipantSplits({ receiptId, participantSplits, payerParticipa
                   {getInitials(split.displayName)}
                 </div>
                 <span className="font-dm-sans font-bold text-base uppercase truncate">{split.displayName}</span>
-                {isCollector && <PaymentBadge status={isPayerEntry ? 'PAID' : effectiveStatus} />}
+                {(isCollector || effectiveStatus === 'PAID' || isPayerEntry) && (
+                  <PaymentBadge status={isPayerEntry ? 'PAID' : effectiveStatus} />
+                )}
               </div>
               <div className="flex items-center gap-2 flex-shrink-0">
                 <span className="font-dm-mono font-bold text-lg">{formatCurrency(split.total)}</span>
