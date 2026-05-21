@@ -49,6 +49,7 @@ export default function ShareCodePage({ params }: { params: Promise<{ code: stri
   const [gcashSaved, setGcashSaved] = useState(false);
   const [gcashError, setGcashError] = useState('');
   const [gcashCopied, setGcashCopied] = useState(false);
+  const [isEditingGcash, setIsEditingGcash] = useState(true);
 
   const isReceiptOwner = !!userId && !!summary?.receipt.ownerId && userId === summary.receipt.ownerId;
 
@@ -86,6 +87,7 @@ export default function ShareCodePage({ params }: { params: Promise<{ code: stri
 
         setSummary(data);
         setGcashInput(data.receipt.gcashNumber ? formatGcashDisplay(data.receipt.gcashNumber) : '');
+        setIsEditingGcash(!data.receipt.gcashNumber);
         setLoading(false);
       } catch (err: any) {
         setError(err.message || 'Failed to load receipt');
@@ -161,6 +163,7 @@ export default function ShareCodePage({ params }: { params: Promise<{ code: stri
       setSummary(prev => prev ? { ...prev, receipt: { ...prev.receipt, gcashNumber: normalized }, payerGcashNumber: normalized } : prev);
       setGcashInput(formatGcashDisplay(normalized));
       setGcashSaved(true);
+      setIsEditingGcash(false);
       setTimeout(() => setGcashSaved(false), 2000);
     } catch {
       // silent
@@ -234,9 +237,13 @@ export default function ShareCodePage({ params }: { params: Promise<{ code: stri
           </div>
         </div>
 
+        {!isReceiptOwner && (
+          <ShareCodeBadge shareCode={summary.receipt.shareCode} title={summary.receipt.title || 'Receipt'} />
+        )}
+
         <ReceiptCard summary={summary} formatCurrency={formatCurrency} />
 
-        {isReceiptOwner ? (
+        {isReceiptOwner && (
           <div className="grid grid-cols-2 gap-2">
             <button
               onClick={handleShareGroupLink}
@@ -266,40 +273,64 @@ export default function ShareCodePage({ params }: { params: Promise<{ code: stri
               </span>
             </button>
           </div>
-        ) : (
-          <ShareCodeBadge shareCode={summary.receipt.shareCode} title={summary.receipt.title || 'Receipt'} />
         )}
 
         {isPayer && (
           <div className="border-4 border-black rounded-xl bg-white shadow-[3px_3px_0px_0px_#000] overflow-hidden">
-            <div className="bg-[#0066FF] px-4 py-2.5">
-              <p className="font-dm-mono text-[10px] font-bold uppercase tracking-widest text-white">GCash number</p>
-              <p className="font-dm-mono text-[11px] text-blue-200">So people know where to send payment</p>
+            <div className="bg-[#0066FF] px-4 py-2.5 flex items-center justify-between">
+              <div>
+                <p className="font-dm-mono text-[10px] font-bold uppercase tracking-widest text-white">GCash number</p>
+                <p className="font-dm-mono text-[11px] text-blue-200">So people know where to send payment</p>
+              </div>
+              {!isEditingGcash && summary.receipt.gcashNumber && (
+                <button
+                  onClick={() => setIsEditingGcash(true)}
+                  className="font-dm-mono text-[10px] font-bold uppercase tracking-widest text-blue-200 hover:text-white transition-colors"
+                >
+                  Edit
+                </button>
+              )}
             </div>
             <div className="px-4 py-3 flex flex-col gap-2">
-              <div className="flex gap-2 items-center">
-                <input
-                  type="tel"
-                  inputMode="numeric"
-                  placeholder="09XX XXX XXXX"
-                  value={gcashInput}
-                  onChange={e => {
-                    setGcashInput(e.target.value);
-                    setGcashSaved(false);
-                    setGcashError('');
-                  }}
-                  className="flex-1 h-10 border-2 border-black rounded-lg px-3 font-dm-mono text-sm bg-white focus:outline-none focus:border-[#0066FF] transition-colors"
-                />
-                <button
-                  onClick={handleSaveGcash}
-                  disabled={gcashSaving}
-                  className="h-10 px-4 border-2 border-black rounded-lg font-dm-mono text-xs font-bold uppercase bg-[#FFD700] shadow-[2px_2px_0px_0px_#000] active:shadow-none active:translate-x-[2px] active:translate-y-[2px] transition-all disabled:opacity-50"
-                >
-                  {gcashSaving ? '...' : gcashSaved ? 'Saved!' : 'Save'}
-                </button>
-              </div>
-              {gcashError && (
-                <p className="font-dm-mono text-[11px] text-red-600">{gcashError}</p>
+              {isEditingGcash ? (
+                <>
+                  <div className="flex gap-2 items-center">
+                    <input
+                      type="tel"
+                      inputMode="numeric"
+                      placeholder="09XX XXX XXXX"
+                      value={gcashInput}
+                      onChange={e => {
+                        setGcashInput(e.target.value);
+                        setGcashSaved(false);
+                        setGcashError('');
+                      }}
+                      className="flex-1 h-10 border-2 border-black rounded-lg px-3 font-dm-mono text-sm bg-white focus:outline-none focus:border-[#0066FF] transition-colors"
+                    />
+                    <button
+                      onClick={handleSaveGcash}
+                      disabled={gcashSaving}
+                      className="h-10 px-4 border-2 border-black rounded-lg font-dm-mono text-xs font-bold uppercase bg-[#FFD700] shadow-[2px_2px_0px_0px_#000] active:shadow-none active:translate-x-[2px] active:translate-y-[2px] transition-all disabled:opacity-50"
+                    >
+                      {gcashSaving ? '...' : gcashSaved ? 'Saved!' : 'Save'}
+                    </button>
+                  </div>
+                  {gcashError && (
+                    <p className="font-dm-mono text-[11px] text-red-600">{gcashError}</p>
+                  )}
+                </>
+              ) : (
+                <div className="flex items-center justify-between">
+                  <p className="font-dm-mono font-bold text-xl tracking-wider">
+                    {formatGcashDisplay(summary.receipt.gcashNumber!)}
+                  </p>
+                  <button
+                    onClick={handleCopyGcash}
+                    className="h-9 px-4 border-2 border-black rounded-lg font-dm-mono text-xs font-bold bg-white hover:bg-[#fff9ef] shadow-[2px_2px_0px_0px_#000] active:translate-x-[2px] active:translate-y-[2px] active:shadow-none transition-all"
+                  >
+                    {gcashCopied ? 'Copied!' : 'Copy'}
+                  </button>
+                </div>
               )}
             </div>
           </div>
@@ -371,56 +402,106 @@ export default function ShareCodePage({ params }: { params: Promise<{ code: stri
                 </button>
               </div>
 
-              <div className="p-4 flex flex-col gap-4">
+              {isReceiptOwner || isPayer ? (
+                <div className="p-4 flex flex-col gap-4">
 
-                {/* Section 1: Two links */}
-                <div className="flex flex-col gap-1.5">
-                  <span className="font-dm-mono text-[9px] font-bold uppercase tracking-widest text-[#7e775f]">01 — Share links</span>
-                <div className="border-2 border-black p-4 bg-stone-50 flex flex-col items-center gap-3">
-                  <div className="flex gap-2 w-full">
-                    <div className="flex-1 flex flex-col items-center gap-1.5 border-2 border-black bg-green-100 py-2 px-1">
-                      <Share2 className="w-3.5 h-3.5 text-green-800" strokeWidth={2.5} />
-                      <span className="font-dm-mono text-[8px] font-bold uppercase tracking-widest text-green-800 text-center">Share with group</span>
-                      <span className="font-dm-mono text-[9px] font-bold text-black">6JM3W</span>
-                      <span className="font-dm-mono text-[8px] text-[#4d4732] text-center">→ everyone</span>
-                    </div>
-                    <div className="flex-1 flex flex-col items-center gap-1.5 border-2 border-black bg-[#FFD700] py-2 px-1">
-                      <Lock className="w-3.5 h-3.5" strokeWidth={2.5} />
-                      <span className="font-dm-mono text-[8px] font-bold uppercase tracking-widest text-center">Copy payer link</span>
-                      <span className="font-dm-mono text-[8px] font-bold uppercase tracking-widest text-[#4d4732]">Private</span>
-                      <span className="font-dm-mono text-[8px] text-[#4d4732] text-center">→ payer only</span>
+                  {/* Section 1: Two links */}
+                  <div className="flex flex-col gap-1.5">
+                    <span className="font-dm-mono text-[9px] font-bold uppercase tracking-widest text-[#7e775f]">01 — Share links</span>
+                    <div className="border-2 border-black p-4 bg-stone-50 flex flex-col items-center gap-3">
+                      <div className="flex gap-2 w-full">
+                        <div className="flex-1 flex flex-col items-center gap-1.5 border-2 border-black bg-green-100 py-2 px-1">
+                          <Share2 className="w-3.5 h-3.5 text-green-800" strokeWidth={2.5} />
+                          <span className="font-dm-mono text-[8px] font-bold uppercase tracking-widest text-green-800 text-center">Share with group</span>
+                          <span className="font-dm-mono text-[9px] font-bold text-black">6JM3W</span>
+                          <span className="font-dm-mono text-[8px] text-[#4d4732] text-center">→ everyone</span>
+                        </div>
+                        <div className="flex-1 flex flex-col items-center gap-1.5 border-2 border-black bg-[#FFD700] py-2 px-1">
+                          <Lock className="w-3.5 h-3.5" strokeWidth={2.5} />
+                          <span className="font-dm-mono text-[8px] font-bold uppercase tracking-widest text-center">Copy payer link</span>
+                          <span className="font-dm-mono text-[8px] font-bold uppercase tracking-widest text-[#4d4732]">Private</span>
+                          <span className="font-dm-mono text-[8px] text-[#4d4732] text-center">→ payer only</span>
+                        </div>
+                      </div>
+                      <p className="font-dm-sans font-bold text-sm text-center">
+                        Green goes to the group. Yellow goes only to whoever fronted the bill.
+                      </p>
                     </div>
                   </div>
-                  <p className="font-dm-sans font-bold text-sm text-center">
-                    Green goes to the group. Yellow goes only to whoever fronted the bill.
-                  </p>
-                </div>
-                </div>
 
-                {/* Section 2: CONFIRM? → PAID */}
-                <div className="flex flex-col gap-1.5">
-                  <span className="font-dm-mono text-[9px] font-bold uppercase tracking-widest text-[#7e775f]">02 — Confirm payment</span>
-                <div className="border-2 border-black p-4 bg-stone-50 flex flex-col items-center gap-3">
-                  <div className="flex items-center gap-2 w-full justify-center">
-                    <div className="flex items-center gap-2 border-2 border-black bg-white px-2 py-1.5">
-                      <div className="w-6 h-6 rounded-full bg-[#ffe16d] border-2 border-black flex items-center justify-center font-dm-sans text-[8px] font-bold">KP</div>
-                      <span className="font-dm-sans font-bold text-[10px] uppercase">Kate</span>
-                      <span className="px-1.5 py-0.5 border-2 border-black bg-[#FFD700] font-dm-mono text-[8px] font-bold uppercase tracking-wider">Confirm?</span>
-                    </div>
-                    <span className="font-dm-mono text-xs text-[#7e775f]">→</span>
-                    <div className="flex items-center gap-2 border-2 border-black bg-white px-2 py-1.5">
-                      <div className="w-6 h-6 rounded-full bg-[#ffe16d] border-2 border-black flex items-center justify-center font-dm-sans text-[8px] font-bold">KP</div>
-                      <span className="font-dm-sans font-bold text-[10px] uppercase">Kate</span>
-                      <span className="px-1.5 py-0.5 border-2 border-black bg-[#b5ead7] font-dm-mono text-[8px] font-bold uppercase tracking-wider">Paid</span>
+                  {/* Section 2: CONFIRM? → PAID */}
+                  <div className="flex flex-col gap-1.5">
+                    <span className="font-dm-mono text-[9px] font-bold uppercase tracking-widest text-[#7e775f]">02 — Confirm payment</span>
+                    <div className="border-2 border-black p-4 bg-stone-50 flex flex-col items-center gap-3">
+                      <div className="flex items-center gap-2 w-full justify-center">
+                        <div className="flex items-center gap-2 border-2 border-black bg-white px-2 py-1.5">
+                          <div className="w-6 h-6 rounded-full bg-[#ffe16d] border-2 border-black flex items-center justify-center font-dm-sans text-[8px] font-bold">KP</div>
+                          <span className="font-dm-sans font-bold text-[10px] uppercase">Kate</span>
+                          <span className="px-1.5 py-0.5 border-2 border-black bg-[#FFD700] font-dm-mono text-[8px] font-bold uppercase tracking-wider">Confirm?</span>
+                        </div>
+                        <span className="font-dm-mono text-xs text-[#7e775f]">→</span>
+                        <div className="flex items-center gap-2 border-2 border-black bg-white px-2 py-1.5">
+                          <div className="w-6 h-6 rounded-full bg-[#ffe16d] border-2 border-black flex items-center justify-center font-dm-sans text-[8px] font-bold">KP</div>
+                          <span className="font-dm-sans font-bold text-[10px] uppercase">Kate</span>
+                          <span className="px-1.5 py-0.5 border-2 border-black bg-[#b5ead7] font-dm-mono text-[8px] font-bold uppercase tracking-wider">Paid</span>
+                        </div>
+                      </div>
+                      <p className="font-dm-sans font-bold text-sm text-center">
+                        After someone pays via GCash, tap <span className="bg-[#FFD700] px-1">Confirm?</span> to mark them as paid.
+                      </p>
                     </div>
                   </div>
-                  <p className="font-dm-sans font-bold text-sm text-center">
-                    After someone pays via GCash, tap <span className="bg-[#FFD700] px-1">Confirm?</span> to mark them as paid.
-                  </p>
-                </div>
-                </div>
 
-              </div>
+                </div>
+              ) : (
+                <div className="p-4 flex flex-col gap-4">
+
+                  {/* Step 1: Copy GCash */}
+                  <div className="flex flex-col gap-1.5">
+                    <span className="font-dm-mono text-[9px] font-bold uppercase tracking-widest text-[#7e775f]">01 — Copy GCash</span>
+                    <div className="border-2 border-black p-4 bg-stone-50 flex flex-col items-center gap-3">
+                      <div className="flex items-center justify-between w-full border-2 border-black px-3 py-2.5 bg-white">
+                        <p className="font-dm-mono font-bold text-base tracking-wider">0917 123 4567</p>
+                        <span className="h-8 px-3 border-2 border-black bg-[#FFD700] font-dm-mono text-[10px] font-bold uppercase shadow-[2px_2px_0px_0px_#000] flex items-center">Copy</span>
+                      </div>
+                      <p className="font-dm-sans font-bold text-sm text-center">
+                        Tap Copy at the top to grab the GCash number.
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Step 2: Find your name */}
+                  <div className="flex flex-col gap-1.5">
+                    <span className="font-dm-mono text-[9px] font-bold uppercase tracking-widest text-[#7e775f]">02 — Find your name</span>
+                    <div className="border-2 border-black p-4 bg-stone-50 flex flex-col items-center gap-3">
+                      <div className="flex items-center justify-between w-full border-2 border-black px-3 py-2.5 bg-white">
+                        <div className="flex items-center gap-2">
+                          <div className="w-7 h-7 rounded-full bg-[#ffe16d] border-2 border-black flex items-center justify-center font-dm-sans text-[9px] font-bold">YU</div>
+                          <span className="font-dm-sans font-bold text-sm uppercase">You</span>
+                        </div>
+                        <span className="font-dm-mono font-bold text-sm">₱350</span>
+                      </div>
+                      <p className="font-dm-sans font-bold text-sm text-center">
+                        Tap your name below to see your share.
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Step 3: Pay */}
+                  <div className="flex flex-col gap-1.5">
+                    <span className="font-dm-mono text-[9px] font-bold uppercase tracking-widest text-[#7e775f]">03 — Pay with one tap</span>
+                    <div className="border-2 border-black p-4 bg-stone-50 flex flex-col items-center gap-3">
+                      <div className="flex items-center justify-center gap-2 w-full border-[3px] border-black rounded-lg bg-[#0066FF] text-white py-2.5 px-4">
+                        <span className="font-dm-mono font-bold text-sm uppercase">Pay via GCash</span>
+                      </div>
+                      <p className="font-dm-sans font-bold text-sm text-center">
+                        GCash opens with the exact amount pre-filled.
+                      </p>
+                    </div>
+                  </div>
+
+                </div>
+              )}
             </div>
 
             <button

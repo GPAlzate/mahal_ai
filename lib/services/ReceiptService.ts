@@ -247,7 +247,10 @@ export class ReceiptService {
    */
   async updatePayerParticipant(receiptId: number, payerParticipantId: number) {
     const result = await sql`
-      UPDATE receipts r
+      WITH r AS (
+        SELECT id, owner_id, gcash_number FROM receipts WHERE id = ${receiptId} AND deleted_at IS NULL
+      )
+      UPDATE receipts
       SET
         payer_participant_id = ${payerParticipantId},
         gcash_number = CASE
@@ -259,13 +262,11 @@ export class ReceiptService {
           ELSE r.gcash_number
         END,
         updated_at = NOW()
-      FROM participants p
+      FROM r
+      JOIN participants p ON p.id = ${payerParticipantId} AND p.deleted_at IS NULL
       LEFT JOIN users u ON u.clerk_user_id = r.owner_id AND u.deleted_at IS NULL
-      WHERE r.id = ${receiptId}
-        AND r.deleted_at IS NULL
-        AND p.id = ${payerParticipantId}
-        AND p.deleted_at IS NULL
-      RETURNING r.*
+      WHERE receipts.id = r.id
+      RETURNING receipts.*
     `;
 
     if (!result || result.length === 0) {

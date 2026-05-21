@@ -11,8 +11,22 @@ import type { ReceiptSummary } from '@/lib/schemas/receipt/public/ReceiptSummary
 import { ReceiptCard } from '@/components/ReceiptCard';
 import { ParticipantSplits } from '@/components/ParticipantSplits';
 import { KebabMenu } from '@/components/KebabMenu';
-import { ShareCodeBadge } from '@/components/ShareCodeBadge';
 import { formatCurrency } from '@/lib/helpers/CurrencyHelper';
+
+function normalizeGcash(raw: string): string | null {
+  const digits = raw.replace(/\D/g, '');
+  if (digits.length === 11 && digits.startsWith('0')) {
+    return digits.slice(1);
+  }
+  if (digits.length === 10 && digits.startsWith('9')) {
+    return digits;
+  }
+  return null;
+}
+
+function formatGcashDisplay(raw: string): string {
+  return `0${raw.slice(0, 3)} ${raw.slice(3, 6)} ${raw.slice(6)}`;
+}
 
 export default function CollectPage({ params }: { params: Promise<{ code: string }> }) {
   const resolvedParams = use(params);
@@ -25,6 +39,12 @@ export default function CollectPage({ params }: { params: Promise<{ code: string
   const [error, setError] = useState<string | null>(null);
   const [showReceiptImage, setShowReceiptImage] = useState(false);
   const [showKebabMenu, setShowKebabMenu] = useState(false);
+  const [gcashInput, setGcashInput] = useState('');
+  const [gcashSaving, setGcashSaving] = useState(false);
+  const [gcashSaved, setGcashSaved] = useState(false);
+  const [gcashError, setGcashError] = useState('');
+  const [gcashCopied, setGcashCopied] = useState(false);
+  const [isEditingGcash, setIsEditingGcash] = useState(true);
 
   useEffect(() => {
     if (!isLoaded) {
@@ -50,6 +70,8 @@ export default function CollectPage({ params }: { params: Promise<{ code: string
         );
         if (userId && payerParticipant?.userId && userId === payerParticipant.userId) {
           setSummary(data);
+          setGcashInput(data.receipt.gcashNumber ? formatGcashDisplay(data.receipt.gcashNumber) : '');
+          setIsEditingGcash(!data.receipt.gcashNumber);
           setLoading(false);
           return;
         }
@@ -59,6 +81,8 @@ export default function CollectPage({ params }: { params: Promise<{ code: string
           const { valid } = await api.receipts.verifyCollector(id, urlSecret).catch(() => ({ valid: false }));
           if (valid) {
             setSummary(data);
+            setGcashInput(data.receipt.gcashNumber ? formatGcashDisplay(data.receipt.gcashNumber) : '');
+            setIsEditingGcash(!data.receipt.gcashNumber);
             setLoading(false);
             return;
           }
@@ -73,6 +97,56 @@ export default function CollectPage({ params }: { params: Promise<{ code: string
 
     fetchAndVerify();
   }, [shareCode, router, userId, isLoaded]);
+
+  const handleSaveGcash = async () => {
+    if (!summary) {
+      return;
+    }
+    const trimmed = gcashInput.trim();
+    if (trimmed === '') {
+      setGcashError('');
+      setGcashSaving(true);
+      try {
+        await api.receipts.updateGcashNumber(summary.receipt.id, null);
+        setSummary(prev => prev ? { ...prev, receipt: { ...prev.receipt, gcashNumber: null }, payerGcashNumber: null } : prev);
+        setGcashSaved(true);
+        setTimeout(() => setGcashSaved(false), 2000);
+      } catch {
+        // silent
+      } finally {
+        setGcashSaving(false);
+      }
+      return;
+    }
+    const normalized = normalizeGcash(trimmed);
+    if (normalized === null) {
+      setGcashError('Enter a valid PH number (09XX XXX XXXX)');
+      return;
+    }
+    setGcashError('');
+    setGcashSaving(true);
+    try {
+      await api.receipts.updateGcashNumber(summary.receipt.id, normalized);
+      setSummary(prev => prev ? { ...prev, receipt: { ...prev.receipt, gcashNumber: normalized }, payerGcashNumber: normalized } : prev);
+      setGcashInput(formatGcashDisplay(normalized));
+      setGcashSaved(true);
+      setIsEditingGcash(false);
+      setTimeout(() => setGcashSaved(false), 2000);
+    } catch {
+      // silent
+    } finally {
+      setGcashSaving(false);
+    }
+  };
+
+  const handleCopyGcash = () => {
+    if (!summary?.receipt.gcashNumber) {
+      return;
+    }
+    navigator.clipboard.writeText(formatGcashDisplay(summary.receipt.gcashNumber));
+    setGcashCopied(true);
+    setTimeout(() => setGcashCopied(false), 2000);
+  };
 
   if (loading) {
     return <LoadingScreen message="Loading receipt..." />;
@@ -125,9 +199,72 @@ export default function CollectPage({ params }: { params: Promise<{ code: string
           </div>
         </div>
 
-        <ShareCodeBadge shareCode={summary.receipt.shareCode} title={summary.receipt.title || 'Receipt'} />
+        {/* Collector context badge */}
+        <div className="flex items-center gap-2 bg-[#FFD700] border-2 border-black rounded-lg px-3 py-2 self-start shadow-[2px_2px_0px_0px_#000]">
+          <span className="font-dm-mono text-[10px] uppercase font-bold tracking-widest">Collector view</span>
+        </div>
 
         <ReceiptCard summary={summary} formatCurrency={formatCurrency} />
+
+        {/* GCash management */}
+        <div className="border-4 border-black rounded-xl bg-white shadow-[3px_3px_0px_0px_#000] overflow-hidden">
+          <div className="bg-[#0066FF] px-4 py-2.5 flex items-center justify-between">
+            <div>
+              <p className="font-dm-mono text-[10px] font-bold uppercase tracking-widest text-white">Your GCash number</p>
+              <p className="font-dm-mono text-[11px] text-blue-200">So people know where to send payment</p>
+            </div>
+            {!isEditingGcash && summary.receipt.gcashNumber && (
+              <button
+                onClick={() => setIsEditingGcash(true)}
+                className="font-dm-mono text-[10px] font-bold uppercase tracking-widest text-blue-200 hover:text-white transition-colors"
+              >
+                Edit
+              </button>
+            )}
+          </div>
+          <div className="px-4 py-3 flex flex-col gap-2">
+            {isEditingGcash ? (
+              <>
+                <div className="flex gap-2 items-center">
+                  <input
+                    type="tel"
+                    inputMode="numeric"
+                    placeholder="09XX XXX XXXX"
+                    value={gcashInput}
+                    onChange={e => {
+                      setGcashInput(e.target.value);
+                      setGcashSaved(false);
+                      setGcashError('');
+                    }}
+                    className="flex-1 h-10 border-2 border-black rounded-lg px-3 font-dm-mono text-sm bg-white focus:outline-none focus:border-[#0066FF] transition-colors"
+                  />
+                  <button
+                    onClick={handleSaveGcash}
+                    disabled={gcashSaving}
+                    className="h-10 px-4 border-2 border-black rounded-lg font-dm-mono text-xs font-bold uppercase bg-[#FFD700] shadow-[2px_2px_0px_0px_#000] active:shadow-none active:translate-x-[2px] active:translate-y-[2px] transition-all disabled:opacity-50"
+                  >
+                    {gcashSaving ? '...' : gcashSaved ? 'Saved!' : 'Save'}
+                  </button>
+                </div>
+                {gcashError && (
+                  <p className="font-dm-mono text-[11px] text-red-600">{gcashError}</p>
+                )}
+              </>
+            ) : (
+              <div className="flex items-center justify-between">
+                <p className="font-dm-mono font-bold text-xl tracking-wider">
+                  {formatGcashDisplay(summary.receipt.gcashNumber!)}
+                </p>
+                <button
+                  onClick={handleCopyGcash}
+                  className="h-9 px-4 border-2 border-black rounded-lg font-dm-mono text-xs font-bold bg-white hover:bg-[#fff9ef] shadow-[2px_2px_0px_0px_#000] active:translate-x-[2px] active:translate-y-[2px] active:shadow-none transition-all"
+                >
+                  {gcashCopied ? 'Copied!' : 'Copy'}
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
 
         <ParticipantSplits
           receiptId={summary.receipt.id}

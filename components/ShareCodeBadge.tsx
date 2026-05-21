@@ -29,7 +29,7 @@ export function ShareCodeBadge({ shareCode, title }: ShareCodeBadgeProps) {
   return (
     <button
       onClick={handleShare}
-      className="flex items-center gap-2 bg-green-100 border-2 border-black rounded-lg px-3 py-2 self-start shadow-[2px_2px_0px_0px_#000] hover:bg-green-200 active:translate-x-[2px] active:translate-y-[2px] active:shadow-none transition-all cursor-pointer"
+      className="flex items-center gap-2 bg-green-100 border-2 border-black rounded-lg px-3 py-2 shadow-[2px_2px_0px_0px_#000] hover:bg-green-200 active:translate-x-[2px] active:translate-y-[2px] active:shadow-none transition-all cursor-pointer"
     >
       {shared
         ? <Check className="w-3.5 h-3.5 text-green-800" strokeWidth={2.5} />
