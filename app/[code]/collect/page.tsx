@@ -3,7 +3,7 @@
 import { useState, useEffect, use } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@clerk/nextjs';
-import { Eye, MoreVertical, X, Lock } from 'lucide-react';
+import { Eye, MoreVertical, X } from 'lucide-react';
 import Link from 'next/link';
 import { api } from '@/lib/client/api-client';
 import LoadingScreen from '@/components/LoadingScreen';
@@ -12,31 +12,26 @@ import { ReceiptCard } from '@/components/ReceiptCard';
 import { ParticipantSplits } from '@/components/ParticipantSplits';
 import { KebabMenu } from '@/components/KebabMenu';
 import { ShareCodeBadge } from '@/components/ShareCodeBadge';
-import { SaveSplitsNudge } from '@/components/SaveSplitsNudge';
 import { formatCurrency } from '@/lib/helpers/CurrencyHelper';
 
-export default function ShareCodePage({ params }: { params: Promise<{ code: string }> }) {
+export default function CollectPage({ params }: { params: Promise<{ code: string }> }) {
   const resolvedParams = use(params);
   const shareCode = resolvedParams.code.toUpperCase();
   const router = useRouter();
-  const { userId } = useAuth();
+  const { userId, isLoaded } = useAuth();
 
   const [summary, setSummary] = useState<ReceiptSummary | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showReceiptImage, setShowReceiptImage] = useState(false);
   const [showKebabMenu, setShowKebabMenu] = useState(false);
-  const [linkCopied, setLinkCopied] = useState(false);
-
-  const isReceiptOwner = !!userId && !!summary?.receipt.ownerId && userId === summary.receipt.ownerId;
-
-  const payerParticipant = summary?.participantSplits.find(
-    p => p.participantId === summary.receipt.payerParticipantId
-  );
-  const isPayer = !!userId && !!payerParticipant?.userId && userId === payerParticipant.userId;
 
   useEffect(() => {
-    async function fetchSummary() {
+    if (!isLoaded) {
+      return;
+    }
+
+    async function fetchAndVerify() {
       try {
         const data = await api.receipts.getByShareCode(shareCode);
         const { status, id } = data.receipt;
@@ -50,31 +45,34 @@ export default function ShareCodePage({ params }: { params: Promise<{ code: stri
           return;
         }
 
-        setSummary(data);
-        setLoading(false);
+        const payerParticipant = data.participantSplits.find(
+          p => p.participantId === data.receipt.payerParticipantId
+        );
+        if (userId && payerParticipant?.userId && userId === payerParticipant.userId) {
+          setSummary(data);
+          setLoading(false);
+          return;
+        }
+
+        const urlSecret = new URLSearchParams(window.location.search).get('c');
+        if (urlSecret) {
+          const { valid } = await api.receipts.verifyCollector(id, urlSecret).catch(() => ({ valid: false }));
+          if (valid) {
+            setSummary(data);
+            setLoading(false);
+            return;
+          }
+        }
+
+        router.replace(`/${shareCode}`);
       } catch (err: any) {
         setError(err.message || 'Failed to load receipt');
         setLoading(false);
       }
     }
 
-    fetchSummary();
-  }, [shareCode, router]);
-
-  const handleCopyCollectorLink = () => {
-    if (!summary) {
-      return;
-    }
-    const secret = localStorage.getItem(`cs_key_${summary.receipt.id}`);
-    if (!secret) {
-      return;
-    }
-    const link = `${window.location.origin}/${summary.receipt.shareCode}/collect?c=${secret}`;
-    navigator.clipboard.writeText(link).then(() => {
-      setLinkCopied(true);
-      setTimeout(() => setLinkCopied(false), 2000);
-    });
-  };
+    fetchAndVerify();
+  }, [shareCode, router, userId, isLoaded]);
 
   if (loading) {
     return <LoadingScreen message="Loading receipt..." />;
@@ -127,41 +125,17 @@ export default function ShareCodePage({ params }: { params: Promise<{ code: stri
           </div>
         </div>
 
-        {/* Share Code Badge */}
         <ShareCodeBadge shareCode={summary.receipt.shareCode} title={summary.receipt.title || 'Receipt'} />
 
         <ReceiptCard summary={summary} formatCurrency={formatCurrency} />
-
-        {isReceiptOwner && (
-          <div className="border-2 border-black rounded-lg bg-[#fffbe6] shadow-[2px_2px_0px_0px_#000] overflow-hidden">
-            <div className="flex items-center gap-2 px-4 py-2 border-b-2 border-black bg-[#FFD700]">
-              <Lock className="w-3 h-3 flex-shrink-0" />
-              <p className="font-dm-mono text-[10px] font-bold uppercase tracking-widest">Private — collector view</p>
-            </div>
-            <div className="flex items-center justify-between px-4 py-3 gap-3">
-              <p className="font-dm-mono text-xs text-[#4d4732] leading-relaxed">
-                Share this link with whoever fronted the bill.
-              </p>
-              <button
-                onClick={handleCopyCollectorLink}
-                className="flex-shrink-0 h-9 px-4 border-2 border-black rounded-lg font-dm-mono text-xs font-bold bg-white hover:bg-[#fff9ef] shadow-[2px_2px_0px_0px_#000] active:translate-x-[2px] active:translate-y-[2px] active:shadow-none transition-all"
-              >
-                {linkCopied ? 'Copied!' : 'Copy link'}
-              </button>
-            </div>
-          </div>
-        )}
 
         <ParticipantSplits
           receiptId={summary.receipt.id}
           participantSplits={summary.participantSplits}
           payerParticipantId={summary.receipt.payerParticipantId ?? null}
           formatCurrency={formatCurrency}
-          isCollector={isPayer}
+          isCollector={true}
         />
-        <div className="mt-4">
-          <SaveSplitsNudge />
-        </div>
 
         <div className="h-4" />
       </div>

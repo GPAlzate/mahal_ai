@@ -36,7 +36,7 @@ export function ShareCodeBadge({ shareCode, title }: ShareCodeBadgeProps) {
         : <Share2 className="w-3.5 h-3.5 text-green-800" strokeWidth={2.5} />
       }
       <span className="font-dm-mono text-[10px] uppercase font-bold tracking-widest text-green-800">
-        {shared ? 'Copied!' : 'Share'}
+        {shared ? 'Copied!' : 'Share with group'}
       </span>
       <span className="font-dm-mono font-bold text-sm tracking-widest text-black">{shareCode}</span>
     </button>
