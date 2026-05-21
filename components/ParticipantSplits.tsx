@@ -244,7 +244,7 @@ export function ParticipantSplits({ receiptId, participantSplits, payerParticipa
                         <button
                           onClick={() => handleConfirmPaid(split.participantId)}
                           disabled={isConfirming}
-                          className="w-full h-11 font-dm-mono text-[11px] uppercase tracking-widest text-[#7e7576] hover:text-black disabled:opacity-50 transition-colors"
+                          className="w-full h-11 font-dm-sans text-xs font-medium text-[#4d4732] hover:text-black hover:underline disabled:opacity-50 transition-colors"
                         >
                           {isConfirming ? 'Confirming...' : 'Mark as paid manually'}
                         </button>
