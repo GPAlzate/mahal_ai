@@ -71,10 +71,10 @@ export default function ShareCodePage({ params }: { params: Promise<{ code: stri
   };
 
   useEffect(() => {
-    async function fetchSummary() {
+    async function fetchReceipt() {
       try {
-        const data = await api.receipts.getByShareCode(shareCode);
-        const { status, id } = data.receipt;
+        const receipt = await api.receipts.getByShareCode(shareCode);
+        const { status, id } = receipt;
 
         if (status === 'ULIP' || status === 'PRSP') {
           router.replace(`/receipts/${id}/participants`);
@@ -85,6 +85,7 @@ export default function ShareCodePage({ params }: { params: Promise<{ code: stri
           return;
         }
 
+        const data = await api.receipts.getSummary(id);
         setSummary(data);
         setGcashInput(data.receipt.gcashNumber ? formatGcashDisplay(data.receipt.gcashNumber) : '');
         setIsEditingGcash(!data.receipt.gcashNumber);
@@ -95,7 +96,7 @@ export default function ShareCodePage({ params }: { params: Promise<{ code: stri
       }
     }
 
-    fetchSummary();
+    fetchReceipt();
   }, [shareCode, router]);
 
   const handleShareGroupLink = async () => {
@@ -462,7 +463,7 @@ export default function ShareCodePage({ params }: { params: Promise<{ code: stri
                     <div className="border-2 border-black p-4 bg-stone-50 flex flex-col items-center gap-3">
                       <div className="flex items-center justify-between w-full border-2 border-black px-3 py-2.5 bg-white">
                         <p className="font-dm-mono font-bold text-base tracking-wider">0917 123 4567</p>
-                        <span className="h-8 px-3 border-2 border-black bg-[#FFD700] font-dm-mono text-[10px] font-bold uppercase shadow-[2px_2px_0px_0px_#000] flex items-center">Copy</span>
+                        <span className="h-8 px-3 border-2 border-black rounded-lg bg-white font-dm-mono text-[10px] font-bold uppercase shadow-[2px_2px_0px_0px_#000] flex items-center">Copy</span>
                       </div>
                       <p className="font-dm-sans font-bold text-sm text-center">
                         Tap Copy at the top to grab the GCash number.
@@ -491,11 +492,16 @@ export default function ShareCodePage({ params }: { params: Promise<{ code: stri
                   <div className="flex flex-col gap-1.5">
                     <span className="font-dm-mono text-[9px] font-bold uppercase tracking-widest text-[#7e775f]">03 — Pay with one tap</span>
                     <div className="border-2 border-black p-4 bg-stone-50 flex flex-col items-center gap-3">
-                      <div className="flex items-center justify-center gap-2 w-full border-[3px] border-black rounded-lg bg-[#0066FF] text-white py-2.5 px-4">
-                        <span className="font-dm-mono font-bold text-sm uppercase">Pay via GCash</span>
+                      <div className="flex items-center justify-between w-full border-2 border-black px-3 py-2.5 bg-white">
+                        <div className="flex items-center gap-2">
+                          <div className="w-7 h-7 rounded-full bg-[#ffe16d] border-2 border-black flex items-center justify-center font-dm-sans text-[9px] font-bold">YU</div>
+                          <span className="font-dm-sans font-bold text-sm uppercase">You</span>
+                          <span className="inline-flex items-center px-2 py-0.5 border-2 border-black bg-[#0066FF] text-white font-dm-mono text-[9px] font-bold uppercase tracking-widest shadow-[1px_1px_0px_0px_#000]">Pay ↗</span>
+                        </div>
+                        <span className="font-dm-mono font-bold text-sm">₱350</span>
                       </div>
                       <p className="font-dm-sans font-bold text-sm text-center">
-                        GCash opens with the exact amount pre-filled.
+                        Tap Pay ↗ on your row. GCash opens with the amount ready.
                       </p>
                     </div>
                   </div>

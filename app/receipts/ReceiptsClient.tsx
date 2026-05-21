@@ -102,7 +102,15 @@ export default function ReceiptsClient({ receipts }: Props) {
             <button
               key={r.id}
               type="button"
-              onClick={() => router.push(`/${r.shareCode}`)}
+              onClick={() => {
+                if (r.status === 'DRFT') {
+                  router.push(`/receipts/${r.id}/assign`);
+                } else if (r.status === 'ULIP' || r.status === 'PRSP') {
+                  router.push(`/receipts/${r.id}/participants`);
+                } else {
+                  router.push(`/${r.shareCode}`);
+                }
+              }}
               className={`flex items-center justify-between px-4 py-3 bg-white hover:bg-[#fff9ef] active:bg-[#f3f3f3] transition-colors cursor-pointer text-left ${index > 0 ? 'border-t-2 border-black' : ''}`}
             >
               <div className="flex flex-col gap-0.5 min-w-0">

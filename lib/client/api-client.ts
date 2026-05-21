@@ -102,7 +102,7 @@ export const api = {
       fetchAPI<Receipt>(`/api/receipts/${id}${includeLines ? '?includeLines=true' : ''}`),
 
     getByShareCode: (shareCode: string) =>
-      fetchAPI<ReceiptSummary>(`/api/receipts?shareCode=${shareCode}`),
+      fetchAPI<Receipt>(`/api/receipts?shareCode=${shareCode}`),
 
     getSummary: (id: number) => fetchAPI<ReceiptSummary>(`/api/receipts/${id}/summary`),
 

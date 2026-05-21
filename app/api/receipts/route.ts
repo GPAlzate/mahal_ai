@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { auth } from '@clerk/nextjs/server';
-import { receiptSummaryService } from '@/lib/services/ReceiptSummaryService';
 import { receiptService } from '@/lib/services/ReceiptService';
 import { FindReceiptByShareCodeRequestSchema } from '@/lib/schemas/receipt/request/FindReceiptByShareCodeRequest';
 import { CreateReceiptRequestSchema } from '@/lib/schemas/receipt/request/CreateReceiptRequest';
@@ -55,9 +54,9 @@ export async function GET(request: NextRequest) {
 
     const { shareCode: validatedShareCode } = validation.data;
 
-    const summary = await receiptSummaryService.calculateSummaryByShareCode(validatedShareCode);
+    const receipt = await receiptService.findReceiptByShareCode(validatedShareCode);
 
-    return NextResponse.json(summary, { status: 200 });
+    return NextResponse.json(receipt, { status: 200 });
   } catch (error) {
     console.error('Error getting receipt by share code:', error);
 
