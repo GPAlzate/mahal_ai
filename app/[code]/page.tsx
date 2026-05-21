@@ -48,7 +48,7 @@ export default function ShareCodePage({ params }: { params: Promise<{ code: stri
 
         // Determine collector access
         const receiptId = data.receipt.id;
-        const storedSecret = localStorage.getItem(`cs_key_${receiptId}`);
+        const storedSecret = sessionStorage.getItem(`cs_key_${receiptId}`);
 
         if (userId && data.receipt.ownerId && userId === data.receipt.ownerId) {
           setIsCollector(true);
@@ -59,7 +59,7 @@ export default function ShareCodePage({ params }: { params: Promise<{ code: stri
           if (urlSecret) {
             const { valid } = await api.receipts.verifyCollector(receiptId, urlSecret).catch(() => ({ valid: false }));
             if (valid) {
-              localStorage.setItem(`cs_key_${receiptId}`, urlSecret);
+              sessionStorage.setItem(`cs_key_${receiptId}`, urlSecret);
               setIsCollector(true);
               router.replace(`/${shareCode}`);
             }
@@ -80,7 +80,7 @@ export default function ShareCodePage({ params }: { params: Promise<{ code: stri
     if (!summary) {
       return;
     }
-    const secret = localStorage.getItem(`cs_key_${summary.receipt.id}`);
+    const secret = sessionStorage.getItem(`cs_key_${summary.receipt.id}`);
     if (!secret) {
       return;
     }
