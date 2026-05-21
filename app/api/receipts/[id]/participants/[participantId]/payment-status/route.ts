@@ -63,6 +63,19 @@ export async function PATCH(
       newStatus
     );
 
+    if (newStatus === 'PAID') {
+      const unpaid = await sql`
+        SELECT id FROM participants
+        WHERE receipt_id = ${receiptId} AND deleted_at IS NULL AND payment_status != 'PAID'
+      `;
+      if (unpaid.length === 0) {
+        await sql`
+          UPDATE receipts SET status = 'STLD', updated_at = NOW()
+          WHERE id = ${receiptId}
+        `;
+      }
+    }
+
     return NextResponse.json(participant, { status: 200 });
   } catch (error) {
     console.error('Error updating payment status:', error);

@@ -66,7 +66,7 @@ export const api = {
       }),
 
     create: (data: { status: ReceiptStatus; title?: string; receiptTime?: string }) =>
-      fetchAPI<{ receiptId: number }>('/api/receipts', {
+      fetchAPI<{ receiptId: number; collectorSecret: string }>('/api/receipts', {
         method: 'POST',
         body: JSON.stringify(data),
       }),
@@ -82,6 +82,15 @@ export const api = {
         method: 'PATCH',
         body: JSON.stringify({ title }),
       }),
+
+    updatePayer: (id: number, payerParticipantId: number) =>
+      fetchAPI<Receipt>(`/api/receipts/${id}`, {
+        method: 'PATCH',
+        body: JSON.stringify({ payerParticipantId }),
+      }),
+
+    verifyCollector: (id: number, secret: string) =>
+      fetchAPI<{ valid: boolean }>(`/api/receipts/${id}/collector?secret=${encodeURIComponent(secret)}`),
 
     get: (id: number, includeLines?: boolean) =>
       fetchAPI<Receipt>(`/api/receipts/${id}${includeLines ? '?includeLines=true' : ''}`),

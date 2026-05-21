@@ -242,8 +242,9 @@ export default function SummaryPage({ params }: { params: Promise<{ id: string }
         <ParticipantSplits
           receiptId={receiptId}
           participantSplits={summary.participantSplits}
-          ownerId={summary.receipt.ownerId}
+          payerParticipantId={summary.receipt.payerParticipantId ?? null}
           formatCurrency={formatCurrency}
+          isCollector={false}
         />
       </main>
 

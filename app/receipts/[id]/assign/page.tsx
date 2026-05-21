@@ -468,7 +468,7 @@ export default function AssignPage({ params }: { params: Promise<{ id: string }>
         : 'Summary';
 
   return (
-    <div className={`min-h-dvh flex flex-col bg-[#fff9ef] text-[#1b1b1b] font-['Work_Sans'] ${currentView === 'misc-charges' ? 'pb-20' : 'pb-[140px]'}`}>
+    <div className={`min-h-dvh flex flex-col bg-[#fff9ef] text-[#1b1b1b] font-['Work_Sans'] ${currentView === 'misc-charges' ? 'pb-[120px]' : 'pb-[200px]'}`}>
 
       {/* Header */}
       <header className="sticky top-0 z-40 bg-white border-b-4 border-black w-full">

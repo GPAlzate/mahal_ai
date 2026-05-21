@@ -4,9 +4,11 @@ import { useState, use, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useUser } from '@clerk/nextjs';
 import { ArrowLeft, Plus, X } from 'lucide-react';
+import Link from 'next/link';
 import { api } from '@/lib/client/api-client';
 import { ShareCodeBadge } from '@/components/ShareCodeBadge';
 import type { ReceiptStatus } from '@/lib/schemas/receipt/public/Receipt';
+import type { Participant } from '@/lib/schemas/participant/public/Participant';
 
 interface LocalParticipant {
   tempId: string;
@@ -23,6 +25,7 @@ export default function ParticipantsPage({ params }: { params: Promise<{ id: str
 
   const [participantName, setParticipantName] = useState('');
   const [participants, setParticipants] = useState<LocalParticipant[]>([]);
+  const [payerTempId, setPayerTempId] = useState<string | null>(null);
   const [linesReady, setLinesReady] = useState(false);
   const [checkingLines, setCheckingLines] = useState(true);
   const [parseStatus, setParseStatus] = useState<ReceiptStatus>('ULIP');
@@ -105,6 +108,9 @@ export default function ParticipantsPage({ params }: { params: Promise<{ id: str
     const participant = participants.find((p) => p.tempId === tempId);
     if (!participant) return;
     setParticipants((prev) => prev.filter((p) => p.tempId !== tempId));
+    if (payerTempId === tempId) {
+      setPayerTempId(null);
+    }
     if (participant.participantId) {
       await api.participants.delete(receiptId, participant.participantId).catch(() => {});
     }
@@ -118,10 +124,32 @@ export default function ParticipantsPage({ params }: { params: Promise<{ id: str
       const newParticipants = participants
         .filter((p) => !p.participantId)
         .map(({ displayName, userId }) => ({ displayName, ...(userId ? { userId } : {}) }));
-      await Promise.all([
-        newParticipants.length > 0 ? api.participants.create(receiptId, newParticipants) : Promise.resolve(),
-        receiptTitle.trim() ? api.receipts.updateTitle(receiptId, receiptTitle.trim()) : Promise.resolve(),
+
+      const [created] = await Promise.all([
+        newParticipants.length > 0
+          ? api.participants.create(receiptId, newParticipants)
+          : Promise.resolve([] as Participant[]),
+        receiptTitle.trim() ? api.receipts.updateTitle(receiptId, receiptTitle.trim()) : Promise.resolve(null),
       ]);
+
+      // Resolve the payer's participant ID and set it on the receipt
+      const effectivePayerTempId = payerTempId ?? participants[0]?.tempId;
+      const payerLocal = participants.find((p) => p.tempId === effectivePayerTempId);
+      if (payerLocal) {
+        let payerParticipantId: number | undefined;
+        if (payerLocal.participantId) {
+          payerParticipantId = payerLocal.participantId;
+        } else {
+          const newIdx = newParticipants.findIndex((np) => np.displayName === payerLocal.displayName);
+          if (newIdx >= 0 && created[newIdx]) {
+            payerParticipantId = created[newIdx].id;
+          }
+        }
+        if (payerParticipantId) {
+          await api.receipts.updatePayer(receiptId, payerParticipantId);
+        }
+      }
+
       router.push(`/receipts/${receiptId}/assign`);
     } catch (err: any) {
       setError(err.message || 'Failed to save');
@@ -147,9 +175,11 @@ export default function ParticipantsPage({ params }: { params: Promise<{ id: str
             </button>
             {shareCode && <ShareCodeBadge shareCode={shareCode} />}
           </div>
-          <h1 className="font-dm-sans text-2xl font-black uppercase px-3 py-2 bg-black text-white inline-block -rotate-1">
-            mahal ai &lt;3
-          </h1>
+          <Link href="/">
+            <h1 className="font-dm-sans text-2xl font-black uppercase px-3 py-2 bg-black text-white inline-block -rotate-1">
+              mahal ai &lt;3
+            </h1>
+          </Link>
         </div>
 
         {/* Main card */}
@@ -178,20 +208,40 @@ export default function ParticipantsPage({ params }: { params: Promise<{ id: str
           {/* Participants list */}
           {participants.length > 0 && (
             <div className="flex flex-col border-2 border-black rounded-lg overflow-hidden">
-              {participants.map((participant, index) => (
-                <div
-                  key={participant.tempId}
-                  className={`flex items-center justify-between px-4 py-3 bg-white ${index > 0 ? 'border-t-2 border-black' : ''}`}
-                >
-                  <span className="font-dm-mono font-bold text-sm">{participant.displayName}</span>
-                  <button
-                    onClick={() => handleRemoveParticipant(participant.tempId)}
-                    className="w-7 h-7 flex items-center justify-center border-2 border-black rounded bg-white shadow-[2px_2px_0px_0px_#000] hover:bg-red-50 active:translate-x-[2px] active:translate-y-[2px] active:shadow-none transition-all"
+              {participants.map((participant, index) => {
+                const isPayer = payerTempId === null
+                  ? participant.tempId === participants[0].tempId
+                  : participant.tempId === payerTempId;
+                return (
+                  <div
+                    key={participant.tempId}
+                    className={`flex items-center gap-3 px-4 py-3 ${index > 0 ? 'border-t-2 border-black' : ''} ${isPayer ? 'bg-[#FFFDE7]' : 'bg-white'}`}
                   >
-                    <X className="w-3.5 h-3.5" />
-                  </button>
-                </div>
-              ))}
+                    <span className="font-dm-mono font-bold text-sm flex-1">{participant.displayName}</span>
+                    {isPayer ? (
+                      <span className="font-dm-mono text-[10px] font-bold uppercase tracking-widest px-2 py-1 bg-[#FFD700] border-2 border-black rounded shadow-[2px_2px_0px_0px_#000]">
+                        Paid the bill
+                      </span>
+                    ) : (
+                      participants.length >= 2 && (
+                        <button
+                          type="button"
+                          onClick={() => setPayerTempId(participant.tempId)}
+                          className="font-dm-mono text-[10px] font-bold uppercase tracking-widest px-2 py-1 bg-white border-2 border-black rounded shadow-[2px_2px_0px_0px_#000] hover:bg-[#fff9ef] active:translate-x-[2px] active:translate-y-[2px] active:shadow-none transition-all text-[#4d4732] hover:text-black"
+                        >
+                          Set as payer
+                        </button>
+                      )
+                    )}
+                    <button
+                      onClick={() => handleRemoveParticipant(participant.tempId)}
+                      className="w-7 h-7 flex items-center justify-center border-2 border-black rounded bg-white shadow-[2px_2px_0px_0px_#000] hover:bg-red-50 active:translate-x-[2px] active:translate-y-[2px] active:shadow-none transition-all flex-shrink-0"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                );
+              })}
             </div>
           )}
 

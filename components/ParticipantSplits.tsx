@@ -40,13 +40,15 @@ function PaymentBadge({ status }: { status: PaymentStatus }) {
 interface Props {
   receiptId: number;
   participantSplits: ParticipantSplit[];
-  ownerId: string | null | undefined;
+  payerParticipantId: number | null;
   formatCurrency: (amount: number) => string;
-  isOwner?: boolean;
+  isCollector?: boolean;
 }
 
-export function ParticipantSplits({ receiptId, participantSplits, ownerId, formatCurrency, isOwner }: Props) {
-  const ownerName = ownerId ? (participantSplits.find(p => p.userId === ownerId)?.displayName ?? null) : null;
+export function ParticipantSplits({ receiptId, participantSplits, payerParticipantId, formatCurrency, isCollector }: Props) {
+  const payerName = payerParticipantId
+    ? (participantSplits.find(p => p.participantId === payerParticipantId)?.displayName ?? null)
+    : null;
   const [expandedParticipants, setExpandedParticipants] = useState<Set<number>>(new Set());
   const [confirmingIds, setConfirmingIds] = useState<Set<number>>(new Set());
   const [localStatuses, setLocalStatuses] = useState<Map<number, PaymentStatus>>(new Map());
@@ -89,10 +91,10 @@ export function ParticipantSplits({ receiptId, participantSplits, ownerId, forma
   return (
     <>
       <h2 className="font-dm-sans font-bold text-2xl uppercase mt-2">
-        {isOwner ? 'Payment Status' : 'What do you owe?'}
+        {isCollector ? 'Payment Status' : 'What do you owe?'}
       </h2>
       <p className="font-dm-sans text-sm text-gray-500">
-        {isOwner ? 'Confirm payments as you receive them.' : 'Tap your own name to see what you owe.'}
+        {isCollector ? 'Confirm payments as you receive them.' : 'Tap your own name to see what you owe.'}
       </p>
 
       {participantSplits.map((split, i) => {
@@ -100,9 +102,9 @@ export function ParticipantSplits({ receiptId, participantSplits, ownerId, forma
         const color = PARTICIPANT_COLORS[i % PARTICIPANT_COLORS.length];
         const effectiveStatus: PaymentStatus = localStatuses.get(split.participantId) ?? split.paymentStatus ?? 'PNYP';
         const isConfirming = confirmingIds.has(split.participantId);
-        const isOwnEntry = isOwner && split.userId === ownerId;
-        const showOwnerUI = isOwner && (!isOwnEntry || effectiveStatus !== 'PNYP');
-        const needsConfirmation = showOwnerUI && (effectiveStatus === 'PMIP' || effectiveStatus === 'PCIP');
+        const isPayerEntry = split.participantId === payerParticipantId;
+        const showCollectorUI = isCollector && !isPayerEntry;
+        const needsConfirmation = showCollectorUI && (effectiveStatus === 'PMIP' || effectiveStatus === 'PCIP');
         const isPaid = effectiveStatus === 'PAID';
         const gcashUrl = `gcash://com.mynt.gcash/app/006300090100?amount=${split.total.toFixed(2)}`;
 
@@ -121,7 +123,7 @@ export function ParticipantSplits({ receiptId, participantSplits, ownerId, forma
                   {getInitials(split.displayName)}
                 </div>
                 <span className="font-dm-sans font-bold text-base uppercase truncate">{split.displayName}</span>
-                {isOwner && <PaymentBadge status={effectiveStatus} />}
+                {isCollector && <PaymentBadge status={isPayerEntry ? 'PAID' : effectiveStatus} />}
               </div>
               <div className="flex items-center gap-2 flex-shrink-0">
                 <span className="font-dm-mono font-bold text-lg">{formatCurrency(split.total)}</span>
@@ -208,7 +210,11 @@ export function ParticipantSplits({ receiptId, participantSplits, ownerId, forma
                   <span className="font-bold text-sm">{formatCurrency(split.total)}</span>
                 </div>
 
-                {showOwnerUI ? (
+                {isPayerEntry ? (
+                  <div className="flex items-center justify-center w-full h-11 border-[3px] border-black rounded-lg bg-[#b5ead7] font-dm-mono font-bold text-sm uppercase shadow-[3px_3px_0px_0px_#000]">
+                    Payment confirmed
+                  </div>
+                ) : showCollectorUI ? (
                   <>
                     {needsConfirmation && (
                       <button
@@ -235,7 +241,7 @@ export function ParticipantSplits({ receiptId, participantSplits, ownerId, forma
                     onClick={() => handleGcashClick(split.participantId, gcashUrl)}
                     className="flex items-center justify-center gap-2 w-full h-11 border-[3px] border-black rounded-lg font-dm-mono font-bold text-sm uppercase bg-[#0066FF] text-white shadow-[3px_3px_0px_0px_#000] hover:bg-[#0052cc] active:translate-x-[2px] active:translate-y-[2px] active:shadow-none transition-all"
                   >
-                    {ownerName ? `Pay ${ownerName} via GCash` : 'Pay via GCash'}
+                    {payerName ? `Pay ${payerName} via GCash` : 'Pay via GCash'}
                   </button>
                 )}
               </div>

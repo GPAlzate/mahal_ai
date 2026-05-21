@@ -78,6 +78,14 @@ export async function PATCH(
       return NextResponse.json(receipt, { status: 200 });
     }
 
+    if (body.payerParticipantId !== undefined) {
+      if (typeof body.payerParticipantId !== 'number') {
+        return NextResponse.json({ error: 'Invalid payerParticipantId value' }, { status: 400 });
+      }
+      const receipt = await receiptService.updatePayerParticipant(receiptId, body.payerParticipantId);
+      return NextResponse.json(receipt, { status: 200 });
+    }
+
     const parsed = ReceiptStatusSchema.safeParse(body.status);
 
     if (!parsed.success) {

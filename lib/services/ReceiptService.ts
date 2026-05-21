@@ -52,7 +52,8 @@ export class ReceiptService {
         console.timeEnd('Receipt creation')
         if (result && result.length > 0) {
           const receiptDTO = toReceiptDTO(result[0]);
-          return toReceipt(receiptDTO);
+          const collectorSecret = result[0].collector_secret as string;
+          return { receipt: toReceipt(receiptDTO), collectorSecret };
         }
       } catch (error: any) {
         // Check if error is due to unique constraint violation (duplicate share_code)
@@ -237,6 +238,40 @@ export class ReceiptService {
     }
 
     return toReceipt(toReceiptDTO(result[0]));
+  }
+
+  /**
+   * Set the participant who footed the bill
+   * @param receiptId - ID of the receipt
+   * @param payerParticipantId - ID of the participant who paid
+   */
+  async updatePayerParticipant(receiptId: number, payerParticipantId: number) {
+    const result = await sql`
+      UPDATE receipts
+      SET payer_participant_id = ${payerParticipantId}, updated_at = NOW()
+      WHERE id = ${receiptId} AND deleted_at IS NULL
+      RETURNING *
+    `;
+
+    if (!result || result.length === 0) {
+      throw new Error('Receipt not found');
+    }
+
+    return toReceipt(toReceiptDTO(result[0]));
+  }
+
+  /**
+   * Validate a collector secret against a receipt
+   * @param receiptId - ID of the receipt
+   * @param secret - UUID to validate
+   * @returns true if the secret matches
+   */
+  async verifyCollectorSecret(receiptId: number, secret: string): Promise<boolean> {
+    const result = await sql`
+      SELECT 1 FROM receipts
+      WHERE id = ${receiptId} AND collector_secret = ${secret} AND deleted_at IS NULL
+    `;
+    return result.length > 0;
   }
 
   /**
