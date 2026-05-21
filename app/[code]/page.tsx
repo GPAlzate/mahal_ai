@@ -3,7 +3,7 @@
 import { useState, useEffect, use } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@clerk/nextjs';
-import { Eye, MoreVertical, X, Lock } from 'lucide-react';
+import { Eye, MoreVertical, X, Lock, Share2, Check, HelpCircle } from 'lucide-react';
 import Link from 'next/link';
 import { api } from '@/lib/client/api-client';
 import LoadingScreen from '@/components/LoadingScreen';
@@ -27,6 +27,8 @@ export default function ShareCodePage({ params }: { params: Promise<{ code: stri
   const [showReceiptImage, setShowReceiptImage] = useState(false);
   const [showKebabMenu, setShowKebabMenu] = useState(false);
   const [linkCopied, setLinkCopied] = useState(false);
+  const [shareCodeCopied, setShareCodeCopied] = useState(false);
+  const [showHelpModal, setShowHelpModal] = useState(false);
 
   const isReceiptOwner = !!userId && !!summary?.receipt.ownerId && userId === summary.receipt.ownerId;
 
@@ -34,6 +36,18 @@ export default function ShareCodePage({ params }: { params: Promise<{ code: stri
     p => p.participantId === summary.receipt.payerParticipantId
   );
   const isPayer = !!userId && !!payerParticipant?.userId && userId === payerParticipant.userId;
+
+  useEffect(() => {
+    if (!localStorage.getItem('mahal_share_help_seen')) {
+      const t = setTimeout(() => setShowHelpModal(true), 1000);
+      return () => clearTimeout(t);
+    }
+  }, []);
+
+  const dismissHelpModal = () => {
+    localStorage.setItem('mahal_share_help_seen', '1');
+    setShowHelpModal(false);
+  };
 
   useEffect(() => {
     async function fetchSummary() {
@@ -60,6 +74,24 @@ export default function ShareCodePage({ params }: { params: Promise<{ code: stri
 
     fetchSummary();
   }, [shareCode, router]);
+
+  const handleShareGroupLink = async () => {
+    if (!summary) {
+      return;
+    }
+    const url = `${window.location.origin}/${summary.receipt.shareCode}`;
+    if (navigator.share) {
+      try {
+        await navigator.share({ title: summary.receipt.title || 'Receipt', url });
+      } catch {
+        // user dismissed
+      }
+    } else {
+      await navigator.clipboard.writeText(url);
+      setShareCodeCopied(true);
+      setTimeout(() => setShareCodeCopied(false), 2000);
+    }
+  };
 
   const handleCopyCollectorLink = () => {
     if (!summary) {
@@ -120,6 +152,11 @@ export default function ShareCodePage({ params }: { params: Promise<{ code: stri
                       icon: <Eye className="w-4 h-4 flex-shrink-0" />,
                       onClick: () => { setShowReceiptImage(true); setShowKebabMenu(false); },
                     }] : []),
+                    {
+                      label: 'How to use',
+                      icon: <HelpCircle className="w-4 h-4 flex-shrink-0" />,
+                      onClick: () => { setShowHelpModal(true); setShowKebabMenu(false); },
+                    },
                   ]}
                 />
               </>
@@ -127,29 +164,40 @@ export default function ShareCodePage({ params }: { params: Promise<{ code: stri
           </div>
         </div>
 
-        {/* Share Code Badge */}
-        <ShareCodeBadge shareCode={summary.receipt.shareCode} title={summary.receipt.title || 'Receipt'} />
-
         <ReceiptCard summary={summary} formatCurrency={formatCurrency} />
 
-        {isReceiptOwner && (
-          <div className="border-2 border-black rounded-lg bg-[#fffbe6] shadow-[2px_2px_0px_0px_#000] overflow-hidden">
-            <div className="flex items-center gap-2 px-4 py-2 border-b-2 border-black bg-[#FFD700]">
-              <Lock className="w-3 h-3 flex-shrink-0" />
-              <p className="font-dm-mono text-[10px] font-bold uppercase tracking-widest">Private — collector view</p>
-            </div>
-            <div className="flex items-center justify-between px-4 py-3 gap-3">
-              <p className="font-dm-mono text-xs text-[#4d4732] leading-relaxed">
-                Share this link with whoever fronted the bill.
-              </p>
-              <button
-                onClick={handleCopyCollectorLink}
-                className="flex-shrink-0 h-9 px-4 border-2 border-black rounded-lg font-dm-mono text-xs font-bold bg-white hover:bg-[#fff9ef] shadow-[2px_2px_0px_0px_#000] active:translate-x-[2px] active:translate-y-[2px] active:shadow-none transition-all"
-              >
-                {linkCopied ? 'Copied!' : 'Copy link'}
-              </button>
-            </div>
+        {isReceiptOwner ? (
+          <div className="grid grid-cols-2 gap-2">
+            <button
+              onClick={handleShareGroupLink}
+              className="flex flex-col items-center justify-center gap-1.5 py-4 px-3 border-2 border-black rounded-lg bg-green-100 shadow-[2px_2px_0px_0px_#000] active:translate-x-[2px] active:translate-y-[2px] active:shadow-none transition-all"
+            >
+              {shareCodeCopied
+                ? <Check className="w-4 h-4 text-green-800" strokeWidth={2.5} />
+                : <Share2 className="w-4 h-4 text-green-800" strokeWidth={2.5} />
+              }
+              <span className="font-dm-mono text-[9px] font-bold uppercase tracking-widest text-green-800">
+                {shareCodeCopied ? 'Copied!' : 'Share with group'}
+              </span>
+              <span className="font-dm-mono font-bold text-sm tracking-widest text-black">
+                {summary.receipt.shareCode}
+              </span>
+            </button>
+            <button
+              onClick={handleCopyCollectorLink}
+              className="flex flex-col items-center justify-center gap-1.5 py-4 px-3 border-2 border-black rounded-lg bg-[#FFD700] shadow-[2px_2px_0px_0px_#000] active:translate-x-[2px] active:translate-y-[2px] active:shadow-none transition-all"
+            >
+              <Lock className="w-4 h-4" strokeWidth={2.5} />
+              <span className="font-dm-mono text-[9px] font-bold uppercase tracking-widest">
+                {linkCopied ? 'Copied!' : 'Copy payer link'}
+              </span>
+              <span className="font-dm-mono text-[9px] font-bold uppercase tracking-widest text-[#4d4732]">
+                Private
+              </span>
+            </button>
           </div>
+        ) : (
+          <ShareCodeBadge shareCode={summary.receipt.shareCode} title={summary.receipt.title || 'Receipt'} />
         )}
 
         <ParticipantSplits
@@ -175,6 +223,87 @@ export default function ShareCodePage({ params }: { params: Promise<{ code: stri
           Create New Receipt →
         </button>
       </nav>
+
+      {/* How to Use Modal */}
+      {showHelpModal && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4"
+          onClick={dismissHelpModal}
+        >
+          <div className="w-full max-w-sm flex flex-col" onClick={(e) => e.stopPropagation()}>
+            <div className="bg-white border-4 border-black shadow-[8px_8px_0px_0px_#000] overflow-hidden">
+              {/* Header */}
+              <div className="bg-[#FFD700] border-b-4 border-black px-4 py-2 flex justify-between items-center">
+                <h2 className="font-dm-sans font-black text-xl uppercase tracking-tight">How to use</h2>
+                <button
+                  onClick={dismissHelpModal}
+                  className="p-1 border-2 border-black bg-white shadow-[2px_2px_0px_0px_#000] active:shadow-none active:translate-x-[2px] active:translate-y-[2px] transition-all"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              <div className="p-4 flex flex-col gap-4">
+
+                {/* Section 1: Two links */}
+                <div className="flex flex-col gap-1.5">
+                  <span className="font-dm-mono text-[9px] font-bold uppercase tracking-widest text-[#7e775f]">01 — Share links</span>
+                <div className="border-2 border-black p-4 bg-stone-50 flex flex-col items-center gap-3">
+                  <div className="flex gap-2 w-full">
+                    <div className="flex-1 flex flex-col items-center gap-1.5 border-2 border-black bg-green-100 py-2 px-1">
+                      <Share2 className="w-3.5 h-3.5 text-green-800" strokeWidth={2.5} />
+                      <span className="font-dm-mono text-[8px] font-bold uppercase tracking-widest text-green-800 text-center">Share with group</span>
+                      <span className="font-dm-mono text-[9px] font-bold text-black">6JM3W</span>
+                      <span className="font-dm-mono text-[8px] text-[#4d4732] text-center">→ everyone</span>
+                    </div>
+                    <div className="flex-1 flex flex-col items-center gap-1.5 border-2 border-black bg-[#FFD700] py-2 px-1">
+                      <Lock className="w-3.5 h-3.5" strokeWidth={2.5} />
+                      <span className="font-dm-mono text-[8px] font-bold uppercase tracking-widest text-center">Copy payer link</span>
+                      <span className="font-dm-mono text-[8px] font-bold uppercase tracking-widest text-[#4d4732]">Private</span>
+                      <span className="font-dm-mono text-[8px] text-[#4d4732] text-center">→ payer only</span>
+                    </div>
+                  </div>
+                  <p className="font-dm-sans font-bold text-sm text-center">
+                    Green goes to the group. Yellow goes only to whoever fronted the bill.
+                  </p>
+                </div>
+                </div>
+
+                {/* Section 2: CONFIRM? → PAID */}
+                <div className="flex flex-col gap-1.5">
+                  <span className="font-dm-mono text-[9px] font-bold uppercase tracking-widest text-[#7e775f]">02 — Confirm payment</span>
+                <div className="border-2 border-black p-4 bg-stone-50 flex flex-col items-center gap-3">
+                  <div className="flex items-center gap-2 w-full justify-center">
+                    <div className="flex items-center gap-2 border-2 border-black bg-white px-2 py-1.5">
+                      <div className="w-6 h-6 rounded-full bg-[#ffe16d] border-2 border-black flex items-center justify-center font-dm-sans text-[8px] font-bold">KP</div>
+                      <span className="font-dm-sans font-bold text-[10px] uppercase">Kate</span>
+                      <span className="px-1.5 py-0.5 border-2 border-black bg-[#FFD700] font-dm-mono text-[8px] font-bold uppercase tracking-wider">Confirm?</span>
+                    </div>
+                    <span className="font-dm-mono text-xs text-[#7e775f]">→</span>
+                    <div className="flex items-center gap-2 border-2 border-black bg-white px-2 py-1.5">
+                      <div className="w-6 h-6 rounded-full bg-[#ffe16d] border-2 border-black flex items-center justify-center font-dm-sans text-[8px] font-bold">KP</div>
+                      <span className="font-dm-sans font-bold text-[10px] uppercase">Kate</span>
+                      <span className="px-1.5 py-0.5 border-2 border-black bg-[#b5ead7] font-dm-mono text-[8px] font-bold uppercase tracking-wider">Paid</span>
+                    </div>
+                  </div>
+                  <p className="font-dm-sans font-bold text-sm text-center">
+                    After someone pays via GCash, tap <span className="bg-[#FFD700] px-1">Confirm?</span> to mark them as paid.
+                  </p>
+                </div>
+                </div>
+
+              </div>
+            </div>
+
+            <button
+              onClick={dismissHelpModal}
+              className="mt-3 w-full bg-[#FFD700] border-4 border-black shadow-[4px_4px_0px_0px_#000] font-dm-sans font-black text-lg uppercase tracking-widest py-2.5 hover:bg-[#FFE44D] active:translate-x-[4px] active:translate-y-[4px] active:shadow-none transition-all"
+            >
+              Got it
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Receipt Image Modal */}
       {showReceiptImage && summary.receipt.imageURI && (
