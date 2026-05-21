@@ -52,6 +52,7 @@ export function ParticipantSplits({ receiptId, participantSplits, payerParticipa
   const [expandedParticipants, setExpandedParticipants] = useState<Set<number>>(new Set());
   const [confirmingIds, setConfirmingIds] = useState<Set<number>>(new Set());
   const [localStatuses, setLocalStatuses] = useState<Map<number, PaymentStatus>>(new Map());
+  const [toastName, setToastName] = useState<string | null>(null);
 
   const toggleParticipantExpanded = (participantId: number) => {
     setExpandedParticipants((prev) => {
@@ -77,8 +78,11 @@ export function ParticipantSplits({ receiptId, participantSplits, payerParticipa
     try {
       await api.participants.updatePaymentStatus(receiptId, participantId, 'PAID');
       setLocalStatuses(prev => new Map(prev).set(participantId, 'PAID'));
+      const name = participantSplits.find(p => p.participantId === participantId)?.displayName ?? null;
+      setToastName(name);
+      setTimeout(() => setToastName(null), 2500);
     } catch {
-      // silent — owner can retry
+      // silent — collector can retry
     } finally {
       setConfirmingIds(prev => {
         const next = new Set(prev);
@@ -233,8 +237,17 @@ export function ParticipantSplits({ receiptId, participantSplits, payerParticipa
                       </div>
                     )}
                     {effectiveStatus === 'PNYP' && (
-                      <div className="flex items-center justify-center w-full h-11 border-[3px] border-dashed border-[#c0b9a8] rounded-lg font-dm-mono text-[11px] uppercase tracking-widest text-[#7e7576]">
-                        Awaiting payment
+                      <div className="flex flex-col gap-2">
+                        <div className="flex items-center justify-center w-full h-11 border-[3px] border-dashed border-[#c0b9a8] rounded-lg font-dm-mono text-[11px] uppercase tracking-widest text-[#7e7576]">
+                          Awaiting payment
+                        </div>
+                        <button
+                          onClick={() => handleConfirmPaid(split.participantId)}
+                          disabled={isConfirming}
+                          className="w-full h-11 font-dm-mono text-[11px] uppercase tracking-widest text-[#7e7576] hover:text-black disabled:opacity-50 transition-colors"
+                        >
+                          {isConfirming ? 'Confirming...' : 'Mark as paid manually'}
+                        </button>
                       </div>
                     )}
                   </>
@@ -251,6 +264,12 @@ export function ParticipantSplits({ receiptId, participantSplits, payerParticipa
           </article>
         );
       })}
+
+      {toastName && (
+        <div className="fixed bottom-24 left-1/2 -translate-x-1/2 z-50 px-5 py-3 bg-black text-white font-dm-mono text-xs font-bold uppercase tracking-widest rounded-lg shadow-[3px_3px_0px_0px_#FFD700] whitespace-nowrap">
+          {toastName} marked as paid
+        </div>
+      )}
     </>
   );
 }
