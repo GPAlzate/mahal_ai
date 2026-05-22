@@ -53,8 +53,8 @@ export default function CollectPage({ params }: { params: Promise<{ code: string
 
     async function fetchAndVerify() {
       try {
-        const data = await api.receipts.getByShareCode(shareCode);
-        const { status, id } = data.receipt;
+        const receipt = await api.receipts.getByShareCode(shareCode);
+        const { status, id } = receipt;
 
         if (status === 'ULIP' || status === 'PRSP') {
           router.replace(`/receipts/${id}/participants`);
@@ -65,6 +65,7 @@ export default function CollectPage({ params }: { params: Promise<{ code: string
           return;
         }
 
+        const data = await api.receipts.getSummary(id);
         const payerParticipant = data.participantSplits.find(
           p => p.participantId === data.receipt.payerParticipantId
         );
