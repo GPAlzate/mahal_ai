@@ -131,7 +131,7 @@ export function ParticipantSplits({ receiptId, participantSplits, payerParticipa
                 {(isCollector || effectiveStatus === 'PAID' || isPayerEntry) && (
                   <PaymentBadge status={isPayerEntry ? 'PAID' : effectiveStatus} />
                 )}
-                {!isCollector && !isPayerEntry && effectiveStatus !== 'PAID' && !isExpanded && (
+                {!isCollector && !isPayerEntry && effectiveStatus === 'PNYP' && !isExpanded && (
                   <button
                     onClick={(e) => { e.stopPropagation(); handleGcashClick(split.participantId, gcashUrl); }}
                     className="flex-shrink-0 inline-flex items-center px-2 py-0.5 border-2 border-black bg-[#0066FF] text-white font-dm-mono text-[9px] font-bold uppercase tracking-widest shadow-[1px_1px_0px_0px_#000] active:translate-x-[1px] active:translate-y-[1px] active:shadow-none transition-all"
