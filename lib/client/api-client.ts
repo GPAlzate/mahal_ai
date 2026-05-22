@@ -154,12 +154,12 @@ export const api = {
         method: 'DELETE',
       }),
 
-    updatePaymentStatus: (receiptId: number, participantId: number, status: PaymentStatus) =>
+    updatePaymentStatus: (receiptId: number, participantId: number, status: PaymentStatus, collectorSecret?: string) =>
       fetchAPI<Participant>(
         `/api/receipts/${receiptId}/participants/${participantId}/payment-status`,
         {
           method: 'PATCH',
-          body: JSON.stringify({ status }),
+          body: JSON.stringify({ status, ...(collectorSecret ? { collectorSecret } : {}) }),
         }
       ),
   },

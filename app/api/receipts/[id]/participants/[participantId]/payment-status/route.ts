@@ -3,6 +3,7 @@ import { auth } from '@clerk/nextjs/server';
 import { sql } from '@/lib/db';
 import { participantService } from '@/lib/services/ParticipantService';
 import { PaymentStatusSchema } from '@/lib/schemas/participant/public/PaymentStatus';
+import { receiptService } from '@/lib/services/ReceiptService';
 
 /**
  * PATCH /api/receipts/[id]/participants/[participantId]/payment-status
@@ -10,9 +11,9 @@ import { PaymentStatusSchema } from '@/lib/schemas/participant/public/PaymentSta
  * Update a participant's payment status.
  *
  * - Setting PCIP: no auth required (participant self-reporting GCash tap)
- * - Setting PAID: requires auth + caller must be the receipt owner
+ * - Setting PAID: requires either auth as receipt owner OR a valid collector secret
  *
- * Request body: { status: PaymentStatus }
+ * Request body: { status: PaymentStatus, collectorSecret?: string }
  */
 export async function PATCH(
   request: NextRequest,
@@ -38,10 +39,7 @@ export async function PATCH(
 
     if (newStatus === 'PAID') {
       const { userId } = await auth();
-
-      if (!userId) {
-        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-      }
+      const collectorSecret: string | undefined = body.collectorSecret;
 
       const receiptCheck = await sql`
         SELECT owner_id FROM receipts
@@ -52,8 +50,11 @@ export async function PATCH(
         return NextResponse.json({ error: 'Receipt not found' }, { status: 404 });
       }
 
-      if (receiptCheck[0].owner_id !== userId) {
-        return NextResponse.json({ error: 'Only the receipt owner can confirm payments' }, { status: 403 });
+      const isOwner = !!userId && receiptCheck[0].owner_id === userId;
+      const isValidCollector = !!collectorSecret && await receiptService.verifyCollectorSecret(receiptId, collectorSecret);
+
+      if (!isOwner && !isValidCollector) {
+        return NextResponse.json({ error: 'Only the receipt owner or collector can confirm payments' }, { status: 403 });
       }
     }
 

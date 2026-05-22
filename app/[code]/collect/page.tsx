@@ -45,6 +45,7 @@ export default function CollectPage({ params }: { params: Promise<{ code: string
   const [gcashError, setGcashError] = useState('');
   const [gcashCopied, setGcashCopied] = useState(false);
   const [isEditingGcash, setIsEditingGcash] = useState(true);
+  const [collectorSecret, setCollectorSecret] = useState<string | undefined>(undefined);
 
   useEffect(() => {
     if (!isLoaded) {
@@ -70,6 +71,8 @@ export default function CollectPage({ params }: { params: Promise<{ code: string
           p => p.participantId === data.receipt.payerParticipantId
         );
         if (userId && payerParticipant?.userId && userId === payerParticipant.userId) {
+          const storedSecret = localStorage.getItem(`cs_key_${id}`) ?? undefined;
+          setCollectorSecret(storedSecret);
           setSummary(data);
           setGcashInput(data.receipt.gcashNumber ? formatGcashDisplay(data.receipt.gcashNumber) : '');
           setIsEditingGcash(!data.receipt.gcashNumber);
@@ -81,6 +84,7 @@ export default function CollectPage({ params }: { params: Promise<{ code: string
         if (urlSecret) {
           const { valid } = await api.receipts.verifyCollector(id, urlSecret).catch(() => ({ valid: false }));
           if (valid) {
+            setCollectorSecret(urlSecret);
             setSummary(data);
             setGcashInput(data.receipt.gcashNumber ? formatGcashDisplay(data.receipt.gcashNumber) : '');
             setIsEditingGcash(!data.receipt.gcashNumber);
@@ -273,6 +277,7 @@ export default function CollectPage({ params }: { params: Promise<{ code: string
           payerParticipantId={summary.receipt.payerParticipantId ?? null}
           formatCurrency={formatCurrency}
           isCollector={true}
+          collectorSecret={collectorSecret}
         />
 
         <div className="h-4" />

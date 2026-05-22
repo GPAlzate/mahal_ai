@@ -43,9 +43,10 @@ interface Props {
   payerParticipantId: number | null;
   formatCurrency: (amount: number) => string;
   isCollector?: boolean;
+  collectorSecret?: string;
 }
 
-export function ParticipantSplits({ receiptId, participantSplits, payerParticipantId, formatCurrency, isCollector }: Props) {
+export function ParticipantSplits({ receiptId, participantSplits, payerParticipantId, formatCurrency, isCollector, collectorSecret }: Props) {
   const payerName = payerParticipantId
     ? (participantSplits.find(p => p.participantId === payerParticipantId)?.displayName ?? null)
     : null;
@@ -76,7 +77,7 @@ export function ParticipantSplits({ receiptId, participantSplits, payerParticipa
   const handleConfirmPaid = async (participantId: number) => {
     setConfirmingIds(prev => new Set(prev).add(participantId));
     try {
-      await api.participants.updatePaymentStatus(receiptId, participantId, 'PAID');
+      await api.participants.updatePaymentStatus(receiptId, participantId, 'PAID', collectorSecret);
       setLocalStatuses(prev => new Map(prev).set(participantId, 'PAID'));
       const name = participantSplits.find(p => p.participantId === participantId)?.displayName ?? null;
       setToastName(name);
@@ -262,6 +263,10 @@ export function ParticipantSplits({ receiptId, participantSplits, payerParticipa
                 ) : isPaid ? (
                   <div className="flex items-center justify-center w-full h-11 border-[3px] border-black rounded-lg bg-[#b5ead7] font-dm-mono font-bold text-sm uppercase shadow-[3px_3px_0px_0px_#000]">
                     Payment confirmed
+                  </div>
+                ) : effectiveStatus === 'PCIP' ? (
+                  <div className="flex items-center justify-center w-full h-11 border-[3px] border-dashed border-[#c0b9a8] rounded-lg font-dm-mono text-[11px] uppercase tracking-widest text-[#7e7576]">
+                    Awaiting confirmation
                   </div>
                 ) : (
                   <button
