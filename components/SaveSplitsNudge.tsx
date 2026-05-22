@@ -4,9 +4,9 @@ import { useState } from 'react';
 import { useAuth, SignUpButton } from '@clerk/nextjs';
 import { Check } from 'lucide-react';
 const FEATURES = [
-  'See your receipt history',
-  'Split with friends in real time',
-  'Link your GCash and get paid instantly',
+  'Upload a receipt and mahal splits it automatically',
+  'Share one link: everyone sees exactly what they owe',
+  'Track who\'s paid and confirm with one tap',
 ];
 
 export function SaveSplitsNudge() {
@@ -17,9 +17,14 @@ export function SaveSplitsNudge() {
 
   return (
     <div className="border-t-2 border-b-2 border-black py-5 flex flex-col gap-4">
-      <h2 className="font-dm-sans font-black text-xl uppercase leading-tight">
-        Do more with mahal &lt;3
-      </h2>
+      <div>
+        <h2 className="font-dm-sans font-black text-xl uppercase leading-tight">
+          Paying for the group next time?
+        </h2>
+        <p className="font-dm-sans text-sm text-[#7e7576] mt-1">
+          Sign up and manage your group bills with mahal ai &lt;3
+        </p>
+      </div>
 
       <ul className="flex flex-col gap-2.5">
         {FEATURES.map((feature) => (
