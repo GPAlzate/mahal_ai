@@ -92,10 +92,7 @@ export default function HomeClient({ initialReceipts }: Props) {
     });
 
     const createPromise = api.receipts.create({ status: 'ULIP' });
-    receiptIdPromiseRef.current = createPromise.then((r) => {
-      localStorage.setItem(`cs_key_${r.receiptId}`, r.collectorSecret);
-      return r.receiptId;
-    });
+    receiptIdPromiseRef.current = createPromise.then((r) => r.receiptId);
 
     const capturedBlob = blobPromiseRef.current;
     receiptIdPromiseRef.current.then((receiptId) => {
@@ -174,7 +171,6 @@ export default function HomeClient({ initialReceipts }: Props) {
         status: 'DRFT',
         title: receiptTitle.trim(),
       });
-      localStorage.setItem(`cs_key_${data.receiptId}`, data.collectorSecret);
 
       router.push(`/receipts/${data.receiptId}/participants`);
     } catch (err: any) {

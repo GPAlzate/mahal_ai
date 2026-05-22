@@ -3,7 +3,6 @@ import { auth } from '@clerk/nextjs/server';
 import { sql } from '@/lib/db';
 import { participantService } from '@/lib/services/ParticipantService';
 import { PaymentStatusSchema } from '@/lib/schemas/participant/public/PaymentStatus';
-import { receiptService } from '@/lib/services/ReceiptService';
 
 /**
  * PATCH /api/receipts/[id]/participants/[participantId]/payment-status
@@ -11,9 +10,9 @@ import { receiptService } from '@/lib/services/ReceiptService';
  * Update a participant's payment status.
  *
  * - Setting PCIP: no auth required (participant self-reporting GCash tap)
- * - Setting PAID: requires either auth as receipt owner OR a valid collector secret
+ * - Setting PAID: requires auth; caller must be the receipt owner or the payer participant
  *
- * Request body: { status: PaymentStatus, collectorSecret?: string }
+ * Request body: { status: PaymentStatus }
  */
 export async function PATCH(
   request: NextRequest,
@@ -39,21 +38,26 @@ export async function PATCH(
 
     if (newStatus === 'PAID') {
       const { userId } = await auth();
-      const collectorSecret: string | undefined = body.collectorSecret;
+
+      if (!userId) {
+        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      }
 
       const receiptCheck = await sql`
-        SELECT owner_id FROM receipts
-        WHERE id = ${receiptId} AND deleted_at IS NULL
+        SELECT r.owner_id, p.user_id AS payer_user_id
+        FROM receipts r
+        LEFT JOIN participants p ON p.id = r.payer_participant_id AND p.deleted_at IS NULL
+        WHERE r.id = ${receiptId} AND r.deleted_at IS NULL
       `;
 
       if (receiptCheck.length === 0) {
         return NextResponse.json({ error: 'Receipt not found' }, { status: 404 });
       }
 
-      const isOwner = !!userId && receiptCheck[0].owner_id === userId;
-      const isValidCollector = !!collectorSecret && await receiptService.verifyCollectorSecret(receiptId, collectorSecret);
+      const { owner_id, payer_user_id } = receiptCheck[0];
+      const isAuthorized = userId === owner_id || userId === payer_user_id;
 
-      if (!isOwner && !isValidCollector) {
+      if (!isAuthorized) {
         return NextResponse.json({ error: 'Only the receipt owner or collector can confirm payments' }, { status: 403 });
       }
     }

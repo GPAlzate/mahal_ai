@@ -18,7 +18,8 @@ function formatGcashDisplay(raw: string): string {
 }
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@clerk/nextjs';
-import { Eye, MoreVertical, X, Lock, Share2, Check, HelpCircle } from 'lucide-react';
+import { Eye, MoreVertical, X, Share2, HelpCircle } from 'lucide-react';
+
 import Link from 'next/link';
 import { api } from '@/lib/client/api-client';
 import LoadingScreen from '@/components/LoadingScreen';
@@ -41,8 +42,6 @@ export default function ShareCodePage({ params }: { params: Promise<{ code: stri
   const [error, setError] = useState<string | null>(null);
   const [showReceiptImage, setShowReceiptImage] = useState(false);
   const [showKebabMenu, setShowKebabMenu] = useState(false);
-  const [linkCopied, setLinkCopied] = useState(false);
-  const [shareCodeCopied, setShareCodeCopied] = useState(false);
   const [showHelpModal, setShowHelpModal] = useState(false);
   const [gcashInput, setGcashInput] = useState('');
   const [gcashSaving, setGcashSaving] = useState(false);
@@ -51,12 +50,11 @@ export default function ShareCodePage({ params }: { params: Promise<{ code: stri
   const [gcashCopied, setGcashCopied] = useState(false);
   const [isEditingGcash, setIsEditingGcash] = useState(true);
 
-  const isReceiptOwner = !!userId && !!summary?.receipt.ownerId && userId === summary.receipt.ownerId;
 
   const payerParticipant = summary?.participantSplits.find(
     p => p.participantId === summary.receipt.payerParticipantId
   );
-  const isPayer = !!userId && !!payerParticipant?.userId && userId === payerParticipant.userId;
+  const isCollector = !!userId && !!payerParticipant?.userId && userId === payerParticipant.userId;
 
   useEffect(() => {
     if (!localStorage.getItem('mahal_share_help_seen')) {
@@ -99,40 +97,8 @@ export default function ShareCodePage({ params }: { params: Promise<{ code: stri
     fetchReceipt();
   }, [shareCode, router]);
 
-  const handleShareGroupLink = async () => {
-    if (!summary) {
-      return;
-    }
-    const url = `${window.location.origin}/${summary.receipt.shareCode}`;
-    if (navigator.share) {
-      try {
-        await navigator.share({ title: summary.receipt.title || 'Receipt', url });
-      } catch {
-        // user dismissed
-      }
-    } else {
-      await navigator.clipboard.writeText(url);
-      setShareCodeCopied(true);
-      setTimeout(() => setShareCodeCopied(false), 2000);
-    }
-  };
 
-  const handleCopyCollectorLink = () => {
-    if (!summary) {
-      return;
-    }
-    const secret = localStorage.getItem(`cs_key_${summary.receipt.id}`);
-    if (!secret) {
-      return;
-    }
-    const link = `${window.location.origin}/${summary.receipt.shareCode}/collect?c=${secret}`;
-    navigator.clipboard.writeText(link).then(() => {
-      setLinkCopied(true);
-      setTimeout(() => setLinkCopied(false), 2000);
-    });
-  };
-
-  const handleSaveGcash = async () => {
+const handleSaveGcash = async () => {
     if (!summary) {
       return;
     }
@@ -238,50 +204,16 @@ export default function ShareCodePage({ params }: { params: Promise<{ code: stri
           </div>
         </div>
 
-        {!isReceiptOwner && (
-          <ShareCodeBadge shareCode={summary.receipt.shareCode} title={summary.receipt.title || 'Receipt'} />
-        )}
+        <ShareCodeBadge shareCode={summary.receipt.shareCode} title={summary.receipt.title || 'Receipt'} />
 
         <ReceiptCard summary={summary} formatCurrency={formatCurrency} />
 
-        {isReceiptOwner && (
-          <div className="grid grid-cols-2 gap-2">
-            <button
-              onClick={handleShareGroupLink}
-              className="flex flex-col items-center justify-center gap-1.5 py-4 px-3 border-2 border-black rounded-lg bg-green-100 shadow-[2px_2px_0px_0px_#000] active:translate-x-[2px] active:translate-y-[2px] active:shadow-none transition-all"
-            >
-              {shareCodeCopied
-                ? <Check className="w-4 h-4 text-green-800" strokeWidth={2.5} />
-                : <Share2 className="w-4 h-4 text-green-800" strokeWidth={2.5} />
-              }
-              <span className="font-dm-mono text-[9px] font-bold uppercase tracking-widest text-green-800">
-                {shareCodeCopied ? 'Copied!' : 'Share with group'}
-              </span>
-              <span className="font-dm-mono font-bold text-sm tracking-widest text-black">
-                {summary.receipt.shareCode}
-              </span>
-            </button>
-            <button
-              onClick={handleCopyCollectorLink}
-              className="flex flex-col items-center justify-center gap-1.5 py-4 px-3 border-2 border-black rounded-lg bg-[#FFD700] shadow-[2px_2px_0px_0px_#000] active:translate-x-[2px] active:translate-y-[2px] active:shadow-none transition-all"
-            >
-              <Lock className="w-4 h-4" strokeWidth={2.5} />
-              <span className="font-dm-mono text-[9px] font-bold uppercase tracking-widest">
-                {linkCopied ? 'Copied!' : 'Copy payer link'}
-              </span>
-              <span className="font-dm-mono text-[9px] font-bold uppercase tracking-widest text-[#4d4732]">
-                Private
-              </span>
-            </button>
-          </div>
-        )}
-
-        {isPayer && (
+        {isCollector && (
           <div className="border-4 border-black rounded-xl bg-white shadow-[3px_3px_0px_0px_#000] overflow-hidden">
             <div className="bg-[#0066FF] px-4 py-2.5 flex items-center justify-between">
               <div>
                 <p className="font-dm-mono text-[10px] font-bold uppercase tracking-widest text-white">GCash number</p>
-                <p className="font-dm-mono text-[11px] text-blue-200">So people know where to send payment</p>
+                <p className="font-dm-mono text-[11px] text-blue-200">So people know how to pay you</p>
               </div>
               {!isEditingGcash && summary.receipt.gcashNumber && (
                 <button
@@ -337,7 +269,7 @@ export default function ShareCodePage({ params }: { params: Promise<{ code: stri
           </div>
         )}
 
-        {!isPayer && summary.payerGcashNumber && (
+        {!isCollector && summary.payerGcashNumber && (
           <div className="border-4 border-black rounded-xl bg-white shadow-[3px_3px_0px_0px_#000] overflow-hidden">
             <div className="bg-[#0066FF] px-4 py-2.5">
               <p className="font-dm-mono text-[10px] font-bold uppercase tracking-widest text-white">
@@ -365,7 +297,7 @@ export default function ShareCodePage({ params }: { params: Promise<{ code: stri
           participantSplits={summary.participantSplits}
           payerParticipantId={summary.receipt.payerParticipantId ?? null}
           formatCurrency={formatCurrency}
-          isCollector={isPayer}
+          isCollector={isCollector}
         />
         <div className="mt-4">
           <SaveSplitsNudge />
@@ -403,29 +335,20 @@ export default function ShareCodePage({ params }: { params: Promise<{ code: stri
                 </button>
               </div>
 
-              {isReceiptOwner || isPayer ? (
+              {isCollector ? (
                 <div className="p-4 flex flex-col gap-4">
 
-                  {/* Section 1: Two links */}
+                  {/* Section 1: Share link */}
                   <div className="flex flex-col gap-1.5">
-                    <span className="font-dm-mono text-[9px] font-bold uppercase tracking-widest text-[#7e775f]">01 — Share links</span>
+                    <span className="font-dm-mono text-[9px] font-bold uppercase tracking-widest text-[#7e775f]">01 — Share with group</span>
                     <div className="border-2 border-black p-4 bg-stone-50 flex flex-col items-center gap-3">
-                      <div className="flex gap-2 w-full">
-                        <div className="flex-1 flex flex-col items-center gap-1.5 border-2 border-black bg-green-100 py-2 px-1">
-                          <Share2 className="w-3.5 h-3.5 text-green-800" strokeWidth={2.5} />
-                          <span className="font-dm-mono text-[8px] font-bold uppercase tracking-widest text-green-800 text-center">Share with group</span>
-                          <span className="font-dm-mono text-[9px] font-bold text-black">6JM3W</span>
-                          <span className="font-dm-mono text-[8px] text-[#4d4732] text-center">→ everyone</span>
-                        </div>
-                        <div className="flex-1 flex flex-col items-center gap-1.5 border-2 border-black bg-[#FFD700] py-2 px-1">
-                          <Lock className="w-3.5 h-3.5" strokeWidth={2.5} />
-                          <span className="font-dm-mono text-[8px] font-bold uppercase tracking-widest text-center">Copy payer link</span>
-                          <span className="font-dm-mono text-[8px] font-bold uppercase tracking-widest text-[#4d4732]">Private</span>
-                          <span className="font-dm-mono text-[8px] text-[#4d4732] text-center">→ payer only</span>
-                        </div>
+                      <div className="flex items-center gap-2 border-2 border-black bg-green-100 py-2 px-3 w-full justify-center">
+                        <Share2 className="w-3.5 h-3.5 text-green-800" strokeWidth={2.5} />
+                        <span className="font-dm-mono text-[8px] font-bold uppercase tracking-widest text-green-800">Share with group</span>
+                        <span className="font-dm-mono text-[9px] font-bold text-black">6JM3W</span>
                       </div>
                       <p className="font-dm-sans font-bold text-sm text-center">
-                        Green goes to the group. Yellow goes only to whoever fronted the bill.
+                        Tap Share to send the link to everyone who owes you.
                       </p>
                     </div>
                   </div>

@@ -43,10 +43,9 @@ interface Props {
   payerParticipantId: number | null;
   formatCurrency: (amount: number) => string;
   isCollector?: boolean;
-  collectorSecret?: string;
 }
 
-export function ParticipantSplits({ receiptId, participantSplits, payerParticipantId, formatCurrency, isCollector, collectorSecret }: Props) {
+export function ParticipantSplits({ receiptId, participantSplits, payerParticipantId, formatCurrency, isCollector }: Props) {
   const payerName = payerParticipantId
     ? (participantSplits.find(p => p.participantId === payerParticipantId)?.displayName ?? null)
     : null;
@@ -77,7 +76,7 @@ export function ParticipantSplits({ receiptId, participantSplits, payerParticipa
   const handleConfirmPaid = async (participantId: number) => {
     setConfirmingIds(prev => new Set(prev).add(participantId));
     try {
-      await api.participants.updatePaymentStatus(receiptId, participantId, 'PAID', collectorSecret);
+      await api.participants.updatePaymentStatus(receiptId, participantId, 'PAID');
       setLocalStatuses(prev => new Map(prev).set(participantId, 'PAID'));
       const name = participantSplits.find(p => p.participantId === participantId)?.displayName ?? null;
       setToastName(name);

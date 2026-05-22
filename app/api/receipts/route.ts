@@ -98,9 +98,9 @@ export async function POST(request: NextRequest) {
     }
 
     const { userId } = await auth();
-    const { receipt, collectorSecret } = await receiptService.createReceipt({ ...createReceiptRequest.data, ownerId: userId ?? null });
+    const { receipt } = await receiptService.createReceipt({ ...createReceiptRequest.data, ownerId: userId ?? null });
 
-    return NextResponse.json({ receiptId: receipt.id, collectorSecret }, { status: 201 });
+    return NextResponse.json({ receiptId: receipt.id }, { status: 201 });
   } catch (error) {
     console.error('Error creating manual receipt:', error);
 
