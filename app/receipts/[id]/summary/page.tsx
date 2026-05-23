@@ -244,7 +244,8 @@ export default function SummaryPage({ params }: { params: Promise<{ id: string }
           participantSplits={summary.participantSplits}
           payerParticipantId={summary.receipt.payerParticipantId ?? null}
           formatCurrency={formatCurrency}
-          isCollector={false}
+          isReceiptPayer={false}
+          showPaymentUI={false}
         />
       </main>
 

@@ -5,10 +5,9 @@ import { z } from 'zod';
  * Tracks manual GCash payment confirmation flow.
  *
  * PNYP → participant not yet paid
- * PMIP → payment in progress (participant tapped the GCash deeplink)
- * PCIP → payment confirmation in progress (owner has been notified, awaiting manual confirmation)
+ * PCIP → payment confirmation in progress (participant paid, owner has been notified, awaiting manual confirmation)
  * PAID → receipt owner confirmed payment received
  */
-export type PaymentStatus = 'PNYP' | 'PMIP' | 'PCIP' | 'PAID';
+export type PaymentStatus = 'PNYP' | 'PCIP' | 'PAID';
 
-export const PaymentStatusSchema = z.enum(['PNYP', 'PMIP', 'PCIP', 'PAID']);
+export const PaymentStatusSchema = z.enum(['PNYP', 'PCIP', 'PAID']);

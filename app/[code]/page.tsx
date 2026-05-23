@@ -54,7 +54,7 @@ export default function ShareCodePage({ params }: { params: Promise<{ code: stri
   const payerParticipant = summary?.participantSplits.find(
     p => p.participantId === summary.receipt.payerParticipantId
   );
-  const isCollector = !!userId && !!payerParticipant?.userId && userId === payerParticipant.userId;
+  const isReceiptPayer = !!userId && !!payerParticipant?.userId && userId === payerParticipant.userId;
 
   useEffect(() => {
     if (!localStorage.getItem('mahal_share_help_seen')) {
@@ -164,7 +164,7 @@ const handleSaveGcash = async () => {
   }
 
   return (
-    <div className="min-h-screen bg-[#fff9ef] pb-[88px]">
+    <div className="min-h-screen bg-[#fff9ef]">
       <div className="max-w-lg mx-auto p-4 flex flex-col gap-4">
 
         {/* Header */}
@@ -208,7 +208,7 @@ const handleSaveGcash = async () => {
 
         <ReceiptCard summary={summary} formatCurrency={formatCurrency} />
 
-        {isCollector && (
+        {isReceiptPayer && (
           <div className="border-4 border-black rounded-xl bg-white shadow-[3px_3px_0px_0px_#000] overflow-hidden">
             <div className="bg-[#0066FF] px-4 py-2.5 flex items-center justify-between">
               <div>
@@ -269,7 +269,7 @@ const handleSaveGcash = async () => {
           </div>
         )}
 
-        {!isCollector && summary.payerGcashNumber && (
+        {!isReceiptPayer && summary.payerGcashNumber && (
           <div className="border-4 border-black rounded-xl bg-white shadow-[3px_3px_0px_0px_#000] overflow-hidden">
             <div className="bg-[#0066FF] px-4 py-2.5">
               <p className="font-dm-mono text-[10px] font-bold uppercase tracking-widest text-white">
@@ -297,7 +297,7 @@ const handleSaveGcash = async () => {
           participantSplits={summary.participantSplits}
           payerParticipantId={summary.receipt.payerParticipantId ?? null}
           formatCurrency={formatCurrency}
-          isCollector={isCollector}
+          isReceiptPayer={isReceiptPayer}
         />
         <div className="mt-4">
           <SaveSplitsNudge />
@@ -305,16 +305,6 @@ const handleSaveGcash = async () => {
 
         <div className="h-4" />
       </div>
-
-      {/* Fixed Bottom Nav */}
-      <nav className="fixed bottom-0 left-0 w-full z-50 bg-white border-t-4 border-black px-4 pt-3 pb-[max(1rem,env(safe-area-inset-bottom))]">
-        <button
-          onClick={() => router.push('/')}
-          className="w-full h-14 border-[4px] border-black rounded-lg font-dm-mono font-bold text-sm uppercase bg-[#FFD700] text-black shadow-[4px_4px_0px_0px_#000] hover:bg-[#FFE44D] active:translate-x-[4px] active:translate-y-[4px] active:shadow-none transition-all"
-        >
-          Create New Receipt →
-        </button>
-      </nav>
 
       {/* How to Use Modal */}
       {showHelpModal && (
@@ -335,7 +325,7 @@ const handleSaveGcash = async () => {
                 </button>
               </div>
 
-              {isCollector ? (
+              {isReceiptPayer ? (
                 <div className="p-4 flex flex-col gap-4">
 
                   {/* Section 1: Share link */}
@@ -385,35 +375,18 @@ const handleSaveGcash = async () => {
                     <span className="font-dm-mono text-[9px] font-bold uppercase tracking-widest text-[#7e775f]">01 — Copy GCash</span>
                     <div className="border-2 border-black p-4 bg-stone-50 flex flex-col items-center gap-3">
                       <div className="flex items-center justify-between w-full border-2 border-black px-3 py-2.5 bg-white">
-                        <p className="font-dm-mono font-bold text-base tracking-wider">0917 123 4567</p>
+                        <p className="font-dm-mono font-bold text-base tracking-wider">0917 xxx xxxx</p>
                         <span className="h-8 px-3 border-2 border-black rounded-lg bg-white font-dm-mono text-[10px] font-bold uppercase shadow-[2px_2px_0px_0px_#000] flex items-center">Copy</span>
                       </div>
                       <p className="font-dm-sans font-bold text-sm text-center">
-                        Tap Copy at the top to grab the GCash number.
+                        Tap Copy to grab the GCash number.
                       </p>
                     </div>
                   </div>
 
-                  {/* Step 2: Find your name */}
+                  {/* Step 2: Pay */}
                   <div className="flex flex-col gap-1.5">
-                    <span className="font-dm-mono text-[9px] font-bold uppercase tracking-widest text-[#7e775f]">02 — Find your name</span>
-                    <div className="border-2 border-black p-4 bg-stone-50 flex flex-col items-center gap-3">
-                      <div className="flex items-center justify-between w-full border-2 border-black px-3 py-2.5 bg-white">
-                        <div className="flex items-center gap-2">
-                          <div className="w-7 h-7 rounded-full bg-[#ffe16d] border-2 border-black flex items-center justify-center font-dm-sans text-[9px] font-bold">YU</div>
-                          <span className="font-dm-sans font-bold text-sm uppercase">You</span>
-                        </div>
-                        <span className="font-dm-mono font-bold text-sm">₱350</span>
-                      </div>
-                      <p className="font-dm-sans font-bold text-sm text-center">
-                        Tap your name below to see your share.
-                      </p>
-                    </div>
-                  </div>
-
-                  {/* Step 3: Pay */}
-                  <div className="flex flex-col gap-1.5">
-                    <span className="font-dm-mono text-[9px] font-bold uppercase tracking-widest text-[#7e775f]">03 — Pay with one tap</span>
+                    <span className="font-dm-mono text-[9px] font-bold uppercase tracking-widest text-[#7e775f]">02 — Pay</span>
                     <div className="border-2 border-black p-4 bg-stone-50 flex flex-col items-center gap-3">
                       <div className="flex items-center justify-between w-full border-2 border-black px-3 py-2.5 bg-white">
                         <div className="flex items-center gap-2">
@@ -424,7 +397,7 @@ const handleSaveGcash = async () => {
                         <span className="font-dm-mono font-bold text-sm">₱350</span>
                       </div>
                       <p className="font-dm-sans font-bold text-sm text-center">
-                        Tap Pay ↗ on your row. GCash opens with the amount ready.
+                        Tap "Pay" on your row. GCash opens with the amount ready.
                       </p>
                     </div>
                   </div>

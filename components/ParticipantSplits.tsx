@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { ChevronDown, ChevronUp } from 'lucide-react';
 import type { ParticipantSplit } from '@/lib/schemas/receipt/public/ParticipantSplit';
 import type { PaymentStatus } from '@/lib/schemas/participant/public/PaymentStatus';
@@ -23,7 +23,7 @@ function PaymentBadge({ status }: { status: PaymentStatus }) {
 
   if (status === 'PAID') {
     return (
-      <span className="inline-flex items-center px-2 py-0.5 border-2 border-black bg-[#b5ead7] font-dm-mono text-[9px] font-bold uppercase tracking-widest shadow-[1px_1px_0px_0px_#000]">
+      <span className="inline-flex items-center h-6 px-2.5 border-2 border-black bg-[#b5ead7] font-dm-mono text-[10px] font-bold uppercase tracking-widest">
         PAID
       </span>
     );
@@ -31,7 +31,7 @@ function PaymentBadge({ status }: { status: PaymentStatus }) {
 
   // PMIP or PCIP — awaiting owner confirmation
   return (
-    <span className="inline-flex items-center px-2 py-0.5 border-2 border-black bg-[#FFD700] font-dm-mono text-[9px] font-bold uppercase tracking-widest shadow-[1px_1px_0px_0px_#000]">
+    <span className="inline-flex items-center h-6 px-2.5 border-2 border-black bg-[#FFD700] font-dm-mono text-[10px] font-bold uppercase tracking-widest">
       CONFIRM?
     </span>
   );
@@ -42,19 +42,23 @@ interface Props {
   participantSplits: ParticipantSplit[];
   payerParticipantId: number | null;
   formatCurrency: (amount: number) => string;
-  isCollector?: boolean;
+  isReceiptPayer?: boolean;
+  showPaymentUI?: boolean;
 }
 
-export function ParticipantSplits({ receiptId, participantSplits, payerParticipantId, formatCurrency, isCollector }: Props) {
+export function ParticipantSplits({ receiptId, participantSplits, payerParticipantId, formatCurrency, isReceiptPayer, showPaymentUI = true }: Props) {
   const payerName = payerParticipantId
     ? (participantSplits.find(p => p.participantId === payerParticipantId)?.displayName ?? null)
     : null;
   const [expandedParticipants, setExpandedParticipants] = useState<Set<number>>(new Set());
+  const cardRefs = useRef<Map<number, HTMLElement | null>>(new Map());
   const [confirmingIds, setConfirmingIds] = useState<Set<number>>(new Set());
+  const [resettingIds, setResettingIds] = useState<Set<number>>(new Set());
   const [localStatuses, setLocalStatuses] = useState<Map<number, PaymentStatus>>(new Map());
   const [toastName, setToastName] = useState<string | null>(null);
 
   const toggleParticipantExpanded = (participantId: number) => {
+    const isCurrentlyExpanded = expandedParticipants.has(participantId);
     setExpandedParticipants((prev) => {
       const next = new Set(prev);
       if (next.has(participantId)) {
@@ -64,6 +68,11 @@ export function ParticipantSplits({ receiptId, participantSplits, payerParticipa
       }
       return next;
     });
+    if (!isCurrentlyExpanded) {
+      setTimeout(() => {
+        cardRefs.current.get(participantId)?.scrollIntoView({ behavior: 'smooth', block: 'end' });
+      }, 0);
+    }
   };
 
   const handleGcashClick = (participantId: number, gcashUrl: string) => {
@@ -71,6 +80,22 @@ export function ParticipantSplits({ receiptId, participantSplits, payerParticipa
     api.participants.updatePaymentStatus(receiptId, participantId, 'PCIP').catch(() => {});
     setLocalStatuses(prev => new Map(prev).set(participantId, 'PCIP'));
     window.location.href = gcashUrl;
+  };
+
+  const handleResetPayment = async (participantId: number) => {
+    setResettingIds(prev => new Set(prev).add(participantId));
+    try {
+      await api.participants.updatePaymentStatus(receiptId, participantId, 'PNYP');
+      setLocalStatuses(prev => new Map(prev).set(participantId, 'PNYP'));
+    } catch {
+      // silent — user can retry
+    } finally {
+      setResettingIds(prev => {
+        const next = new Set(prev);
+        next.delete(participantId);
+        return next;
+      });
+    }
   };
 
   const handleConfirmPaid = async (participantId: number) => {
@@ -95,10 +120,14 @@ export function ParticipantSplits({ receiptId, participantSplits, payerParticipa
   return (
     <>
       <h2 className="font-dm-sans font-bold text-2xl uppercase mt-2">
-        {isCollector ? 'Payment Status' : 'What do you owe?'}
+        {!showPaymentUI ? 'Review these' : isReceiptPayer ? 'Payment Status' : 'What do you owe?'}
       </h2>
       <p className="font-dm-sans text-sm text-gray-500">
-        {isCollector ? 'Confirm payments as you receive them.' : 'Tap your name to see your share and pay.'}
+        {!showPaymentUI
+          ? 'Tap a name to see their breakdown.'
+          : isReceiptPayer
+            ? 'Confirm payments as you receive them.'
+            : 'Tap your name to see your share and pay.'}
       </p>
 
       {participantSplits.map((split, i) => {
@@ -106,16 +135,17 @@ export function ParticipantSplits({ receiptId, participantSplits, payerParticipa
         const color = PARTICIPANT_COLORS[i % PARTICIPANT_COLORS.length];
         const effectiveStatus: PaymentStatus = localStatuses.get(split.participantId) ?? split.paymentStatus ?? 'PNYP';
         const isConfirming = confirmingIds.has(split.participantId);
+        const isResetting = resettingIds.has(split.participantId);
         const isPayerEntry = split.participantId === payerParticipantId;
-        const showCollectorUI = isCollector && !isPayerEntry;
-        const needsConfirmation = showCollectorUI && (effectiveStatus === 'PMIP' || effectiveStatus === 'PCIP');
+        const showCollectorUI = isReceiptPayer && !isPayerEntry;
+        const needsConfirmation = showCollectorUI && effectiveStatus === 'PCIP';
         const isPaid = effectiveStatus === 'PAID';
         const gcashUrl = `gcash://com.mynt.gcash/app/006300090100?amount=${split.total.toFixed(2)}`;
 
         return (
-          <article key={split.participantId} className="bg-white border-4 border-black rounded-xl shadow-[3px_3px_0px_0px_#000] overflow-hidden">
+          <article key={split.participantId} ref={(el) => { cardRefs.current.set(split.participantId, el); }} className="bg-white border-4 border-black rounded-xl shadow-[3px_3px_0px_0px_#000] overflow-hidden">
             <div
-              className="flex items-center justify-between p-4 cursor-pointer transition-colors"
+              className="flex items-center justify-between p-4 min-h-[60px] cursor-pointer transition-colors"
               style={{ backgroundColor: isExpanded ? color : 'white' }}
               onClick={() => toggleParticipantExpanded(split.participantId)}
             >
@@ -127,20 +157,26 @@ export function ParticipantSplits({ receiptId, participantSplits, payerParticipa
                   {getInitials(split.displayName)}
                 </div>
                 <span className="font-dm-sans font-bold text-base uppercase truncate">{split.displayName}</span>
-                {(isCollector || effectiveStatus === 'PAID' || isPayerEntry) && (
-                  <PaymentBadge status={isPayerEntry ? 'PAID' : effectiveStatus} />
+              </div>
+              <div className="flex items-center gap-2.5 flex-shrink-0">
+                {showPaymentUI && isPayerEntry && (
+                  <PaymentBadge status="PAID" />
                 )}
-                {!isCollector && !isPayerEntry && effectiveStatus === 'PNYP' && !isExpanded && (
+                {showPaymentUI && !isPayerEntry && isReceiptPayer && (
+                  <PaymentBadge status={effectiveStatus} />
+                )}
+                {showPaymentUI && !isPayerEntry && !isReceiptPayer && effectiveStatus === 'PNYP' && !isExpanded && (
                   <button
                     onClick={(e) => { e.stopPropagation(); handleGcashClick(split.participantId, gcashUrl); }}
-                    className="flex-shrink-0 inline-flex items-center px-2 py-0.5 border-2 border-black bg-[#0066FF] text-white font-dm-mono text-[9px] font-bold uppercase tracking-widest shadow-[1px_1px_0px_0px_#000] active:translate-x-[1px] active:translate-y-[1px] active:shadow-none transition-all"
+                    className="inline-flex items-center h-8 px-3 border-[3px] border-black rounded-lg bg-[#0066FF] text-white font-dm-mono text-[10px] font-bold uppercase tracking-widest shadow-[2px_2px_0px_0px_#000] active:translate-x-[2px] active:translate-y-[2px] active:shadow-none transition-all"
                   >
                     Pay ↗
                   </button>
                 )}
-              </div>
-              <div className="flex items-center gap-2 flex-shrink-0">
-                <span className="font-dm-mono font-bold text-lg">{formatCurrency(split.total)}</span>
+                {showPaymentUI && !isPayerEntry && !isReceiptPayer && effectiveStatus === 'PAID' && (
+                  <PaymentBadge status={effectiveStatus} />
+                )}
+                <span className="font-dm-mono font-bold text-lg tabular-nums">{formatCurrency(split.total)}</span>
                 {isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
               </div>
             </div>
@@ -219,25 +255,34 @@ export function ParticipantSplits({ receiptId, participantSplits, payerParticipa
                   )}
                 </div>
 
-                <div className="flex justify-between font-dm-mono border-t-4 border-black pt-3 mb-3">
+                <div className={`flex justify-between font-dm-mono border-t-4 border-black pt-3 ${showPaymentUI ? 'mb-3' : ''}`}>
                   <span className="font-bold text-sm uppercase">Total:</span>
                   <span className="font-bold text-sm">{formatCurrency(split.total)}</span>
                 </div>
 
-                {isPayerEntry ? (
+                {showPaymentUI && (isPayerEntry ? (
                   <div className="flex items-center justify-center w-full h-11 border-[3px] border-black rounded-lg bg-[#b5ead7] font-dm-mono font-bold text-sm uppercase shadow-[3px_3px_0px_0px_#000]">
                     Payment confirmed
                   </div>
                 ) : showCollectorUI ? (
                   <>
                     {needsConfirmation && (
-                      <button
-                        onClick={() => handleConfirmPaid(split.participantId)}
-                        disabled={isConfirming}
-                        className="w-full h-11 border-[3px] border-black rounded-lg font-dm-mono font-bold text-sm uppercase bg-[#FFD700] text-black shadow-[3px_3px_0px_0px_#000] hover:bg-[#FFE44D] active:translate-x-[2px] active:translate-y-[2px] active:shadow-none transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-                      >
-                        {isConfirming ? 'Confirming...' : `Mark ${split.displayName} as Paid`}
-                      </button>
+                      <div className="flex flex-col gap-2">
+                        <button
+                          onClick={() => handleConfirmPaid(split.participantId)}
+                          disabled={isConfirming || isResetting}
+                          className="w-full h-11 border-[3px] border-black rounded-lg font-dm-mono font-bold text-sm uppercase bg-[#FFD700] text-black shadow-[3px_3px_0px_0px_#000] hover:bg-[#FFE44D] active:translate-x-[2px] active:translate-y-[2px] active:shadow-none transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          {isConfirming ? 'Confirming...' : `Mark ${split.displayName} as Paid`}
+                        </button>
+                        <button
+                          onClick={() => handleResetPayment(split.participantId)}
+                          disabled={isConfirming || isResetting}
+                          className="w-full h-10 border-2 border-black rounded-lg font-dm-mono text-[11px] font-medium text-[#4d4732] bg-white hover:bg-[#fff9ef] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          {isResetting ? 'Undoing...' : 'Not received yet'}
+                        </button>
+                      </div>
                     )}
                     {isPaid && (
                       <div className="flex items-center justify-center w-full h-11 border-[3px] border-black rounded-lg bg-[#b5ead7] font-dm-mono font-bold text-sm uppercase shadow-[3px_3px_0px_0px_#000]">
@@ -264,8 +309,17 @@ export function ParticipantSplits({ receiptId, participantSplits, payerParticipa
                     Payment confirmed
                   </div>
                 ) : effectiveStatus === 'PCIP' ? (
-                  <div className="flex items-center justify-center w-full h-11 border-[3px] border-dashed border-[#c0b9a8] rounded-lg font-dm-mono text-[11px] uppercase tracking-widest text-[#7e7576]">
-                    Awaiting confirmation
+                  <div className="flex flex-col gap-2">
+                    <div className="flex items-center justify-center w-full h-11 border-[3px] border-dashed border-[#c0b9a8] rounded-lg font-dm-mono text-[11px] uppercase tracking-widest text-[#7e7576]">
+                      Awaiting confirmation
+                    </div>
+                    <button
+                      onClick={() => handleResetPayment(split.participantId)}
+                      disabled={isResetting}
+                      className="w-full font-dm-mono text-xs text-[#4d4732] hover:text-black hover:underline transition-colors disabled:opacity-50"
+                    >
+                      {isResetting ? 'Undoing...' : "I didn't pay yet"}
+                    </button>
                   </div>
                 ) : (
                   <button
@@ -274,7 +328,7 @@ export function ParticipantSplits({ receiptId, participantSplits, payerParticipa
                   >
                     {payerName ? `Pay ${payerName} via GCash` : 'Pay via GCash'}
                   </button>
-                )}
+                ))}
               </div>
             )}
           </article>
