@@ -6,6 +6,7 @@ import { useUser, useClerk } from '@clerk/nextjs';
 import { upload } from '@vercel/blob/client';
 import { Image, ArrowRight, Loader2, LogIn, Settings, LogOut } from 'lucide-react';
 import { api, type MyReceipt } from '@/lib/client/api-client';
+import ReceiptStatusBadge from '@/components/ReceiptStatusBadge';
 
 function formatParticipants(names: string[]): string | null {
   if (names.length === 0) {
@@ -15,32 +16,6 @@ function formatParticipants(names: string[]): string | null {
   const rest = names.length - shown.length;
   const suffix = rest > 0 ? ` and ${rest} other${rest > 1 ? 's' : ''}` : '';
   return 'with ' + shown.join(', ') + suffix;
-}
-
-function receiptStatusLabel(status: string): string {
-  if (status === 'STLD') {
-    return 'Settled';
-  }
-  if (status === 'FLZD') {
-    return 'Finalized';
-  }
-  if (status === 'DRFT') {
-    return 'Draft';
-  }
-  return 'Processing';
-}
-
-function receiptStatusClass(status: string): string {
-  if (status === 'STLD') {
-    return 'bg-[#b8f5b8] border-black text-black';
-  }
-  if (status === 'FLZD') {
-    return 'bg-[#98FB98] border-black text-black';
-  }
-  if (status === 'DRFT') {
-    return 'bg-[#cee7f0] border-black text-black';
-  }
-  return 'bg-[#f3f3f3] border-black text-[#7e775f]';
 }
 
 interface Props {
@@ -368,9 +343,7 @@ export default function HomeClient({ initialReceipts }: Props) {
                     <div className="flex flex-col gap-0.5 min-w-0">
                       <div className="flex items-center gap-2">
                         <span className="font-dm-sans font-bold text-sm truncate">{r.title}</span>
-                        <span className={`font-dm-mono text-[9px] font-bold uppercase tracking-widest px-1.5 py-0.5 rounded border flex-shrink-0 ${receiptStatusClass(r.status)}`}>
-                          {receiptStatusLabel(r.status)}
-                        </span>
+                        <ReceiptStatusBadge status={r.status} />
                       </div>
                       <span className="font-dm-mono text-[10px] text-[#7e775f]">{r.date} · {r.with}</span>
                     </div>
@@ -405,9 +378,7 @@ export default function HomeClient({ initialReceipts }: Props) {
                     <div className="flex flex-col gap-0.5 min-w-0">
                       <div className="flex items-center gap-2">
                         <span className="font-dm-sans font-bold text-sm truncate">{r.title || 'Untitled receipt'}</span>
-                        <span className={`font-dm-mono text-[9px] font-bold uppercase tracking-widest px-1.5 py-0.5 rounded border flex-shrink-0 ${receiptStatusClass(r.status)}`}>
-                          {receiptStatusLabel(r.status)}
-                        </span>
+                        <ReceiptStatusBadge status={r.status} />
                       </div>
                       <span className="font-dm-mono text-[10px] text-[#7e775f]">
                         {new Date(r.receiptTime).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}

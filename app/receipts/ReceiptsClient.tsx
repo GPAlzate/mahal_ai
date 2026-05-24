@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { ArrowLeft, ArrowRight, Search } from 'lucide-react';
 import type { MyReceipt } from '@/lib/client/api-client';
+import ReceiptStatusBadge from '@/components/ReceiptStatusBadge';
 
 function formatParticipants(names: string[]): string | null {
   if (names.length === 0) {
@@ -13,32 +14,6 @@ function formatParticipants(names: string[]): string | null {
   const rest = names.length - shown.length;
   const suffix = rest > 0 ? ` and ${rest} other${rest > 1 ? 's' : ''}` : '';
   return 'with ' + shown.join(', ') + suffix;
-}
-
-function receiptStatusLabel(status: string): string {
-  if (status === 'STLD') {
-    return 'Settled';
-  }
-  if (status === 'FLZD') {
-    return 'Finalized';
-  }
-  if (status === 'DRFT') {
-    return 'Draft';
-  }
-  return 'Processing';
-}
-
-function receiptStatusClass(status: string): string {
-  if (status === 'STLD') {
-    return 'bg-[oklch(87%_0.14_148)] border-black text-black';
-  }
-  if (status === 'FLZD') {
-    return 'bg-[oklch(84%_0.10_270)] border-black text-black';
-  }
-  if (status === 'DRFT') {
-    return 'bg-[oklch(88%_0.15_82)] border-black text-black';
-  }
-  return 'bg-[oklch(91%_0.02_80)] border-black text-[oklch(55%_0.04_80)]';
 }
 
 interface Props {
@@ -116,9 +91,7 @@ export default function ReceiptsClient({ receipts }: Props) {
               <div className="flex flex-col gap-0.5 min-w-0">
                 <div className="flex items-center gap-2">
                   <span className="font-dm-sans font-bold text-sm truncate">{r.title || 'Untitled receipt'}</span>
-                  <span className={`font-dm-mono text-[9px] font-bold uppercase tracking-widest px-1.5 py-0.5 rounded border flex-shrink-0 ${receiptStatusClass(r.status)}`}>
-                    {receiptStatusLabel(r.status)}
-                  </span>
+                  <ReceiptStatusBadge status={r.status} />
                 </div>
                 <span className="font-dm-mono text-[10px] text-[#7e775f]">
                   {new Date(r.receiptTime).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
