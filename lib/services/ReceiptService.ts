@@ -319,24 +319,22 @@ export class ReceiptService {
       return [];
     }
 
-    const insertPromises = parsedData.receiptLines.map((line, index) =>
-      sql`
-        INSERT INTO receipt_lines (receipt_id, line_type, item_name, unit_price, quantity, line_position)
-        VALUES (
-          ${receiptId},
-          ${line.receiptLineType},
-          ${line.itemName},
-          ${line.unitPrice},
-          ${line.quantity},
-          ${index}
-        )
-        RETURNING id, receipt_id, line_type, item_name, unit_price, quantity, line_position, created_at
-      `
-    );
+    const lines = parsedData.receiptLines;
 
-    const results = await Promise.all(insertPromises);
+    const result = await sql`
+      INSERT INTO receipt_lines (receipt_id, line_type, item_name, unit_price, quantity, line_position)
+      SELECT * FROM UNNEST(
+        ${lines.map(() => receiptId)}::bigint[],
+        ${lines.map(l => l.receiptLineType)}::receipt_line_type[],
+        ${lines.map(l => l.itemName)}::text[],
+        ${lines.map(l => l.unitPrice)}::numeric[],
+        ${lines.map(l => l.quantity)}::numeric[],
+        ${lines.map((_, i) => i)}::int[]
+      )
+      RETURNING id, receipt_id, line_type, item_name, unit_price, quantity, line_position, created_at
+    `;
 
-    return results.map((result) => result[0]).filter(Boolean);
+    return result.map(row => row).filter(Boolean);
   }
 
   /**

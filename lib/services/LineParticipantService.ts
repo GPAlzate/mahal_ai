@@ -92,27 +92,25 @@ export class LineParticipantService {
 
     this._logger.log(`Replacing assignments for ${byLine.size} lines on receipt ${receiptId}.`);
 
-    const lineResults = await Promise.all(
-      Array.from(byLine.entries()).map(async ([lineId, lineAssignments]) => {
-        await sql`DELETE FROM line_participants WHERE receipt_line_id = ${lineId}`;
+    const lineIds = Array.from(byLine.keys());
 
-        if (lineAssignments.length === 0) {
-          return [];
-        }
+    await sql`DELETE FROM line_participants WHERE receipt_line_id = ANY(${lineIds}::bigint[])`;
 
-        const insertResults = await Promise.all(
-          lineAssignments.map((a) => sql`
-            INSERT INTO line_participants (receipt_line_id, participant_id, share_quantity)
-            VALUES (${a.receiptLineId}, ${a.participantId}, ${a.shareQuantity})
-            RETURNING *
-          `)
-        );
+    if (assignments.length === 0) {
+      return [];
+    }
 
-        return insertResults.map((r) => toLineParticipant(toLineParticipantDTO(r[0])));
-      })
-    );
+    const result = await sql`
+      INSERT INTO line_participants (receipt_line_id, participant_id, share_quantity)
+      SELECT * FROM UNNEST(
+        ${assignments.map(a => a.receiptLineId)}::bigint[],
+        ${assignments.map(a => a.participantId)}::bigint[],
+        ${assignments.map(a => a.shareQuantity)}::numeric[]
+      )
+      RETURNING *
+    `;
 
-    return lineResults.flat();
+    return result.map(r => toLineParticipant(toLineParticipantDTO(r)));
   }
 
   /**
@@ -127,51 +125,40 @@ export class LineParticipantService {
     receiptLineId: number,
     assignmentData: AssignLineParticipantRequest
   ) {
-    // Verify receipt exists and is not finalized
-    await validateReceiptIsModifiable(receiptId);
-
-    // Verify receipt line exists and belongs to receipt
-    const lineCheck = await sql`
-      SELECT id FROM receipt_lines
-      WHERE id = ${receiptLineId} AND receipt_id = ${receiptId} AND deleted_at IS NULL
+    const validation = await sql`
+      SELECT
+        r.status AS receipt_status,
+        rl.id AS line_id,
+        p.id AS participant_id
+      FROM receipts r
+      LEFT JOIN receipt_lines rl
+        ON rl.id = ${receiptLineId} AND rl.receipt_id = r.id AND rl.deleted_at IS NULL
+      LEFT JOIN participants p
+        ON p.id = ${assignmentData.participantId} AND p.receipt_id = r.id AND p.deleted_at IS NULL
+      WHERE r.id = ${receiptId} AND r.deleted_at IS NULL
     `;
 
-    if (lineCheck.length === 0) {
-      throw new Error('Receipt line not found');
+    if (validation.length === 0) {
+      throw new Error('Receipt not found');
     }
 
-    // Verify participant exists and belongs to receipt
-    const participantCheck = await sql`
-      SELECT id FROM participants
-      WHERE id = ${assignmentData.participantId} AND receipt_id = ${receiptId} AND deleted_at IS NULL
-    `;
+    const check = validation[0];
 
-    if (participantCheck.length === 0) {
+    if (check.receipt_status === 'FLZD') {
+      throw new Error('Cannot modify finalized receipt');
+    }
+    if (!check.line_id) {
+      throw new Error('Receipt line not found');
+    }
+    if (!check.participant_id) {
       throw new Error('Participant not found or does not belong to this receipt');
     }
 
-    // Check if assignment already exists
-    const existingAssignment = await sql`
-      SELECT * FROM line_participants
-      WHERE receipt_line_id = ${receiptLineId} AND participant_id = ${assignmentData.participantId}
-    `;
-
-    if (existingAssignment.length > 0) {
-      // Update existing assignment
-      const result = await sql`
-        UPDATE line_participants
-        SET share_quantity = ${assignmentData.shareQuantity}
-        WHERE receipt_line_id = ${receiptLineId} AND participant_id = ${assignmentData.participantId}
-        RETURNING *
-      `;
-
-      return toLineParticipant(toLineParticipantDTO(result[0]));
-    }
-
-    // Create new assignment
     const result = await sql`
       INSERT INTO line_participants (receipt_line_id, participant_id, share_quantity)
       VALUES (${receiptLineId}, ${assignmentData.participantId}, ${assignmentData.shareQuantity})
+      ON CONFLICT (receipt_line_id, participant_id)
+      DO UPDATE SET share_quantity = ${assignmentData.shareQuantity}
       RETURNING *
     `;
 

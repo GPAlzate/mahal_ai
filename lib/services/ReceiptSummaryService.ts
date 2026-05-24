@@ -21,30 +21,15 @@ export class ReceiptSummaryService {
    * @param receipt - Receipt object from database
    * @returns Complete receipt summary with all participant breakdowns
    */
-  private async calculateSummaryFromReceipt(receipt: Receipt): Promise<ReceiptSummary> {
+  private calculateSummaryFromReceipt(
+    receipt: Receipt,
+    participants: ReturnType<typeof toParticipant>[],
+    assignments: ReturnType<typeof toLineParticipant>[],
+  ): ReceiptSummary {
     const receiptId = receipt.id;
     if (!receipt.lines) {
       throw new Error(`Expected receipt ${receiptId} to have lines, but none were found.`)
     }
-
-    // Fetch all participants
-    const participantsResult = await sql`
-      SELECT * FROM participants
-      WHERE receipt_id = ${receiptId} AND deleted_at IS NULL
-      ORDER BY id ASC
-    `;
-
-    const participants = participantsResult.map(row => toParticipant(toParticipantDTO(row)));
-
-    // Fetch all line assignments
-    const assignmentsResult = await sql`
-      SELECT * FROM line_participants
-      WHERE receipt_line_id IN (
-        SELECT id FROM receipt_lines WHERE receipt_id = ${receiptId} AND deleted_at IS NULL
-      )
-    `;
-
-    const assignments = assignmentsResult.map(row => toLineParticipant(toLineParticipantDTO(row)));
 
     // Separate lines by type
     const lines = receipt.lines;
@@ -228,8 +213,25 @@ export class ReceiptSummaryService {
    * @returns Complete receipt summary with all participant breakdowns
    */
   async calculateSummary(receiptId: number): Promise<ReceiptSummary> {
-    const receipt = await receiptService.getReceipt(receiptId, true);
-    return this.calculateSummaryFromReceipt(receipt);
+    const [receipt, participantsResult, assignmentsResult] = await Promise.all([
+      receiptService.getReceipt(receiptId, true),
+      sql`
+        SELECT * FROM participants
+        WHERE receipt_id = ${receiptId} AND deleted_at IS NULL
+        ORDER BY id ASC
+      `,
+      sql`
+        SELECT lp.*
+        FROM line_participants lp
+        INNER JOIN receipt_lines rl ON lp.receipt_line_id = rl.id
+        WHERE rl.receipt_id = ${receiptId} AND rl.deleted_at IS NULL
+      `,
+    ]);
+
+    const participants = participantsResult.map(row => toParticipant(toParticipantDTO(row)));
+    const assignments = assignmentsResult.map(row => toLineParticipant(toLineParticipantDTO(row)));
+
+    return this.calculateSummaryFromReceipt(receipt, participants, assignments);
   }
 
   /**
@@ -239,7 +241,26 @@ export class ReceiptSummaryService {
    */
   async calculateSummaryByShareCode(shareCode: string): Promise<ReceiptSummary> {
     const receipt = await receiptService.findReceiptByShareCode(shareCode);
-    return this.calculateSummaryFromReceipt(receipt);
+    const receiptId = receipt.id;
+
+    const [participantsResult, assignmentsResult] = await Promise.all([
+      sql`
+        SELECT * FROM participants
+        WHERE receipt_id = ${receiptId} AND deleted_at IS NULL
+        ORDER BY id ASC
+      `,
+      sql`
+        SELECT lp.*
+        FROM line_participants lp
+        INNER JOIN receipt_lines rl ON lp.receipt_line_id = rl.id
+        WHERE rl.receipt_id = ${receiptId} AND rl.deleted_at IS NULL
+      `,
+    ]);
+
+    const participants = participantsResult.map(row => toParticipant(toParticipantDTO(row)));
+    const assignments = assignmentsResult.map(row => toLineParticipant(toLineParticipantDTO(row)));
+
+    return this.calculateSummaryFromReceipt(receipt, participants, assignments);
   }
 
   /**
