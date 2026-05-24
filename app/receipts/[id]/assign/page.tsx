@@ -304,7 +304,7 @@ export default function AssignPage({ params }: { params: Promise<{ id: string }>
     { num: '04', label: 'Finalize', view: null },
   ];
 
-  const PARTICIPANT_COLORS = ['#ffd9de', '#cee7f0', '#ffe16d', '#b5ead7', '#e2d1f9', '#fce1a4', '#b8e0ff'];
+  const PARTICIPANT_COLORS = ['#ffc8d0', '#ffb5a7', '#b8e8c0', '#a8e4df', '#b8e0ff', '#d0c4f8', '#f0bce8'];
   const currentStepIndex = stepLabels.findIndex(s => s.view === currentView);
 
   const handleOpenEditModal = (line: ReceiptLine) => {
@@ -562,7 +562,11 @@ export default function AssignPage({ params }: { params: Promise<{ id: string }>
                       {line.quantity} × {formatCurrency(line.unitPrice)}
                     </span>
                     <div className="flex -space-x-2">
-                      {assignedParticipants.length > 0 ? assignedParticipants.map((p, idx) => {
+                      {assignedParticipants.length > 0 && assignedParticipants.length === participants.length && participants.length > 1 ? (
+                        <div className="h-7 px-2.5 rounded-full border-2 border-black bg-[#FFD700] flex items-center justify-center font-dm-mono text-[8px] font-bold text-[#1b1b1b] whitespace-nowrap">
+                          ALL
+                        </div>
+                      ) : assignedParticipants.length > 0 ? assignedParticipants.map((p, idx) => {
                         const colorIdx = participants.findIndex(pp => pp.id === p.id);
                         const color = PARTICIPANT_COLORS[colorIdx % PARTICIPANT_COLORS.length];
                         return (
@@ -623,36 +627,23 @@ export default function AssignPage({ params }: { params: Promise<{ id: string }>
                   onClick={() => setAssignModalLine(line)}
                   className="bg-white border-4 border-black p-[10px_14px] rounded-lg flex flex-col gap-1 cursor-pointer transition-all shadow-[3px_3px_0px_0px_#000] active:translate-x-[2px] active:translate-y-[2px] active:shadow-[1px_1px_0px_0px_#000] hover:bg-[#f3f3f3] hover:border-[#ccb800]"
                 >
-                  {/* Row 1: name (left) + total (right) + kebab */}
-                  <div className="flex items-center gap-2">
+                  {/* Row 1: name (left) + total (right) */}
+                  <div className="flex items-center justify-between gap-2">
                     <h2 className="font-dm-sans font-bold text-[14px] uppercase leading-tight flex-1 text-green-700">{line.itemName}</h2>
                     <span className="font-dm-mono font-bold text-[12px] tabular-nums text-green-700 flex-shrink-0">{formatCurrency(line.quantity * line.unitPrice)}</span>
-                    <div className="relative flex-shrink-0" onClick={e => e.stopPropagation()}>
-                      <button
-                        onClick={() => setOpenKebabId(openKebabId === line.id ? null : line.id)}
-                        className="p-2 border-2 border-black bg-white rounded shadow-[1px_1px_0px_0px_#000] active:shadow-none active:translate-x-[1px] active:translate-y-[1px] transition-all flex items-center justify-center"
-                      >
-                        <MoreVertical className="w-4 h-4" />
-                      </button>
-                      {openKebabId === line.id && (
-                        <>
-                          <div className="fixed inset-0 z-10" onClick={() => setOpenKebabId(null)} />
-                          <KebabMenu
-                            className="z-20 w-32"
-                            items={[
-                              { label: 'Edit', icon: <Pencil className="w-3.5 h-3.5 flex-shrink-0" />, onClick: () => { handleOpenEditModal(line); setOpenKebabId(null); } },
-                              { label: 'Delete', icon: <Trash2 className="w-3.5 h-3.5 flex-shrink-0" />, onClick: () => { handleDeleteLineItem(line); setOpenKebabId(null); }, variant: 'destructive' as const },
-                            ]}
-                          />
-                        </>
-                      )}
-                    </div>
                   </div>
 
-                  {/* Row 2: participant circles (or proportional) */}
-                  <div className="flex justify-end">
+                  {/* Row 2: unit price (left) + participant circles or proportional (right) */}
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="font-dm-mono text-[10px] text-[#7e7576]">
+                      {line.quantity} × {formatCurrency(line.unitPrice)}
+                    </span>
                     <div className="flex -space-x-2">
-                      {assignedParticipants.length > 0 ? assignedParticipants.map((p, idx) => {
+                      {assignedParticipants.length > 0 && assignedParticipants.length === participants.length && participants.length > 1 ? (
+                        <div className="h-7 px-2.5 rounded-full border-2 border-black bg-[#FFD700] flex items-center justify-center font-dm-mono text-[8px] font-bold text-[#1b1b1b] whitespace-nowrap">
+                          ALL
+                        </div>
+                      ) : assignedParticipants.length > 0 ? assignedParticipants.map((p, idx) => {
                         const colorIdx = participants.findIndex(pp => pp.id === p.id);
                         const color = PARTICIPANT_COLORS[colorIdx % PARTICIPANT_COLORS.length];
                         return (
@@ -876,30 +867,30 @@ showLineTypeSelector={currentView === 'misc-charges'}
           onClick={() => setDeleteConfirmLine(null)}
         >
           <div
-            className="bg-white border-4 border-black shadow-[8px_8px_0px_0px_#000] p-4 w-full max-w-sm flex flex-col gap-4"
+            className="bg-white rounded-xl border-[4px] border-black shadow-[4px_4px_0px_0px_#000] p-4 w-full max-w-sm flex flex-col gap-4"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex flex-col gap-1">
-              <h2 className="font-bold text-xl uppercase tracking-wider text-center border-b-2 border-black pb-2">
+              <h2 className="font-dm-sans font-bold text-2xl uppercase tracking-tight text-center border-b-2 border-black pb-2">
                 Delete Item?
               </h2>
               <div className="text-center py-2">
-                <p className="text-base text-[#4d4732]">"{deleteConfirmLine.itemName}"</p>
-                <p className="font-dm-mono text-xs uppercase tracking-wide text-[#7e7576] mt-1">
+                <p className="font-dm-sans font-bold text-base text-[#1c1a15]">"{deleteConfirmLine.itemName}"</p>
+                <p className="font-dm-mono text-xs uppercase tracking-widest text-[#7e7576] mt-1">
                   This cannot be undone.
                 </p>
               </div>
             </div>
-            <div className="flex gap-2">
+            <div className="flex gap-3">
               <button
                 onClick={() => setDeleteConfirmLine(null)}
-                className="flex-1 py-2 px-3 bg-white border-4 border-black font-bold text-sm uppercase tracking-wider shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] active:translate-x-1 active:translate-y-1 active:shadow-none transition-none hover:bg-gray-100"
+                className="flex-1 h-12 border-2 border-black rounded font-dm-mono font-bold text-sm uppercase bg-white shadow-[2px_2px_0px_0px_#000] hover:bg-[#f3f3f3] active:translate-x-[2px] active:translate-y-[2px] active:shadow-none transition-all"
               >
                 Cancel
               </button>
               <button
                 onClick={confirmDeleteLineItem}
-                className="flex-1 py-2 px-3 bg-red-300 text-black border-4 border-black font-bold text-sm uppercase tracking-wider shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] active:translate-x-1 active:translate-y-1 active:shadow-none transition-none hover:bg-red-400"
+                className="flex-1 h-12 border-2 border-red-600 rounded font-dm-mono font-bold text-sm uppercase bg-red-50 text-red-600 shadow-[2px_2px_0px_0px_#991b1b] hover:bg-red-100 active:translate-x-[2px] active:translate-y-[2px] active:shadow-none transition-all"
               >
                 Delete
               </button>
