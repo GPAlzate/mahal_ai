@@ -16,14 +16,27 @@ function toUserProfile(row: any): UserProfile {
 
 export class UserService {
   async getOrCreate(clerkUserId: string): Promise<UserProfile> {
+    const existing = await sql`
+      SELECT * FROM users WHERE clerk_user_id = ${clerkUserId} AND deleted_at IS NULL LIMIT 1
+    `;
+    if (existing.length > 0) {
+      return toUserProfile(existing[0]);
+    }
+
     const result = await sql`
       INSERT INTO users (clerk_user_id)
       VALUES (${clerkUserId})
-      ON CONFLICT (clerk_user_id) DO UPDATE
-        SET clerk_user_id = EXCLUDED.clerk_user_id
+      ON CONFLICT (clerk_user_id) DO NOTHING
       RETURNING *
     `;
-    return toUserProfile(result[0]);
+    if (result.length > 0) {
+      return toUserProfile(result[0]);
+    }
+
+    const fallback = await sql`
+      SELECT * FROM users WHERE clerk_user_id = ${clerkUserId} LIMIT 1
+    `;
+    return toUserProfile(fallback[0]);
   }
 
   async update(

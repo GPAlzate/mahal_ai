@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
 import { sql } from '@/lib/db';
 import { participantService } from '@/lib/services/ParticipantService';
+import { toParticipant, toParticipantDTO } from '@/lib/schemas/participant/dto/ParticipantDTO';
 import { PaymentStatusSchema } from '@/lib/schemas/participant/public/PaymentStatus';
 
 /**
@@ -37,18 +38,19 @@ export async function PATCH(
     const newStatus = validation.data;
 
     if (newStatus === 'PAID') {
-      const { userId } = await auth();
+      const [{ userId }, receiptCheck] = await Promise.all([
+        auth(),
+        sql`
+          SELECT r.owner_id, p.user_id AS payer_user_id
+          FROM receipts r
+          LEFT JOIN participants p ON p.id = r.payer_participant_id AND p.deleted_at IS NULL
+          WHERE r.id = ${receiptId} AND r.deleted_at IS NULL
+        `,
+      ]);
 
       if (!userId) {
         return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
       }
-
-      const receiptCheck = await sql`
-        SELECT r.owner_id, p.user_id AS payer_user_id
-        FROM receipts r
-        LEFT JOIN participants p ON p.id = r.payer_participant_id AND p.deleted_at IS NULL
-        WHERE r.id = ${receiptId} AND r.deleted_at IS NULL
-      `;
 
       if (receiptCheck.length === 0) {
         return NextResponse.json({ error: 'Receipt not found' }, { status: 404 });
@@ -60,6 +62,32 @@ export async function PATCH(
       if (!isAuthorized) {
         return NextResponse.json({ error: 'Only the receipt owner or collector can confirm payments' }, { status: 403 });
       }
+
+      // Single CTE: update participant + settle receipt if all paid, in two queries instead of four
+      const updated = await sql`
+        WITH upd AS (
+          UPDATE participants
+          SET payment_status = 'PAID', updated_at = NOW()
+          WHERE id = ${participantIdNum} AND receipt_id = ${receiptId} AND deleted_at IS NULL
+          RETURNING *
+        ),
+        remaining AS (
+          SELECT id FROM participants
+          WHERE receipt_id = ${receiptId} AND deleted_at IS NULL AND payment_status != 'PAID'
+            AND id != ${participantIdNum}
+        )
+        SELECT upd.*, (SELECT COUNT(*) FROM remaining) AS unpaid_count FROM upd
+      `;
+
+      if (updated.length === 0) {
+        return NextResponse.json({ error: 'Participant not found' }, { status: 404 });
+      }
+
+      if (Number(updated[0].unpaid_count) === 0) {
+        await sql`UPDATE receipts SET status = 'STLD', updated_at = NOW() WHERE id = ${receiptId}`;
+      }
+
+      return NextResponse.json(toParticipant(toParticipantDTO(updated[0])), { status: 200 });
     }
 
     const participant = await participantService.updatePaymentStatus(
@@ -67,19 +95,6 @@ export async function PATCH(
       participantIdNum,
       newStatus
     );
-
-    if (newStatus === 'PAID') {
-      const unpaid = await sql`
-        SELECT id FROM participants
-        WHERE receipt_id = ${receiptId} AND deleted_at IS NULL AND payment_status != 'PAID'
-      `;
-      if (unpaid.length === 0) {
-        await sql`
-          UPDATE receipts SET status = 'STLD', updated_at = NOW()
-          WHERE id = ${receiptId}
-        `;
-      }
-    }
 
     return NextResponse.json(participant, { status: 200 });
   } catch (error) {
