@@ -56,12 +56,6 @@ export default function ShareCodePage({ params }: { params: Promise<{ code: stri
   );
   const isReceiptPayer = !!userId && !!payerParticipant?.userId && userId === payerParticipant.userId;
 
-  useEffect(() => {
-    if (!localStorage.getItem('mahal_share_help_seen')) {
-      const t = setTimeout(() => setShowHelpModal(true), 1000);
-      return () => clearTimeout(t);
-    }
-  }, []);
 
   const dismissHelpModal = () => {
     localStorage.setItem('mahal_share_help_seen', '1');
