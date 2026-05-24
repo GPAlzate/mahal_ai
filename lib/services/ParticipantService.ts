@@ -58,11 +58,12 @@ export class ParticipantService {
     }));
 
     const result = await sql`
-      INSERT INTO participants (receipt_id, display_name, user_id)
+      INSERT INTO participants (receipt_id, display_name, user_id, payment_status)
       SELECT * FROM UNNEST(
         ${rows.map(r => r.receiptId)}::bigint[],
         ${rows.map(r => r.displayName)}::text[],
-        ${rows.map(r => r.userId)}::text[]
+        ${rows.map(r => r.userId)}::text[],
+        ${rows.map(() => 'PNYP')}::payment_status[]
       )
       RETURNING *
     `;

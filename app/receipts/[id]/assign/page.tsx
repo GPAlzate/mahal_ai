@@ -876,16 +876,16 @@ showLineTypeSelector={currentView === 'misc-charges'}
           onClick={() => setDeleteConfirmLine(null)}
         >
           <div
-            className="bg-white border-[4px] border-black shadow-[6px_6px_0px_0px_#000] rounded-lg p-4 w-full max-w-sm flex flex-col gap-4"
+            className="bg-white border-4 border-black shadow-[8px_8px_0px_0px_#000] p-4 w-full max-w-sm flex flex-col gap-4"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex flex-col gap-1">
-              <h2 className="font-dm-sans font-bold text-xl uppercase text-center border-b-2 border-black pb-2">
+              <h2 className="font-bold text-xl uppercase tracking-wider text-center border-b-2 border-black pb-2">
                 Delete Item?
               </h2>
               <div className="text-center py-2">
-                <p className="font-dm-sans text-base text-[#4d4732]">"{deleteConfirmLine.itemName}"</p>
-                <p className="font-dm-mono text-[10px] uppercase tracking-wide text-[#7e7576] mt-1">
+                <p className="text-base text-[#4d4732]">"{deleteConfirmLine.itemName}"</p>
+                <p className="font-dm-mono text-xs uppercase tracking-wide text-[#7e7576] mt-1">
                   This cannot be undone.
                 </p>
               </div>
@@ -893,13 +893,13 @@ showLineTypeSelector={currentView === 'misc-charges'}
             <div className="flex gap-2">
               <button
                 onClick={() => setDeleteConfirmLine(null)}
-                className="flex-1 py-2 px-3 bg-white border-2 border-black font-dm-mono font-bold text-sm uppercase shadow-[2px_2px_0px_0px_#000] active:translate-x-[2px] active:translate-y-[2px] active:shadow-none transition-all"
+                className="flex-1 py-2 px-3 bg-white border-4 border-black font-bold text-sm uppercase tracking-wider shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] active:translate-x-1 active:translate-y-1 active:shadow-none transition-none hover:bg-gray-100"
               >
                 Cancel
               </button>
               <button
                 onClick={confirmDeleteLineItem}
-                className="flex-1 py-2 px-3 bg-[#ba1a1a] text-white border-2 border-black font-dm-mono font-bold text-sm uppercase shadow-[2px_2px_0px_0px_#000] active:translate-x-[2px] active:translate-y-[2px] active:shadow-none transition-all"
+                className="flex-1 py-2 px-3 bg-red-300 text-black border-4 border-black font-bold text-sm uppercase tracking-wider shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] active:translate-x-1 active:translate-y-1 active:shadow-none transition-none hover:bg-red-400"
               >
                 Delete
               </button>
