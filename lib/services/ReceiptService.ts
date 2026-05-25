@@ -206,7 +206,16 @@ export class ReceiptService {
         r.share_code,
         r.receipt_time,
         r.status,
-        array_agg(p.display_name ORDER BY p.created_at) FILTER (WHERE p.id IS NOT NULL AND p.user_id IS DISTINCT FROM ${userId}) AS participant_names
+        array_agg(p.display_name ORDER BY p.created_at) FILTER (WHERE p.id IS NOT NULL AND p.user_id IS DISTINCT FROM ${userId}) AS participant_names,
+        (
+          SELECT COALESCE(SUM(lp.share_quantity * rl.unit_price), 0)
+          FROM participants op
+          LEFT JOIN line_participants lp ON lp.participant_id = op.id
+          LEFT JOIN receipt_lines rl ON rl.id = lp.receipt_line_id AND rl.deleted_at IS NULL
+          WHERE op.receipt_id = r.id AND op.deleted_at IS NULL
+            AND op.id != r.payer_participant_id
+            AND op.payment_status != 'PAID'
+        ) AS user_owed_amount
       FROM receipts r
       JOIN participants my_p ON my_p.id = r.payer_participant_id
         AND my_p.user_id = ${userId}
@@ -214,6 +223,7 @@ export class ReceiptService {
       LEFT JOIN participants p ON p.receipt_id = r.id AND p.deleted_at IS NULL
       WHERE r.deleted_at IS NULL
         AND r.status != 'DLTD'
+        AND r.status != 'STLD'
       GROUP BY r.id
       ORDER BY r.updated_at DESC
     `;
@@ -225,6 +235,7 @@ export class ReceiptService {
       receiptTime: row.receipt_time as Date,
       status: row.status as string,
       participantNames: (row.participant_names ?? []) as string[],
+      userOwedAmount: Number(row.user_owed_amount ?? 0),
     }));
   }
 
@@ -236,7 +247,13 @@ export class ReceiptService {
         r.share_code,
         r.receipt_time,
         r.status,
-        array_agg(p.display_name ORDER BY p.created_at) FILTER (WHERE p.id IS NOT NULL AND p.user_id IS DISTINCT FROM ${userId}) AS participant_names
+        array_agg(p.display_name ORDER BY p.created_at) FILTER (WHERE p.id IS NOT NULL AND p.user_id IS DISTINCT FROM ${userId}) AS participant_names,
+        (
+          SELECT COALESCE(SUM(lp.share_quantity * rl.unit_price), 0)
+          FROM line_participants lp
+          JOIN receipt_lines rl ON rl.id = lp.receipt_line_id AND rl.deleted_at IS NULL
+          WHERE lp.participant_id = my_p.id
+        ) AS user_owed_amount
       FROM receipts r
       JOIN participants my_p ON my_p.receipt_id = r.id
         AND my_p.user_id = ${userId}
@@ -244,8 +261,9 @@ export class ReceiptService {
       LEFT JOIN participants p ON p.receipt_id = r.id AND p.deleted_at IS NULL
       WHERE r.deleted_at IS NULL
         AND r.status != 'DLTD'
+        AND r.status != 'STLD'
         AND my_p.id != r.payer_participant_id
-      GROUP BY r.id
+      GROUP BY r.id, my_p.id
       ORDER BY r.updated_at DESC
     `;
 
@@ -256,6 +274,7 @@ export class ReceiptService {
       receiptTime: row.receipt_time as Date,
       status: row.status as string,
       participantNames: (row.participant_names ?? []) as string[],
+      userOwedAmount: Number(row.user_owed_amount ?? 0),
     }));
   }
 

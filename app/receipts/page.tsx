@@ -17,6 +17,7 @@ export default async function ReceiptsPage() {
     receipts = rows.map((r) => ({
       ...r,
       receiptTime: r.receiptTime instanceof Date ? r.receiptTime.toISOString() : String(r.receiptTime),
+      userOwedAmount: 0,
     }));
   } catch {
     // Return empty list on error rather than crashing

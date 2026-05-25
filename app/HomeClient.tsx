@@ -7,6 +7,7 @@ import { upload } from '@vercel/blob/client';
 import { Image, ArrowRight, Loader2, LogIn, Settings, LogOut } from 'lucide-react';
 import { api, type MyReceipt } from '@/lib/client/api-client';
 import ReceiptStatusBadge from '@/components/ReceiptStatusBadge';
+import { formatCurrency } from '@/lib/helpers/CurrencyHelper';
 
 function formatParticipants(names: string[]): string | null {
   if (names.length === 0) {
@@ -420,7 +421,7 @@ export default function HomeClient({ initialOwedReceipts, initialOwingReceipts }
                       onClick={() => router.push(`/${r.shareCode}`)}
                       className={`flex items-center justify-between px-4 py-3 bg-white hover:bg-[#fff9ef] active:bg-[#f3f3f3] transition-colors cursor-pointer text-left ${index > 0 ? 'border-t-2 border-black' : ''}`}
                     >
-                      <div className="flex flex-col gap-0.5 min-w-0">
+                      <div className="flex flex-col gap-0.5 min-w-0 flex-1">
                         <div className="flex items-center gap-2">
                           <span className="font-dm-sans font-bold text-sm truncate">{r.title || 'Untitled receipt'}</span>
                           <ReceiptStatusBadge status={r.status} />
@@ -430,7 +431,12 @@ export default function HomeClient({ initialOwedReceipts, initialOwingReceipts }
                           {formatParticipants(r.participantNames) && ` · ${formatParticipants(r.participantNames)}`}
                         </span>
                       </div>
-                      <ArrowRight className="w-4 h-4 flex-shrink-0 ml-3 text-[#4d4732]" strokeWidth={2.5} />
+                      <div className="flex flex-col items-end gap-0.5 ml-3 flex-shrink-0">
+                        {r.userOwedAmount > 0 && (
+                          <span className="font-dm-mono font-bold text-sm text-black">{formatCurrency(r.userOwedAmount)}</span>
+                        )}
+                        <ArrowRight className="w-3.5 h-3.5 text-[#7e775f]" strokeWidth={2.5} />
+                      </div>
                     </button>
                   ))}
                 </div>
@@ -457,7 +463,7 @@ export default function HomeClient({ initialOwedReceipts, initialOwingReceipts }
                     onClick={() => router.push(`/${r.shareCode}`)}
                     className={`flex items-center justify-between px-4 py-3 bg-white hover:bg-[#fff9ef] active:bg-[#f3f3f3] transition-colors cursor-pointer text-left ${index > 0 ? 'border-t-2 border-black' : ''}`}
                   >
-                    <div className="flex flex-col gap-0.5 min-w-0">
+                    <div className="flex flex-col gap-0.5 min-w-0 flex-1">
                       <div className="flex items-center gap-2">
                         <span className="font-dm-sans font-bold text-sm truncate">{r.title || 'Untitled receipt'}</span>
                         <ReceiptStatusBadge status={r.status} />
@@ -467,7 +473,12 @@ export default function HomeClient({ initialOwedReceipts, initialOwingReceipts }
                         {formatParticipants(r.participantNames) && ` · ${formatParticipants(r.participantNames)}`}
                       </span>
                     </div>
-                    <ArrowRight className="w-4 h-4 flex-shrink-0 ml-3 text-[#4d4732]" strokeWidth={2.5} />
+                    <div className="flex flex-col items-end gap-0.5 ml-3 flex-shrink-0">
+                      {r.userOwedAmount > 0 && (
+                        <span className="font-dm-mono font-bold text-sm text-black">{formatCurrency(r.userOwedAmount)}</span>
+                      )}
+                      <ArrowRight className="w-3.5 h-3.5 text-[#7e775f]" strokeWidth={2.5} />
+                    </div>
                   </button>
                 ))}
               </div>

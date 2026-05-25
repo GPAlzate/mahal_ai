@@ -17,6 +17,7 @@ export interface MyReceipt {
   receiptTime: string;
   status: string;
   participantNames: string[];
+  userOwedAmount: number;
 }
 
 class APIError extends Error {

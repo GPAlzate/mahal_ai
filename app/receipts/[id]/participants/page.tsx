@@ -125,6 +125,11 @@ export default function ParticipantsPage({ params }: { params: Promise<{ id: str
       return;
     }
 
+    if (!user) {
+      setSearching(false);
+      return;
+    }
+
     setSearching(true);
     searchTimer.current = setTimeout(async () => {
       try {
@@ -137,7 +142,7 @@ export default function ParticipantsPage({ params }: { params: Promise<{ id: str
         setSearching(false);
       }
     }, 200);
-  }, [trimmedInput, participants]);
+  }, [trimmedInput, participants, user]);
 
   const handleAddParticipant = (e: React.FormEvent) => {
     e.preventDefault();
