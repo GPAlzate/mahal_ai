@@ -208,10 +208,17 @@ export class ReceiptService {
         r.status,
         array_agg(p.display_name ORDER BY p.created_at) FILTER (WHERE p.id IS NOT NULL AND p.user_id IS DISTINCT FROM ${userId}) AS participant_names,
         (
-          SELECT COALESCE(SUM(lp.share_quantity * rl.unit_price), 0)
+          SELECT COALESCE(SUM(
+            (lp.share_quantity::numeric / total_lp.total_shares) * rl.unit_price * rl.quantity
+          ), 0)
           FROM participants op
           LEFT JOIN line_participants lp ON lp.participant_id = op.id
           LEFT JOIN receipt_lines rl ON rl.id = lp.receipt_line_id AND rl.deleted_at IS NULL
+          LEFT JOIN (
+            SELECT receipt_line_id, SUM(share_quantity) AS total_shares
+            FROM line_participants
+            GROUP BY receipt_line_id
+          ) total_lp ON total_lp.receipt_line_id = lp.receipt_line_id
           WHERE op.receipt_id = r.id AND op.deleted_at IS NULL
             AND op.id != r.payer_participant_id
             AND op.payment_status != 'PAID'
@@ -249,9 +256,16 @@ export class ReceiptService {
         r.status,
         array_agg(p.display_name ORDER BY p.created_at) FILTER (WHERE p.id IS NOT NULL AND p.user_id IS DISTINCT FROM ${userId}) AS participant_names,
         (
-          SELECT COALESCE(SUM(lp.share_quantity * rl.unit_price), 0)
+          SELECT COALESCE(SUM(
+            (lp.share_quantity::numeric / total_lp.total_shares) * rl.unit_price * rl.quantity
+          ), 0)
           FROM line_participants lp
           JOIN receipt_lines rl ON rl.id = lp.receipt_line_id AND rl.deleted_at IS NULL
+          JOIN (
+            SELECT receipt_line_id, SUM(share_quantity) AS total_shares
+            FROM line_participants
+            GROUP BY receipt_line_id
+          ) total_lp ON total_lp.receipt_line_id = lp.receipt_line_id
           WHERE lp.participant_id = my_p.id
         ) AS user_owed_amount
       FROM receipts r
