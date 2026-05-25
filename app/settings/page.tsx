@@ -1,14 +1,18 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@clerk/nextjs';
 import { ArrowLeft, Loader2, Check } from 'lucide-react';
+import { api } from '@/lib/client/api-client';
 
 interface UserProfile {
+  username: string | null;
   displayName: string | null;
   gcashNumber: string | null;
 }
+
+type UsernameStatus = 'idle' | 'checking' | 'available' | 'taken' | 'invalid';
 
 const sectionLabelClass = "font-dm-mono text-[10px] uppercase font-bold tracking-widest text-[#4d4732] px-4 mb-1";
 const rowClass = "flex items-center justify-between px-4 py-3 bg-white";
@@ -19,26 +23,40 @@ export default function SettingsPage() {
   const router = useRouter();
   const { isSignedIn, isLoaded } = useAuth();
 
-  const [profile, setProfile] = useState<UserProfile>({ displayName: '', gcashNumber: '' });
+  const [profile, setProfile] = useState<UserProfile>({ username: '', displayName: '', gcashNumber: '' });
+  const [originalUsername, setOriginalUsername] = useState<string | null>(null);
+  const [usernameStatus, setUsernameStatus] = useState<UsernameStatus>('idle');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [phoneDisplay, setPhoneDisplay] = useState('');
   const [phoneError, setPhoneError] = useState('');
+  const usernameCheckTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
-    if (!isLoaded) return;
-    if (!isSignedIn) { router.replace('/login'); return; }
+    if (!isLoaded) {
+      return;
+    }
+    if (!isSignedIn) {
+      router.replace('/login');
+      return;
+    }
 
     fetch('/api/user')
       .then((r) => r.json())
       .then((data) => {
-        setProfile({ displayName: data.displayName ?? '', gcashNumber: data.gcashNumber ?? '' });
-        if (data.gcashNumber) setPhoneDisplay(formatPhoneWithSpaces(data.gcashNumber));
+        setProfile({ username: data.username ?? '', displayName: data.displayName ?? '', gcashNumber: data.gcashNumber ?? '' });
+        setOriginalUsername(data.username ?? null);
+        if (data.gcashNumber) {
+          setPhoneDisplay(formatPhoneWithSpaces(data.gcashNumber));
+        }
         setLoading(false);
       })
-      .catch(() => { setError('Failed to load profile'); setLoading(false); });
+      .catch(() => {
+        setError('Failed to load profile');
+        setLoading(false);
+      });
   }, [isLoaded, isSignedIn, router]);
 
   const formatPhoneWithSpaces = (phone: string) => {
@@ -50,7 +68,43 @@ export default function SettingsPage() {
     const digits = e.target.value.replace(/\D/g, '').slice(0, 10);
     setPhoneDisplay(formatPhoneWithSpaces(digits));
     setProfile((p) => ({ ...p, gcashNumber: digits }));
-    if (phoneError) setPhoneError('');
+    if (phoneError) {
+      setPhoneError('');
+    }
+  };
+
+  const handleUsernameInput = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, '');
+    setProfile((p) => ({ ...p, username: value }));
+
+    if (usernameCheckTimer.current) {
+      clearTimeout(usernameCheckTimer.current);
+    }
+
+    if (!value) {
+      setUsernameStatus('idle');
+      return;
+    }
+
+    if (!/^[a-z0-9_]{3,20}$/.test(value)) {
+      setUsernameStatus('invalid');
+      return;
+    }
+
+    if (value === originalUsername) {
+      setUsernameStatus('available');
+      return;
+    }
+
+    setUsernameStatus('checking');
+    usernameCheckTimer.current = setTimeout(async () => {
+      try {
+        const { available } = await api.users.checkUsername(value);
+        setUsernameStatus(available ? 'available' : 'taken');
+      } catch {
+        setUsernameStatus('idle');
+      }
+    }, 500);
   };
 
   const handleSave = async (e: React.FormEvent) => {
@@ -62,15 +116,35 @@ export default function SettingsPage() {
       return;
     }
 
+    if (usernameStatus === 'taken') {
+      setError('Username already taken');
+      return;
+    }
+
+    if (usernameStatus === 'invalid') {
+      setError('Username must be 3–20 characters: lowercase letters, numbers, and underscores only');
+      return;
+    }
+
     setSaving(true);
     setSaved(false);
     setError(null);
 
     try {
+      const body: Record<string, string | null> = {
+        displayName: profile.displayName || null,
+        gcashNumber: profile.gcashNumber || null,
+      };
+
+      const trimmedUsername = profile.username?.trim() || null;
+      if (trimmedUsername !== originalUsername) {
+        body.username = trimmedUsername;
+      }
+
       const res = await fetch('/api/settings', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(profile),
+        body: JSON.stringify(body),
       });
 
       if (!res.ok) {
@@ -78,6 +152,8 @@ export default function SettingsPage() {
         throw new Error(data.error || 'Failed to save');
       }
 
+      const updated = await res.json();
+      setOriginalUsername(updated.username ?? null);
       setSaved(true);
       setTimeout(() => setSaved(false), 2500);
     } catch (err: any) {
@@ -87,11 +163,31 @@ export default function SettingsPage() {
     }
   };
 
+  const usernameHint = () => {
+    if (!profile.username) {
+      return null;
+    }
+    if (usernameStatus === 'checking') {
+      return { text: 'Checking...', color: 'text-[#4d4732]' };
+    }
+    if (usernameStatus === 'available') {
+      return { text: 'Available', color: 'text-green-700' };
+    }
+    if (usernameStatus === 'taken') {
+      return { text: 'Already taken', color: 'text-red-600' };
+    }
+    if (usernameStatus === 'invalid') {
+      return { text: '3–20 chars, letters/numbers/underscores', color: 'text-red-600' };
+    }
+    return null;
+  };
+
+  const hint = usernameHint();
+
   return (
     <div className="min-h-screen bg-[#fff9ef] p-4 pb-20">
       <div className="max-w-lg mx-auto">
 
-        {/* Header */}
         <div className="mb-4">
           <button
             onClick={() => router.push('/')}
@@ -126,11 +222,33 @@ export default function SettingsPage() {
         ) : (
           <form onSubmit={handleSave} className="flex flex-col gap-3">
 
-            {/* Profile section */}
             <div className="flex flex-col gap-1">
               <p className={sectionLabelClass}>Profile</p>
               <div className="border-2 border-black rounded-xl overflow-hidden bg-white shadow-[2px_2px_0px_0px_#000]">
                 <div className={rowClass}>
+                  <span className={rowLabelClass}>Username</span>
+                  <div className="flex-1 flex flex-col gap-0.5">
+                    <div className="flex items-center gap-1">
+                      <span className="font-dm-mono text-sm text-[#4d4732]">@</span>
+                      <input
+                        className={rowInputClass}
+                        placeholder="your_handle"
+                        value={profile.username ?? ''}
+                        onChange={handleUsernameInput}
+                        disabled={saving}
+                        maxLength={20}
+                        autoComplete="off"
+                        spellCheck={false}
+                      />
+                    </div>
+                    {hint && (
+                      <p className={`font-dm-mono text-[10px] font-bold uppercase tracking-wider pl-4 ${hint.color}`}>
+                        {hint.text}
+                      </p>
+                    )}
+                  </div>
+                </div>
+                <div className={`${rowClass} border-t-2 border-black`}>
                   <span className={rowLabelClass}>Display Name</span>
                   <input
                     className={rowInputClass}
@@ -143,7 +261,6 @@ export default function SettingsPage() {
               </div>
             </div>
 
-            {/* Payment section */}
             <div className="flex flex-col gap-1">
               <p className={sectionLabelClass}>Payment</p>
               <div className="border-2 border-black rounded-xl overflow-hidden bg-white shadow-[2px_2px_0px_0px_#000]">
@@ -173,11 +290,10 @@ export default function SettingsPage() {
               <p className="font-dm-mono text-xs font-bold text-red-600 uppercase tracking-wider px-1">{error}</p>
             )}
 
-            {/* Save — small, right-aligned */}
             <div className="flex justify-end">
               <button
                 type="submit"
-                disabled={saving}
+                disabled={saving || usernameStatus === 'checking'}
                 className="h-10 px-5 border-[3px] border-black rounded-lg font-dm-mono font-bold text-sm uppercase bg-white text-black shadow-[3px_3px_0px_0px_#000] hover:bg-[#fff9ef] active:translate-x-[2px] active:translate-y-[2px] active:shadow-none transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
               >
                 {saving ? (

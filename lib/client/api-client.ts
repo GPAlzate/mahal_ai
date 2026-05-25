@@ -193,7 +193,16 @@ export const api = {
   },
 
   user: {
-    get: () => fetchAPI<{ displayName: string | null; gcashNumber: string | null }>('/api/user'),
+    get: () => fetchAPI<{ username: string | null; displayName: string | null; gcashNumber: string | null }>('/api/user'),
+  },
+
+  users: {
+    search: (q: string) =>
+      fetchAPI<Array<{ userId: string; username: string; displayName: string | null }>>(
+        `/api/users/search?q=${encodeURIComponent(q)}`
+      ),
+    checkUsername: (u: string) =>
+      fetchAPI<{ available: boolean }>(`/api/users/check-username?u=${encodeURIComponent(u)}`),
   },
 };
 

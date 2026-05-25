@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
+import { sql } from '@/lib/db';
 import { participantService } from '@/lib/services/ParticipantService';
 import { BatchCreateParticipantsRequestSchema } from '@/lib/schemas/participant/request/CreateParticipantRequest';
 
@@ -91,10 +92,18 @@ export async function POST(
       );
     }
 
-    // Only allow userId to be saved if it matches the authenticated user
+    // Receipt owners can link any user account; others can only link their own
+    let isOwner = false;
+    if (authedUserId) {
+      const ownerCheck = await sql`
+        SELECT owner_id FROM receipts WHERE id = ${receiptId} AND deleted_at IS NULL LIMIT 1
+      `;
+      isOwner = ownerCheck.length > 0 && ownerCheck[0].owner_id === authedUserId;
+    }
+
     const sanitized = validation.data.map((p) => ({
       ...p,
-      userId: p.userId === authedUserId ? p.userId : undefined,
+      userId: isOwner ? (p.userId ?? undefined) : (p.userId === authedUserId ? p.userId : undefined),
     }));
 
     const participants = await participantService.batchCreateParticipants(

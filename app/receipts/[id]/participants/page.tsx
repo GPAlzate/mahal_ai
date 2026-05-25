@@ -14,6 +14,13 @@ interface LocalParticipant {
   participantId?: number;
   displayName: string;
   userId?: string;
+  username?: string;
+}
+
+interface UserSearchResult {
+  userId: string;
+  username: string;
+  displayName: string | null;
 }
 
 export default function ParticipantsPage({ params }: { params: Promise<{ id: string }> }) {
@@ -32,14 +39,24 @@ export default function ParticipantsPage({ params }: { params: Promise<{ id: str
   const [saving, setSaving] = useState(false);
   const [receiptTitle, setReceiptTitle] = useState('');
   const [shareCode, setShareCode] = useState<string | null>(null);
+
+  const [searchResults, setSearchResults] = useState<UserSearchResult[]>([]);
+  const [searching, setSearching] = useState(false);
+  const searchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const dropdownRef = useRef<HTMLDivElement>(null);
   const participantsInitialized = useRef(false);
 
-  // Pre-populate participants if navigating back to this page.
-  // Guard with a ref so Clerk's async user resolution doesn't re-fire this
-  // and wipe names the user has already typed.
+  const trimmedInput = participantName.trim();
+  const showDropdown = trimmedInput.length >= 1 && (searching || searchResults.length > 0 || trimmedInput.length >= 2);
+
   useEffect(() => {
-    if (participantsInitialized.current) return;
-    if (user === undefined) return;
+    if (participantsInitialized.current) {
+      return;
+    }
+    if (user === undefined) {
+      return;
+    }
     participantsInitialized.current = true;
 
     api.participants.list(receiptId).then(async (existing) => {
@@ -61,16 +78,15 @@ export default function ParticipantsPage({ params }: { params: Promise<{ id: str
     }).catch(() => {});
   }, [receiptId, user]);
 
-  // Poll until parsing completes. Parse is triggered on the home page as soon as
-  // the blob upload finishes, so by the time the user is done entering names it
-  // will usually already be DRFT.
   useEffect(() => {
     let cancelled = false;
 
     const checkReceiptStatus = async () => {
       try {
         const receipt = await api.receipts.get(receiptId);
-        if (cancelled) return;
+        if (cancelled) {
+          return;
+        }
 
         setShareCode(receipt.shareCode);
         setParseStatus(receipt.status);
@@ -88,7 +104,9 @@ export default function ParticipantsPage({ params }: { params: Promise<{ id: str
           setTimeout(checkReceiptStatus, 1000);
         }
       } catch (err) {
-        if (!cancelled) setTimeout(checkReceiptStatus, 1000);
+        if (!cancelled) {
+          setTimeout(checkReceiptStatus, 1000);
+        }
       }
     };
 
@@ -96,16 +114,61 @@ export default function ParticipantsPage({ params }: { params: Promise<{ id: str
     return () => { cancelled = true; };
   }, [receiptId, router]);
 
+  useEffect(() => {
+    if (searchTimer.current) {
+      clearTimeout(searchTimer.current);
+    }
+
+    if (!trimmedInput) {
+      setSearchResults([]);
+      setSearching(false);
+      return;
+    }
+
+    setSearching(true);
+    searchTimer.current = setTimeout(async () => {
+      try {
+        const results = await api.users.search(trimmedInput);
+        const linkedUserIds = new Set(participants.filter((p) => p.userId).map((p) => p.userId!));
+        setSearchResults(results.filter((r) => !linkedUserIds.has(r.userId)));
+      } catch {
+        setSearchResults([]);
+      } finally {
+        setSearching(false);
+      }
+    }, 200);
+  }, [trimmedInput, participants]);
+
   const handleAddParticipant = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!participantName.trim()) return;
-    setParticipants((prev) => [...prev, { tempId: `temp-${Date.now()}`, displayName: participantName.trim() }]);
+    if (!trimmedInput) {
+      return;
+    }
+    setParticipants((prev) => [...prev, { tempId: `temp-${Date.now()}`, displayName: trimmedInput }]);
     setParticipantName('');
+    setSearchResults([]);
+  };
+
+  const handleSelectSearchResult = (result: UserSearchResult) => {
+    setParticipants((prev) => [
+      ...prev,
+      {
+        tempId: `search-${Date.now()}`,
+        displayName: result.displayName ?? result.username,
+        userId: result.userId,
+        username: result.username,
+      },
+    ]);
+    setParticipantName('');
+    setSearchResults([]);
+    inputRef.current?.focus();
   };
 
   const handleRemoveParticipant = async (tempId: string) => {
     const participant = participants.find((p) => p.tempId === tempId);
-    if (!participant) return;
+    if (!participant) {
+      return;
+    }
     setParticipants((prev) => prev.filter((p) => p.tempId !== tempId));
     if (payerTempId === tempId) {
       setPayerTempId(null);
@@ -116,7 +179,9 @@ export default function ParticipantsPage({ params }: { params: Promise<{ id: str
   };
 
   const handleContinue = async () => {
-    if (participants.length === 0) return;
+    if (participants.length === 0) {
+      return;
+    }
     setSaving(true);
     setError(null);
     try {
@@ -131,7 +196,6 @@ export default function ParticipantsPage({ params }: { params: Promise<{ id: str
         receiptTitle.trim() ? api.receipts.updateTitle(receiptId, receiptTitle.trim()) : Promise.resolve(null),
       ]);
 
-      // Resolve the payer's participant ID and set it on the receipt
       const effectivePayerTempId = payerTempId ?? participants[0]?.tempId;
       const payerLocal = participants.find((p) => p.tempId === effectivePayerTempId);
       if (payerLocal) {
@@ -161,7 +225,6 @@ export default function ParticipantsPage({ params }: { params: Promise<{ id: str
   return (
     <div className="min-h-screen bg-[#fff9ef] pb-20">
 
-      {/* Header */}
       <header className="sticky top-0 z-40 bg-white border-b-4 border-black w-full">
         <div className="px-5 h-14 flex items-center justify-between">
           <button
@@ -180,30 +243,75 @@ export default function ParticipantsPage({ params }: { params: Promise<{ id: str
 
       <div className="max-w-lg mx-auto p-4">
 
-        {/* Main card */}
         <div className="bg-white border-4 border-black shadow-[4px_4px_0px_0px_#000] rounded-xl p-5 flex flex-col gap-4">
 
           <h2 className="font-dm-sans font-bold text-2xl">Who&apos;s splitting the bill?</h2>
 
-          {/* Add participant form */}
-          <form onSubmit={handleAddParticipant} className="flex gap-2">
-            <input
-              type="text"
-              value={participantName}
-              onChange={(e) => setParticipantName(e.target.value)}
-              placeholder="Enter name"
-              className="flex-1 h-12 border-2 border-black rounded-lg px-4 font-dm-mono text-base focus:border-[4px] focus:outline-none focus:bg-[#cee7f0] bg-white placeholder:text-[#7e775f] transition-all"
-            />
-            <button
-              type="submit"
-              disabled={!participantName.trim()}
-              className="h-12 w-12 border-[4px] border-black rounded-lg bg-[#98FB98] shadow-[2px_2px_0px_0px_#000] hover:bg-[#7de87d] active:translate-x-[2px] active:translate-y-[2px] active:shadow-none transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center flex-shrink-0"
-            >
-              <Plus className="w-5 h-5" strokeWidth={2.5} />
-            </button>
-          </form>
+          <div className="flex flex-col">
+            <form onSubmit={handleAddParticipant} className="flex gap-2">
+              <input
+                ref={inputRef}
+                type="text"
+                value={participantName}
+                onChange={(e) => setParticipantName(e.target.value)}
+                placeholder="Name or @username"
+                autoComplete="off"
+                spellCheck={false}
+                className="flex-1 h-12 border-2 border-black rounded-lg px-4 font-dm-mono text-base focus:border-[4px] focus:outline-none focus:bg-[#cee7f0] bg-white placeholder:text-[#7e775f] transition-all"
+              />
+              <button
+                type="submit"
+                disabled={!trimmedInput}
+                className="h-12 w-12 border-[4px] border-black rounded-lg bg-[#98FB98] shadow-[2px_2px_0px_0px_#000] hover:bg-[#7de87d] active:translate-x-[2px] active:translate-y-[2px] active:shadow-none transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center flex-shrink-0"
+              >
+                <Plus className="w-5 h-5" strokeWidth={2.5} />
+              </button>
+            </form>
 
-          {/* Participants list */}
+            {showDropdown && (
+              <div
+                ref={dropdownRef}
+                className="border-2 border-t-0 border-black rounded-b-lg bg-white overflow-hidden"
+              >
+                {searching && (
+                  <div className="px-4 py-2.5 flex items-center gap-2">
+                    <div className="w-3 h-3 border-2 border-[#4d4732] border-t-transparent rounded-full animate-spin flex-shrink-0" />
+                    <span className="font-dm-mono text-xs text-[#7e775f]">Searching...</span>
+                  </div>
+                )}
+
+                {!searching && searchResults.length > 0 && searchResults.map((result, i) => (
+                  <button
+                    key={result.userId}
+                    type="button"
+                    onClick={() => handleSelectSearchResult(result)}
+                    className={`w-full flex items-center gap-3 px-4 py-2.5 hover:bg-[#fff9ef] active:bg-[#f5edd8] transition-colors text-left ${i > 0 ? 'border-t border-[#e8e0d0]' : ''}`}
+                  >
+                    <div className="w-7 h-7 rounded-full bg-[#e8e0d0] border-2 border-black flex items-center justify-center flex-shrink-0">
+                      <span className="font-dm-mono font-bold text-[10px] text-black uppercase">
+                        {(result.displayName ?? result.username).charAt(0)}
+                      </span>
+                    </div>
+                    <div className="flex flex-col gap-0 min-w-0">
+                      <span className="font-dm-mono font-bold text-sm text-black leading-tight truncate">
+                        {result.displayName ?? result.username}
+                      </span>
+                      <span className="font-dm-mono text-[11px] text-[#7e775f] leading-tight">
+                        @{result.username}
+                      </span>
+                    </div>
+                  </button>
+                ))}
+
+                {!searching && searchResults.length === 0 && trimmedInput.length >= 2 && (
+                  <div className="px-4 py-2.5">
+                    <span className="font-dm-mono text-xs text-[#7e775f]">No users found — press + to add as plain name</span>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+
           {participants.length > 0 && (
             <div className="flex flex-col border-2 border-black rounded-lg overflow-hidden">
               {participants.map((participant, index) => {
@@ -215,7 +323,12 @@ export default function ParticipantsPage({ params }: { params: Promise<{ id: str
                     key={participant.tempId}
                     className={`flex items-center gap-3 px-4 py-3 ${index > 0 ? 'border-t-2 border-black' : ''} ${isPayer ? 'bg-[#FFFDE7]' : 'bg-white'}`}
                   >
-                    <span className="font-dm-mono font-bold text-sm flex-1">{participant.displayName}</span>
+                    <div className="flex flex-col gap-0 flex-1 min-w-0">
+                      <span className="font-dm-mono font-bold text-sm leading-tight">{participant.displayName}</span>
+                      {participant.username && (
+                        <span className="font-dm-mono text-[11px] text-[#7e775f] leading-tight">@{participant.username}</span>
+                      )}
+                    </div>
                     {isPayer ? (
                       <span className="font-dm-mono text-[10px] font-bold uppercase tracking-widest px-2 py-1 bg-[#FFD700] border-2 border-black rounded shadow-[2px_2px_0px_0px_#000]">
                         Paid the bill
@@ -245,14 +358,12 @@ export default function ParticipantsPage({ params }: { params: Promise<{ id: str
 
         </div>
 
-        {/* Error */}
         {error && (
           <div className="mt-4 border-2 border-red-600 bg-red-50 px-4 py-3 rounded-lg">
             <p className="font-dm-mono text-xs font-bold uppercase tracking-wider text-red-600">{error}</p>
           </div>
         )}
 
-        {/* Continue button */}
         <button
           type="button"
           onClick={handleContinue}

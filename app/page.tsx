@@ -1,21 +1,24 @@
-import { auth } from '@clerk/nextjs/server';
+import { currentUser } from '@clerk/nextjs/server';
 import { receiptService } from '@/lib/services/ReceiptService';
 import { userService } from '@/lib/services/UserService';
 import HomeClient from './HomeClient';
 import type { MyReceipt } from '@/lib/client/api-client';
 
 export default async function Home() {
-  const { userId } = await auth();
+  const user = await currentUser();
 
-  if (!userId) {
+  if (!user) {
     return <HomeClient initialReceipts={null} />;
   }
 
   let receipts: MyReceipt[] = [];
   try {
     const [rows] = await Promise.all([
-      receiptService.findByOwnerId(userId),
-      userService.getOrCreate(userId),
+      receiptService.findByOwnerId(user.id),
+      userService.getOrCreate(user.id, {
+        firstName: user.firstName,
+        email: user.emailAddresses[0]?.emailAddress,
+      }),
     ]);
     receipts = rows.map((r) => ({
       ...r,
