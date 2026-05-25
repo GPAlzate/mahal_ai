@@ -12,10 +12,11 @@ export async function PATCH(req: Request) {
 
   let username: string | null | undefined = undefined;
   if (typeof body.username === 'string') {
-    username = body.username.trim().toLowerCase() || null;
-    if (username !== null && !/^[a-z0-9_]{3,20}$/.test(username)) {
+    const trimmed = body.username.trim().toLowerCase() || null;
+    if (trimmed !== null && !/^[a-z0-9_]{3,20}$/.test(trimmed)) {
       return NextResponse.json({ error: 'Username must be 3–20 characters: lowercase letters, numbers, and underscores only' }, { status: 400 });
     }
+    username = trimmed;
   }
 
   try {
