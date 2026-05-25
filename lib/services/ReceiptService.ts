@@ -245,28 +245,35 @@ export class ReceiptService {
    * @param payerParticipantId - ID of the participant who paid
    */
   async updatePayerParticipant(receiptId: number, payerParticipantId: number) {
-    const result = await sql`
-      WITH r AS (
-        SELECT id, owner_id, gcash_number FROM receipts WHERE id = ${receiptId} AND deleted_at IS NULL
-      )
-      UPDATE receipts
-      SET
-        payer_participant_id = ${payerParticipantId},
-        gcash_number = CASE
-          WHEN r.gcash_number IS NULL
-            AND p.user_id IS NOT NULL
-            AND p.user_id = r.owner_id
-            AND u.gcash_number IS NOT NULL
-          THEN u.gcash_number
-          ELSE r.gcash_number
-        END,
-        updated_at = NOW()
-      FROM r
-      JOIN participants p ON p.id = ${payerParticipantId} AND p.deleted_at IS NULL
-      LEFT JOIN users u ON u.clerk_user_id = r.owner_id AND u.deleted_at IS NULL
-      WHERE receipts.id = r.id
-      RETURNING receipts.*
-    `;
+    const [result] = await Promise.all([
+      sql`
+        WITH r AS (
+          SELECT id, owner_id, gcash_number FROM receipts WHERE id = ${receiptId} AND deleted_at IS NULL
+        )
+        UPDATE receipts
+        SET
+          payer_participant_id = ${payerParticipantId},
+          gcash_number = CASE
+            WHEN r.gcash_number IS NULL
+              AND p.user_id IS NOT NULL
+              AND p.user_id = r.owner_id
+              AND u.gcash_number IS NOT NULL
+            THEN u.gcash_number
+            ELSE r.gcash_number
+          END,
+          updated_at = NOW()
+        FROM r
+        JOIN participants p ON p.id = ${payerParticipantId} AND p.deleted_at IS NULL
+        LEFT JOIN users u ON u.clerk_user_id = r.owner_id AND u.deleted_at IS NULL
+        WHERE receipts.id = r.id
+        RETURNING receipts.*
+      `,
+      sql`
+        UPDATE participants
+        SET payment_status = 'PNYP', updated_at = NOW()
+        WHERE receipt_id = ${receiptId} AND payment_status = 'PAID' AND deleted_at IS NULL
+      `,
+    ]);
 
     if (!result || result.length === 0) {
       throw new Error('Receipt not found');

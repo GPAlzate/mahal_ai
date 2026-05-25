@@ -134,6 +134,11 @@ export class ParticipantService {
       RETURNING *
     `;
 
+    await sql`
+      DELETE FROM line_participants
+      WHERE participant_id = ${participantId}
+    `;
+
     return toParticipant(toParticipantDTO(result[0]));
   }
 
