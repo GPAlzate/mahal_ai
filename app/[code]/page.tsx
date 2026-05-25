@@ -29,6 +29,7 @@ import { ParticipantSplits } from '@/components/ParticipantSplits';
 import { KebabMenu } from '@/components/KebabMenu';
 import { ShareCodeBadge } from '@/components/ShareCodeBadge';
 import { SaveSplitsNudge } from '@/components/SaveSplitsNudge';
+import { ClaimParticipantStrip } from '@/components/ClaimParticipantStrip';
 import { formatCurrency } from '@/lib/helpers/CurrencyHelper';
 
 export default function ShareCodePage({ params }: { params: Promise<{ code: string }> }) {
@@ -40,6 +41,7 @@ export default function ShareCodePage({ params }: { params: Promise<{ code: stri
   const [summary, setSummary] = useState<ReceiptSummary | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [refreshKey, setRefreshKey] = useState(0);
   const [showReceiptImage, setShowReceiptImage] = useState(false);
   const [showKebabMenu, setShowKebabMenu] = useState(false);
   const [showHelpModal, setShowHelpModal] = useState(false);
@@ -55,6 +57,8 @@ export default function ShareCodePage({ params }: { params: Promise<{ code: stri
     p => p.participantId === summary.receipt.payerParticipantId
   );
   const isReceiptPayer = !!userId && !!payerParticipant?.userId && userId === payerParticipant.userId;
+  const isLinkedParticipant = !!userId && !!summary?.participantSplits.some(p => p.userId === userId);
+  const unclaimedParticipants = summary?.participantSplits.filter(p => p.userId === null) ?? [];
 
 
   const dismissHelpModal = () => {
@@ -89,7 +93,7 @@ export default function ShareCodePage({ params }: { params: Promise<{ code: stri
     }
 
     fetchReceipt();
-  }, [shareCode, router]);
+  }, [shareCode, router, refreshKey]);
 
 
 const handleSaveGcash = async () => {
@@ -293,6 +297,14 @@ const handleSaveGcash = async () => {
           formatCurrency={formatCurrency}
           isReceiptPayer={isReceiptPayer}
         />
+        {!!userId && !isLinkedParticipant && unclaimedParticipants.length > 0 && (
+          <ClaimParticipantStrip
+            receiptId={summary.receipt.id}
+            unclaimedParticipants={unclaimedParticipants}
+            onClaimed={() => setRefreshKey(k => k + 1)}
+          />
+        )}
+
         <div className="mt-4">
           <SaveSplitsNudge />
         </div>

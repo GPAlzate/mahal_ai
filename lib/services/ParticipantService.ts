@@ -142,6 +142,47 @@ export class ParticipantService {
     return toParticipant(toParticipantDTO(result[0]));
   }
 
+  async claimParticipant(participantId: number, userId: string) {
+    const check = await sql`
+      SELECT
+        p.id,
+        p.user_id,
+        EXISTS(
+          SELECT 1 FROM participants p2
+          WHERE p2.receipt_id = p.receipt_id
+            AND p2.user_id = ${userId}
+            AND p2.deleted_at IS NULL
+        ) AS already_on_receipt
+      FROM participants p
+      WHERE p.id = ${participantId} AND p.deleted_at IS NULL
+    `;
+
+    if (check.length === 0) {
+      throw new Error('Participant not found');
+    }
+
+    if (check[0].user_id !== null) {
+      throw new Error('Participant already claimed');
+    }
+
+    if (check[0].already_on_receipt) {
+      throw new Error('Already a participant on this receipt');
+    }
+
+    const result = await sql`
+      UPDATE participants
+      SET user_id = ${userId}, updated_at = NOW()
+      WHERE id = ${participantId} AND user_id IS NULL
+      RETURNING *
+    `;
+
+    if (result.length === 0) {
+      throw new Error('Participant already claimed');
+    }
+
+    return toParticipant(toParticipantDTO(result[0]));
+  }
+
   async updatePaymentStatus(
     receiptId: number,
     participantId: number,

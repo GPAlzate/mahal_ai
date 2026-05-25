@@ -151,6 +151,12 @@ export const api = {
         method: 'DELETE',
       }),
 
+    claim: (receiptId: number, participantId: number) =>
+      fetchAPI<Participant>(
+        `/api/receipts/${receiptId}/participants/${participantId}/claim`,
+        { method: 'PATCH' }
+      ),
+
     updatePaymentStatus: (receiptId: number, participantId: number, status: PaymentStatus) =>
       fetchAPI<Participant>(
         `/api/receipts/${receiptId}/participants/${participantId}/payment-status`,
