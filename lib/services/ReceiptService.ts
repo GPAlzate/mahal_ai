@@ -198,6 +198,67 @@ export class ReceiptService {
     }));
   }
 
+  async findWhereUserIsOwed(userId: string) {
+    const rows = await sql`
+      SELECT
+        r.id,
+        r.title,
+        r.share_code,
+        r.receipt_time,
+        r.status,
+        array_agg(p.display_name ORDER BY p.created_at) FILTER (WHERE p.id IS NOT NULL AND p.user_id IS DISTINCT FROM ${userId}) AS participant_names
+      FROM receipts r
+      JOIN participants my_p ON my_p.id = r.payer_participant_id
+        AND my_p.user_id = ${userId}
+        AND my_p.deleted_at IS NULL
+      LEFT JOIN participants p ON p.receipt_id = r.id AND p.deleted_at IS NULL
+      WHERE r.deleted_at IS NULL
+        AND r.status != 'DLTD'
+      GROUP BY r.id
+      ORDER BY r.updated_at DESC
+    `;
+
+    return rows.map((row: any) => ({
+      id: row.id as number,
+      title: row.title as string | null,
+      shareCode: row.share_code as string,
+      receiptTime: row.receipt_time as Date,
+      status: row.status as string,
+      participantNames: (row.participant_names ?? []) as string[],
+    }));
+  }
+
+  async findWhereUserOwes(userId: string) {
+    const rows = await sql`
+      SELECT
+        r.id,
+        r.title,
+        r.share_code,
+        r.receipt_time,
+        r.status,
+        array_agg(p.display_name ORDER BY p.created_at) FILTER (WHERE p.id IS NOT NULL AND p.user_id IS DISTINCT FROM ${userId}) AS participant_names
+      FROM receipts r
+      JOIN participants my_p ON my_p.receipt_id = r.id
+        AND my_p.user_id = ${userId}
+        AND my_p.deleted_at IS NULL
+      LEFT JOIN participants p ON p.receipt_id = r.id AND p.deleted_at IS NULL
+      WHERE r.deleted_at IS NULL
+        AND r.status != 'DLTD'
+        AND my_p.id != r.payer_participant_id
+      GROUP BY r.id
+      ORDER BY r.updated_at DESC
+    `;
+
+    return rows.map((row: any) => ({
+      id: row.id as number,
+      title: row.title as string | null,
+      shareCode: row.share_code as string,
+      receiptTime: row.receipt_time as Date,
+      status: row.status as string,
+      participantNames: (row.participant_names ?? []) as string[],
+    }));
+  }
+
   /**
    * Update receipt status
    * @param receiptId - ID of the receipt

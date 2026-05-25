@@ -4,29 +4,36 @@ import { userService } from '@/lib/services/UserService';
 import HomeClient from './HomeClient';
 import type { MyReceipt } from '@/lib/client/api-client';
 
+function toMyReceipt(r: { id: number; title: string | null; shareCode: string; receiptTime: Date; status: string; participantNames: string[] }): MyReceipt {
+  return {
+    ...r,
+    receiptTime: r.receiptTime instanceof Date ? r.receiptTime.toISOString() : String(r.receiptTime),
+  };
+}
+
 export default async function Home() {
   const user = await currentUser();
 
   if (!user) {
-    return <HomeClient initialReceipts={null} />;
+    return <HomeClient initialOwedReceipts={null} initialOwingReceipts={null} />;
   }
 
-  let receipts: MyReceipt[] = [];
+  let owedReceipts: MyReceipt[] = [];
+  let owingReceipts: MyReceipt[] = [];
   try {
-    const [rows] = await Promise.all([
+    const [owedRows, owingRows] = await Promise.all([
       receiptService.findByOwnerId(user.id),
+      receiptService.findWhereUserOwes(user.id),
       userService.getOrCreate(user.id, {
         firstName: user.firstName,
         email: user.emailAddresses[0]?.emailAddress,
       }),
     ]);
-    receipts = rows.map((r) => ({
-      ...r,
-      receiptTime: r.receiptTime instanceof Date ? r.receiptTime.toISOString() : String(r.receiptTime),
-    }));
+    owedReceipts = owedRows.map(toMyReceipt);
+    owingReceipts = owingRows.map(toMyReceipt);
   } catch {
-    // Return empty list on error rather than crashing the page
+    // Return empty lists on error rather than crashing the page
   }
 
-  return <HomeClient initialReceipts={receipts} />;
+  return <HomeClient initialOwedReceipts={owedReceipts} initialOwingReceipts={owingReceipts} />;
 }

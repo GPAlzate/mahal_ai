@@ -19,10 +19,11 @@ function formatParticipants(names: string[]): string | null {
 }
 
 interface Props {
-  initialReceipts: MyReceipt[] | null;
+  initialOwedReceipts: MyReceipt[] | null;
+  initialOwingReceipts: MyReceipt[] | null;
 }
 
-export default function HomeClient({ initialReceipts }: Props) {
+export default function HomeClient({ initialOwedReceipts, initialOwingReceipts }: Props) {
   const router = useRouter();
   const [file, setFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
@@ -38,7 +39,8 @@ export default function HomeClient({ initialReceipts }: Props) {
 
   const { user } = useUser();
   const { signOut } = useClerk();
-  const isSignedIn = initialReceipts !== null;
+  const isSignedIn = initialOwedReceipts !== null;
+  const [activeTab, setActiveTab] = useState<'owed' | 'owing'>('owed');
   const [accountMenuOpen, setAccountMenuOpen] = useState(false);
   const avatarInitial = (user?.firstName?.[0] ?? user?.emailAddresses?.[0]?.emailAddress?.[0] ?? '?').toUpperCase();
 
@@ -324,9 +326,39 @@ export default function HomeClient({ initialReceipts }: Props) {
           )}
         </div>
 
-        {/* My Receipts — teaser for guests, full list for signed-in users */}
+        {/* Receipts — teaser for guests, tabbed list for signed-in users */}
         <div className="mt-4 bg-white border-[3px] border-black shadow-[3px_3px_0px_0px_#000] rounded-xl p-5 flex flex-col gap-3">
+
           <h2 className="font-dm-sans font-bold text-2xl">My Receipts</h2>
+
+          {/* Tab bar — full-width solid segment */}
+          <div className="flex border-2 border-black rounded-lg overflow-hidden shadow-[2px_2px_0px_0px_#000]">
+            <button
+              type="button"
+              onClick={() => setActiveTab('owed')}
+              className={`flex-1 py-2 font-dm-mono text-[11px] font-bold uppercase tracking-widest transition-colors ${
+                activeTab === 'owed'
+                  ? 'bg-[#FFD700] text-black'
+                  : 'bg-white text-[#7e775f] hover:bg-[#fff9ef]'
+              }`}
+            >
+              I&apos;m Owed
+            </button>
+            <div className="w-[2px] bg-black flex-shrink-0" />
+            <button
+              type="button"
+              onClick={() => setActiveTab('owing')}
+              className={`flex-1 py-2 font-dm-mono text-[11px] font-bold uppercase tracking-widest transition-colors ${
+                activeTab === 'owing'
+                  ? 'bg-[#FFD700] text-black'
+                  : 'bg-white text-[#7e775f] hover:bg-[#fff9ef]'
+              }`}
+            >
+              I Owe
+            </button>
+          </div>
+
+          {/* Content */}
           {!isSignedIn ? (
             <div className="relative overflow-hidden rounded-lg">
               {/* Ghost receipt rows — blurred to hint at the feature */}
@@ -363,12 +395,50 @@ export default function HomeClient({ initialReceipts }: Props) {
                 </a>
               </div>
             </div>
-          ) : initialReceipts!.length === 0 ? (
-            <p className="font-dm-mono text-sm text-[#7e775f]">No receipts yet — split a bill to get started.</p>
+          ) : activeTab === 'owed' ? (
+            initialOwedReceipts!.length === 0 ? (
+              <p className="font-dm-mono text-sm text-[#7e775f]">No one owes you yet — create a receipt and mark yourself as the payer.</p>
+            ) : (
+              <>
+                <div className="flex flex-col border-2 border-black rounded-lg overflow-hidden">
+                  {initialOwedReceipts!.slice(0, 3).map((r, index) => (
+                    <button
+                      key={r.id}
+                      type="button"
+                      onClick={() => router.push(`/${r.shareCode}`)}
+                      className={`flex items-center justify-between px-4 py-3 bg-white hover:bg-[#fff9ef] active:bg-[#f3f3f3] transition-colors cursor-pointer text-left ${index > 0 ? 'border-t-2 border-black' : ''}`}
+                    >
+                      <div className="flex flex-col gap-0.5 min-w-0">
+                        <div className="flex items-center gap-2">
+                          <span className="font-dm-sans font-bold text-sm truncate">{r.title || 'Untitled receipt'}</span>
+                          <ReceiptStatusBadge status={r.status} />
+                        </div>
+                        <span className="font-dm-mono text-[10px] text-[#7e775f]">
+                          {new Date(r.receiptTime).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                          {formatParticipants(r.participantNames) && ` · ${formatParticipants(r.participantNames)}`}
+                        </span>
+                      </div>
+                      <ArrowRight className="w-4 h-4 flex-shrink-0 ml-3 text-[#4d4732]" strokeWidth={2.5} />
+                    </button>
+                  ))}
+                </div>
+                {initialOwedReceipts!.length > 3 && (
+                  <button
+                    type="button"
+                    onClick={() => router.push('/receipts')}
+                    className="w-full font-dm-mono text-xs font-bold uppercase tracking-widest text-[#4d4732] hover:text-black transition-colors cursor-pointer text-center py-1"
+                  >
+                    See all {initialOwedReceipts!.length} →
+                  </button>
+                )}
+              </>
+            )
           ) : (
-            <>
+            initialOwingReceipts!.length === 0 ? (
+              <p className="font-dm-mono text-sm text-[#7e775f]">You're all settled up — no pending debts.</p>
+            ) : (
               <div className="flex flex-col border-2 border-black rounded-lg overflow-hidden">
-                {initialReceipts!.slice(0, 3).map((r, index) => (
+                {initialOwingReceipts!.slice(0, 3).map((r, index) => (
                   <button
                     key={r.id}
                     type="button"
@@ -389,16 +459,7 @@ export default function HomeClient({ initialReceipts }: Props) {
                   </button>
                 ))}
               </div>
-              {initialReceipts!.length > 3 && (
-                <button
-                  type="button"
-                  onClick={() => router.push('/receipts')}
-                  className="w-full font-dm-mono text-xs font-bold uppercase tracking-widest text-[#4d4732] hover:text-black transition-colors cursor-pointer text-center py-1"
-                >
-                  See all {initialReceipts!.length} receipts →
-                </button>
-              )}
-            </>
+            )
           )}
         </div>
 
