@@ -26,7 +26,7 @@ export const ParsedReceiptSchema = z.object({
     .string()
     .nullable()
     .describe(
-      'Short human-readable title for the receipt. Use merchant name if known; otherwise infer from items (e.g. "Team Dinner", "Grocery Run"). 2-5 words, Title Case. Null only if nothing can be inferred.'
+      'Short human-readable title for the receipt. Use merchant name if known; otherwise infer from items (e.g. "Team Dinner", "Grocery Run"). 2-6 words, Title Case. Null only if nothing can be inferred.'
     ),
   receiptDate: z
     .string()

@@ -331,38 +331,50 @@ export default function HomeClient({ initialOwedReceipts, initialOwingReceipts }
 
           <h2 className="font-dm-sans font-bold text-2xl">My Receipts</h2>
 
-          {/* Tab bar — full-width solid segment */}
-          <div className="flex border-2 border-black rounded-lg overflow-hidden shadow-[2px_2px_0px_0px_#000]">
-            <button
-              type="button"
-              onClick={() => setActiveTab('owed')}
-              className={`flex-1 py-2 font-dm-mono text-[11px] font-bold uppercase tracking-widest transition-colors ${
-                activeTab === 'owed'
-                  ? 'bg-[#FFD700] text-black'
-                  : 'bg-white text-[#7e775f] hover:bg-[#fff9ef]'
-              }`}
-            >
-              I&apos;m Owed
-            </button>
-            <div className="w-[2px] bg-black flex-shrink-0" />
-            <button
-              type="button"
-              onClick={() => setActiveTab('owing')}
-              className={`flex-1 py-2 font-dm-mono text-[11px] font-bold uppercase tracking-widest transition-colors ${
-                activeTab === 'owing'
-                  ? 'bg-[#FFD700] text-black'
-                  : 'bg-white text-[#7e775f] hover:bg-[#fff9ef]'
-              }`}
-            >
-              I Owe
-            </button>
-          </div>
+          {/* Tab bar — only for signed-in users */}
+          {isSignedIn && (
+            <div className="flex border-2 border-black rounded-lg overflow-hidden shadow-[2px_2px_0px_0px_#000]">
+              <button
+                type="button"
+                onClick={() => setActiveTab('owed')}
+                className={`flex-1 py-2 font-dm-mono text-[11px] font-bold uppercase tracking-widest transition-colors ${
+                  activeTab === 'owed'
+                    ? 'bg-[#FFD700] text-black'
+                    : 'bg-white text-[#7e775f] hover:bg-[#fff9ef]'
+                }`}
+              >
+                I&apos;m Owed
+              </button>
+              <div className="w-[2px] bg-black flex-shrink-0" />
+              <button
+                type="button"
+                onClick={() => setActiveTab('owing')}
+                className={`flex-1 py-2 font-dm-mono text-[11px] font-bold uppercase tracking-widest transition-colors ${
+                  activeTab === 'owing'
+                    ? 'bg-[#FFD700] text-black'
+                    : 'bg-white text-[#7e775f] hover:bg-[#fff9ef]'
+                }`}
+              >
+                I Owe
+              </button>
+            </div>
+          )}
 
           {/* Content */}
           {!isSignedIn ? (
             <div className="relative overflow-hidden rounded-lg">
-              {/* Ghost receipt rows — blurred to hint at the feature */}
+              {/* Ghost UI — blurred to hint at the feature */}
               <div className="flex flex-col border-2 border-black rounded-lg overflow-hidden select-none pointer-events-none blur-[2px]">
+                {/* Mock tab bar */}
+                <div className="flex border-b-2 border-black">
+                  <div className="flex-1 py-2 bg-[#FFD700] font-dm-mono text-[11px] font-bold uppercase tracking-widest text-center text-black">
+                    I&apos;m Owed
+                  </div>
+                  <div className="w-[2px] bg-black flex-shrink-0" />
+                  <div className="flex-1 py-2 bg-white font-dm-mono text-[11px] font-bold uppercase tracking-widest text-center text-[#7e775f]">
+                    I Owe
+                  </div>
+                </div>
                 {[
                   { title: 'Post-climbing Jiangnan', status: 'FLZD', date: 'May 10, 2025', with: 'with Maria, Juan' },
                   { title: 'Manam family dinner', status: 'DRFT', date: 'May 7, 2025', with: 'with Bea and 2 others' },

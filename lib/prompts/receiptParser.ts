@@ -74,9 +74,11 @@ const RECEIPT_LEVEL_FIELDS = `
    - Must be non-negative number
 
 5. **suggestedTitle** (string, optional):
-   - A short, human-readable title for the receipt (2–5 words, Title Case)
-   - If merchantName is known: use it as-is (e.g., "The Coffee Shop")
-   - If merchantName is unknown: infer from the items (e.g., "Team Dinner", "Grocery Run", "Lunch")
+   - A short, fun, human-readable title for the receipt (2-6 words, Title Case)
+   - Be creative and descriptive — capture the vibe or occasion, not just the merchant name
+   - Good examples: "Friday Night Sushi", "Coffee Run with the Squad", "Birthday Dinner", "Late Night Munchies", "Brunch at Mama's", "Post-Hike Fuel Up", "Office Pizza Party"
+   - You can combine the merchant name with context clues (time of day, item types, occasion) to make it feel personal
+   - If merchantName is known but generic (e.g., "Store #1234"), infer from items instead
    - If absolutely nothing can be inferred: DO NOT SET
 
 6. **amountDue** (number, required):
@@ -199,7 +201,7 @@ Before extracting any data, determine whether the image is actually a receipt (p
 - If the image IS a receipt: set \`isReceipt\` to \`true\` and extract all fields normally.
 - If the image is NOT a receipt (e.g. a photo, screenshot, document, or anything else):
   - Set \`isReceipt\` to \`false\`
-  - Set \`currency\` to \`"USD"\`, \`subtotal\` to \`0\`, \`amountDue\` to \`0\`, \`receiptLines\` to \`[]\`
+  - Set \`currency\` to \`"PHP"\`, \`subtotal\` to \`0\`, \`amountDue\` to \`0\`, \`receiptLines\` to \`[]\`
   - Set \`merchantName\` and \`receiptDate\` to \`null\`
   - Return immediately — do NOT attempt to extract receipt data from a non-receipt image.
 `;
