@@ -48,7 +48,7 @@ export default function ParticipantsPage({ params }: { params: Promise<{ id: str
   const participantsInitialized = useRef(false);
 
   const trimmedInput = participantName.trim();
-  const showDropdown = trimmedInput.length >= 1 && (searching || searchResults.length > 0 || trimmedInput.length >= 2);
+  const showDropdown = !!user && trimmedInput.length >= 1 && (searching || searchResults.length > 0 || trimmedInput.length >= 2);
 
   useEffect(() => {
     if (participantsInitialized.current) {
@@ -259,7 +259,7 @@ export default function ParticipantsPage({ params }: { params: Promise<{ id: str
                 type="text"
                 value={participantName}
                 onChange={(e) => setParticipantName(e.target.value)}
-                placeholder="Name or @username"
+                placeholder={user ? 'Name or @username' : 'Name'}
                 autoComplete="off"
                 spellCheck={false}
                 className="flex-1 h-12 border-2 border-black rounded-lg px-4 font-dm-mono text-base focus:border-[4px] focus:outline-none focus:bg-[#cee7f0] bg-white placeholder:text-[#7e775f] transition-all"

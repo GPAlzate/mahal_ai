@@ -108,6 +108,18 @@ export const api = {
 
     finalize: (id: number) =>
       fetchAPI<ReceiptSummary>(`/api/receipts/${id}/finalize`, { method: 'PUT' }),
+
+    delete: (id: number) =>
+      fetchAPI<{ ok: true }>(`/api/receipts/${id}`, {
+        method: 'PATCH',
+        body: JSON.stringify({ status: 'DLTD' }),
+      }),
+
+    settle: (id: number) =>
+      fetchAPI<Receipt>(`/api/receipts/${id}`, {
+        method: 'PATCH',
+        body: JSON.stringify({ status: 'STLD' }),
+      }),
   },
 
   lines: {

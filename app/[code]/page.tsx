@@ -18,7 +18,7 @@ function formatGcashDisplay(raw: string): string {
 }
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@clerk/nextjs';
-import { Eye, MoreVertical, X, Share2, HelpCircle } from 'lucide-react';
+import { CheckCircle2, Eye, MoreVertical, Trash2, X, Share2, HelpCircle } from 'lucide-react';
 
 import Link from 'next/link';
 import { api } from '@/lib/client/api-client';
@@ -45,6 +45,11 @@ export default function ShareCodePage({ params }: { params: Promise<{ code: stri
   const [showReceiptImage, setShowReceiptImage] = useState(false);
   const [showKebabMenu, setShowKebabMenu] = useState(false);
   const [showHelpModal, setShowHelpModal] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [showSettleConfirm, setShowSettleConfirm] = useState(false);
+  const [settling, setSettling] = useState(false);
+  const [settledOverride, setSettledOverride] = useState(false);
   const [gcashInput, setGcashInput] = useState('');
   const [gcashSaving, setGcashSaving] = useState(false);
   const [gcashSaved, setGcashSaved] = useState(false);
@@ -57,6 +62,8 @@ export default function ShareCodePage({ params }: { params: Promise<{ code: stri
     p => p.participantId === summary.receipt.payerParticipantId
   );
   const isReceiptPayer = !!userId && !!payerParticipant?.userId && userId === payerParticipant.userId;
+  const isOwner = !!userId && !!summary?.receipt.ownerId && userId === summary.receipt.ownerId;
+  const settled = settledOverride || summary?.receipt.status === 'STLD';
   const isLinkedParticipant = !!userId && !!summary?.participantSplits.some(p => p.userId === userId);
   const unclaimedParticipants = summary?.participantSplits.filter(p => p.userId === null) ?? [];
 
@@ -146,6 +153,35 @@ const handleSaveGcash = async () => {
     setTimeout(() => setGcashCopied(false), 2000);
   };
 
+  const handleDelete = async () => {
+    if (!summary) {
+      return;
+    }
+    try {
+      setDeleting(true);
+      await api.receipts.delete(summary.receipt.id);
+      router.push('/');
+    } catch {
+      setDeleting(false);
+      setShowDeleteConfirm(false);
+    }
+  };
+
+  const handleSettle = async () => {
+    if (!summary) {
+      return;
+    }
+    try {
+      setSettling(true);
+      await api.receipts.settle(summary.receipt.id);
+      setSettledOverride(true);
+      setShowSettleConfirm(false);
+    } catch {
+      setSettling(false);
+      setShowSettleConfirm(false);
+    }
+  };
+
   if (loading) {
     return <LoadingScreen message="Loading receipt..." />;
   }
@@ -195,6 +231,12 @@ const handleSaveGcash = async () => {
                       icon: <HelpCircle className="w-4 h-4 flex-shrink-0" />,
                       onClick: () => { setShowHelpModal(true); setShowKebabMenu(false); },
                     },
+                    ...(isOwner ? [{
+                      label: 'Delete Receipt',
+                      icon: <Trash2 className="w-4 h-4 flex-shrink-0" />,
+                      variant: 'destructive' as const,
+                      onClick: () => { setShowDeleteConfirm(true); setShowKebabMenu(false); },
+                    }] : []),
                   ]}
                 />
               </>
@@ -309,7 +351,26 @@ const handleSaveGcash = async () => {
           <SaveSplitsNudge />
         </div>
 
-        <div className="h-4" />
+        {isReceiptPayer && (
+          <div className="mt-6 border-t-4 border-black pt-5 flex flex-col gap-2">
+            <span className="font-dm-mono text-[9px] font-bold uppercase tracking-widest text-[#7e775f]">Owner actions</span>
+            {settled ? (
+              <div className="w-full h-12 border-4 border-black flex items-center justify-center gap-2 bg-[#8ed4a3]">
+                <CheckCircle2 className="w-4 h-4" strokeWidth={2.5} />
+                <span className="font-dm-mono font-bold text-sm uppercase tracking-widest">Receipt Settled</span>
+              </div>
+            ) : (
+              <button
+                onClick={() => setShowSettleConfirm(true)}
+                className="w-full h-12 border-4 border-black font-dm-mono font-bold text-sm uppercase bg-white text-black shadow-[4px_4px_0px_0px_#000] hover:bg-[#f3f3f3] active:translate-x-[4px] active:translate-y-[4px] active:shadow-none transition-all"
+              >
+                Mark as Settled
+              </button>
+            )}
+          </div>
+        )}
+
+        <div className="h-8" />
       </div>
 
       {/* How to Use Modal */}
@@ -420,6 +481,80 @@ const handleSaveGcash = async () => {
             </button>
           </div>
         </div>
+      )}
+
+      {/* Delete Confirmation Bottom Sheet */}
+      {showDeleteConfirm && (
+        <>
+          <div
+            className="fixed inset-0 z-[60] bg-black/50"
+            onClick={() => setShowDeleteConfirm(false)}
+          />
+          <div className="fixed bottom-0 inset-x-0 z-[70] bg-white border-x-4 border-t-4 border-black rounded-t-xl max-w-lg mx-auto pb-[env(safe-area-inset-bottom)]">
+            <div className="flex flex-col items-center gap-2 px-5 pt-5 pb-4 border-b-4 border-black">
+              <div className="bg-[#ffdad6] border-2 border-black w-10 h-10 flex items-center justify-center">
+                <Trash2 className="w-5 h-5 text-[#93000a]" strokeWidth={2.5} />
+              </div>
+              <h2 className="font-dm-sans font-black text-xl uppercase tracking-tight">Delete receipt?</h2>
+              <p className="font-dm-mono text-[11px] text-center text-[#4d4732]">
+                This permanently deletes the receipt and all assigned line items. This cannot be undone.
+              </p>
+            </div>
+            <div className="px-5 pt-4 pb-6 flex flex-col gap-2">
+              <button
+                onClick={handleDelete}
+                disabled={deleting}
+                className="w-full h-12 border-4 border-black rounded-lg font-dm-mono font-bold text-sm uppercase bg-[#fca5a5] text-[#93000a] shadow-[4px_4px_0px_0px_#000] hover:bg-[#ffdad6] active:translate-x-[4px] active:translate-y-[4px] active:shadow-none transition-all disabled:opacity-50"
+              >
+                {deleting ? 'Deleting...' : 'Yes, Delete'}
+              </button>
+              <button
+                onClick={() => setShowDeleteConfirm(false)}
+                disabled={deleting}
+                className="w-full h-12 border-4 border-black rounded-lg font-dm-mono font-bold text-sm uppercase bg-white shadow-[2px_2px_0px_0px_#000] hover:bg-[#f3f3f3] active:translate-x-[2px] active:translate-y-[2px] active:shadow-none transition-all disabled:opacity-50"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* Settle Confirmation Bottom Sheet */}
+      {showSettleConfirm && (
+        <>
+          <div
+            className="fixed inset-0 z-[60] bg-black/50"
+            onClick={() => setShowSettleConfirm(false)}
+          />
+          <div className="fixed bottom-0 inset-x-0 z-[70] bg-white border-x-4 border-t-4 border-black rounded-t-xl max-w-lg mx-auto pb-[env(safe-area-inset-bottom)]">
+            <div className="flex flex-col items-center gap-2 px-5 pt-5 pb-4 border-b-4 border-black">
+              <div className="bg-[#8ed4a3] border-2 border-black w-10 h-10 flex items-center justify-center">
+                <CheckCircle2 className="w-5 h-5" strokeWidth={2.5} />
+              </div>
+              <h2 className="font-dm-sans font-black text-xl uppercase tracking-tight">Mark as Settled?</h2>
+              <p className="font-dm-mono text-[11px] text-center text-[#4d4732]">
+                This marks the receipt as fully settled. Everyone&apos;s paid up. The receipt stays visible but is closed.
+              </p>
+            </div>
+            <div className="px-5 pt-4 pb-6 flex flex-col gap-2">
+              <button
+                onClick={handleSettle}
+                disabled={settling}
+                className="w-full h-12 border-4 border-black rounded-lg font-dm-mono font-bold text-sm uppercase bg-[#8ed4a3] shadow-[4px_4px_0px_0px_#000] hover:bg-[#b5ead7] active:translate-x-[4px] active:translate-y-[4px] active:shadow-none transition-all disabled:opacity-50"
+              >
+                {settling ? 'Settling...' : 'Yes, Settle'}
+              </button>
+              <button
+                onClick={() => setShowSettleConfirm(false)}
+                disabled={settling}
+                className="w-full h-12 border-4 border-black rounded-lg font-dm-mono font-bold text-sm uppercase bg-white shadow-[2px_2px_0px_0px_#000] hover:bg-[#f3f3f3] active:translate-x-[2px] active:translate-y-[2px] active:shadow-none transition-all disabled:opacity-50"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </>
       )}
 
       {/* Receipt Image Modal */}

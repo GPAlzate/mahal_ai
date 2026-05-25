@@ -277,6 +277,7 @@ export class ReceiptService {
         AND r.status != 'DLTD'
         AND r.status != 'STLD'
         AND my_p.id != r.payer_participant_id
+        AND my_p.payment_status != 'PAID'
       GROUP BY r.id, my_p.id
       ORDER BY r.updated_at DESC
     `;
@@ -290,6 +291,67 @@ export class ReceiptService {
       participantNames: (row.participant_names ?? []) as string[],
       userOwedAmount: Number(row.user_owed_amount ?? 0),
     }));
+  }
+
+  /**
+   * Soft-delete a receipt and cascade to participants, receipt_lines, and line_participants.
+   * Sets deleted_at on the receipt and all child rows; hard-deletes line_participants
+   * (which has no deleted_at column). Child deletes run in parallel before the receipt row.
+   */
+  async deleteReceipt(receiptId: number) {
+    await Promise.all([
+      sql`
+        DELETE FROM line_participants
+        WHERE receipt_line_id IN (
+          SELECT id FROM receipt_lines WHERE receipt_id = ${receiptId}
+        )
+      `,
+      sql`
+        UPDATE receipt_lines
+        SET deleted_at = NOW(), updated_at = NOW()
+        WHERE receipt_id = ${receiptId} AND deleted_at IS NULL
+      `,
+      sql`
+        UPDATE participants
+        SET deleted_at = NOW(), updated_at = NOW()
+        WHERE receipt_id = ${receiptId} AND deleted_at IS NULL
+      `,
+    ]);
+
+    const result = await sql`
+      UPDATE receipts
+      SET status = 'DLTD', deleted_at = NOW(), updated_at = NOW()
+      WHERE id = ${receiptId} AND deleted_at IS NULL
+      RETURNING *
+    `;
+
+    if (!result || result.length === 0) {
+      throw new Error('Receipt not found');
+    }
+  }
+
+  /**
+   * Settle a receipt: mark all non-deleted participants as PAID and set status to STLD.
+   */
+  async settleReceipt(receiptId: number) {
+    await sql`
+      UPDATE participants
+      SET payment_status = 'PAID', updated_at = NOW()
+      WHERE receipt_id = ${receiptId} AND deleted_at IS NULL AND payment_status != 'PAID'
+    `;
+
+    const result = await sql`
+      UPDATE receipts
+      SET status = 'STLD', updated_at = NOW()
+      WHERE id = ${receiptId} AND deleted_at IS NULL
+      RETURNING *
+    `;
+
+    if (!result || result.length === 0) {
+      throw new Error('Receipt not found');
+    }
+
+    return toReceipt(toReceiptDTO(result[0]));
   }
 
   /**

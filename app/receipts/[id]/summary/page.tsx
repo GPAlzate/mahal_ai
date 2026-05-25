@@ -2,7 +2,8 @@
 
 import React, { useState, useEffect, use } from 'react';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, Eye, Info, MoreVertical, X } from 'lucide-react';
+import { useAuth } from '@clerk/nextjs';
+import { ArrowLeft, Eye, Info, MoreVertical, Trash2, X } from 'lucide-react';
 import { api } from '@/lib/client/api-client';
 import LoadingScreen from '@/components/LoadingScreen';
 import type { ReceiptSummary } from '@/lib/schemas/receipt/public/ReceiptSummary';
@@ -24,6 +25,7 @@ export default function SummaryPage({ params }: { params: Promise<{ id: string }
   const resolvedParams = use(params);
   const receiptId = parseInt(resolvedParams.id);
   const router = useRouter();
+  const { userId } = useAuth();
 
   const [summary, setSummary] = useState<ReceiptSummary | null>(null);
   const [loading, setLoading] = useState(true);
@@ -36,6 +38,8 @@ export default function SummaryPage({ params }: { params: Promise<{ id: string }
   const [addingAdjustment, setAddingAdjustment] = useState(false);
   const [showDiscrepancyInfo, setShowDiscrepancyInfo] = useState(false);
   const [showReviewWizard, setShowReviewWizard] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     async function fetchSummary() {
@@ -119,6 +123,20 @@ export default function SummaryPage({ params }: { params: Promise<{ id: string }
     }
   };
 
+  const handleDelete = async () => {
+    try {
+      setDeleting(true);
+      await api.receipts.delete(receiptId);
+      router.push('/');
+    } catch (err: any) {
+      setError(err.message || 'Failed to delete receipt');
+      setDeleting(false);
+      setShowDeleteConfirm(false);
+    }
+  };
+
+  const isOwner = !!userId && summary?.receipt.ownerId === userId;
+
   if (loading) return <LoadingScreen message="Loading summary..." />;
 
   if (!summary) {
@@ -168,6 +186,12 @@ export default function SummaryPage({ params }: { params: Promise<{ id: string }
                       label: 'View Receipt',
                       icon: <Eye className="w-4 h-4 flex-shrink-0" />,
                       onClick: () => { setShowReceiptImage(true); setShowKebabMenu(false); },
+                    }] : []),
+                    ...(isOwner ? [{
+                      label: 'Delete Receipt',
+                      icon: <Trash2 className="w-4 h-4 flex-shrink-0" />,
+                      variant: 'destructive' as const,
+                      onClick: () => { setShowDeleteConfirm(true); setShowKebabMenu(false); },
                     }] : []),
                   ]}
                 />
@@ -378,6 +402,43 @@ export default function SummaryPage({ params }: { params: Promise<{ id: string }
           onClose={() => setShowReviewWizard(false)}
           onDone={handleWizardDone}
         />
+      )}
+
+      {/* Delete Confirmation Bottom Sheet */}
+      {showDeleteConfirm && (
+        <>
+          <div
+            className="fixed inset-0 z-[60] bg-black/50"
+            onClick={() => setShowDeleteConfirm(false)}
+          />
+          <div className="fixed bottom-0 inset-x-0 z-[70] bg-white border-x-4 border-t-4 border-black rounded-t-xl max-w-lg mx-auto pb-[env(safe-area-inset-bottom)]">
+            <div className="flex flex-col items-center gap-2 px-5 pt-5 pb-4 border-b-4 border-black">
+              <div className="bg-[#ffdad6] border-2 border-black w-10 h-10 flex items-center justify-center">
+                <Trash2 className="w-5 h-5 text-[#93000a]" strokeWidth={2.5} />
+              </div>
+              <h2 className="font-dm-sans font-black text-xl uppercase tracking-tight">Delete receipt?</h2>
+              <p className="font-dm-mono text-[11px] text-center text-[#4d4732]">
+                This permanently deletes the receipt and all assigned line items. This cannot be undone.
+              </p>
+            </div>
+            <div className="px-5 pt-4 pb-6 flex flex-col gap-2">
+              <button
+                onClick={handleDelete}
+                disabled={deleting}
+                className="w-full h-12 border-4 border-black rounded-lg font-dm-mono font-bold text-sm uppercase bg-[#fca5a5] text-[#93000a] shadow-[4px_4px_0px_0px_#000] hover:bg-[#ffdad6] active:translate-x-[4px] active:translate-y-[4px] active:shadow-none transition-all disabled:opacity-50"
+              >
+                {deleting ? 'Deleting...' : 'Yes, Delete'}
+              </button>
+              <button
+                onClick={() => setShowDeleteConfirm(false)}
+                disabled={deleting}
+                className="w-full h-12 border-4 border-black rounded-lg font-dm-mono font-bold text-sm uppercase bg-white shadow-[2px_2px_0px_0px_#000] hover:bg-[#f3f3f3] active:translate-x-[2px] active:translate-y-[2px] active:shadow-none transition-all disabled:opacity-50"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </>
       )}
 
       {/* Receipt Image Modal */}

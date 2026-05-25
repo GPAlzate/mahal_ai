@@ -5,6 +5,33 @@ import { participantService } from '@/lib/services/ParticipantService';
 import { toParticipant, toParticipantDTO } from '@/lib/schemas/participant/dto/ParticipantDTO';
 import { PaymentStatusSchema } from '@/lib/schemas/participant/public/PaymentStatus';
 
+async function markPaid(receiptId: number, participantId: number) {
+  const updated = await sql`
+    WITH upd AS (
+      UPDATE participants
+      SET payment_status = 'PAID', updated_at = NOW()
+      WHERE id = ${participantId} AND receipt_id = ${receiptId} AND deleted_at IS NULL
+      RETURNING *
+    ),
+    remaining AS (
+      SELECT id FROM participants
+      WHERE receipt_id = ${receiptId} AND deleted_at IS NULL AND payment_status != 'PAID'
+        AND id != ${participantId}
+    )
+    SELECT upd.*, (SELECT COUNT(*) FROM remaining) AS unpaid_count FROM upd
+  `;
+
+  if (updated.length === 0) {
+    return NextResponse.json({ error: 'Participant not found' }, { status: 404 });
+  }
+
+  if (Number(updated[0].unpaid_count) === 0) {
+    await sql`UPDATE receipts SET status = 'STLD', updated_at = NOW() WHERE id = ${receiptId}`;
+  }
+
+  return NextResponse.json(toParticipant(toParticipantDTO(updated[0])), { status: 200 });
+}
+
 /**
  * PATCH /api/receipts/[id]/participants/[participantId]/payment-status
  *
@@ -12,6 +39,7 @@ import { PaymentStatusSchema } from '@/lib/schemas/participant/public/PaymentSta
  *
  * - Setting PCIP: no auth required (participant self-reporting GCash tap)
  * - Setting PAID: requires auth; caller must be the receipt owner or the payer participant
+ *   If the payer has no linked account, PCIP skips straight to PAID (no one can confirm).
  *
  * Request body: { status: PaymentStatus }
  */
@@ -63,31 +91,25 @@ export async function PATCH(
         return NextResponse.json({ error: 'Only the receipt owner or collector can confirm payments' }, { status: 403 });
       }
 
-      // Single CTE: update participant + settle receipt if all paid, in two queries instead of four
-      const updated = await sql`
-        WITH upd AS (
-          UPDATE participants
-          SET payment_status = 'PAID', updated_at = NOW()
-          WHERE id = ${participantIdNum} AND receipt_id = ${receiptId} AND deleted_at IS NULL
-          RETURNING *
-        ),
-        remaining AS (
-          SELECT id FROM participants
-          WHERE receipt_id = ${receiptId} AND deleted_at IS NULL AND payment_status != 'PAID'
-            AND id != ${participantIdNum}
-        )
-        SELECT upd.*, (SELECT COUNT(*) FROM remaining) AS unpaid_count FROM upd
+      return markPaid(receiptId, participantIdNum);
+    }
+
+    if (newStatus === 'PCIP') {
+      const receiptCheck = await sql`
+        SELECT p.user_id AS payer_user_id
+        FROM receipts r
+        LEFT JOIN participants p ON p.id = r.payer_participant_id AND p.deleted_at IS NULL
+        WHERE r.id = ${receiptId} AND r.deleted_at IS NULL
       `;
 
-      if (updated.length === 0) {
-        return NextResponse.json({ error: 'Participant not found' }, { status: 404 });
+      if (receiptCheck.length === 0) {
+        return NextResponse.json({ error: 'Receipt not found' }, { status: 404 });
       }
 
-      if (Number(updated[0].unpaid_count) === 0) {
-        await sql`UPDATE receipts SET status = 'STLD', updated_at = NOW() WHERE id = ${receiptId}`;
+      // Payer has no account — no one can confirm, so go straight to PAID
+      if (!receiptCheck[0].payer_user_id) {
+        return markPaid(receiptId, participantIdNum);
       }
-
-      return NextResponse.json(toParticipant(toParticipantDTO(updated[0])), { status: 200 });
     }
 
     const participant = await participantService.updatePaymentStatus(

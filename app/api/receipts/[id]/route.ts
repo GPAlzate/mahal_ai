@@ -98,6 +98,16 @@ export async function PATCH(
       return NextResponse.json({ error: 'Invalid status value' }, { status: 400 });
     }
 
+    if (parsed.data === 'DLTD') {
+      await receiptService.deleteReceipt(receiptId);
+      return NextResponse.json({ ok: true }, { status: 200 });
+    }
+
+    if (parsed.data === 'STLD') {
+      const receipt = await receiptService.settleReceipt(receiptId);
+      return NextResponse.json(receipt, { status: 200 });
+    }
+
     const receipt = await receiptService.updateStatus(receiptId, parsed.data);
 
     return NextResponse.json(receipt, { status: 200 });
