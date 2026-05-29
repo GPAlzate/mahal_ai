@@ -2,21 +2,20 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Home, User } from 'lucide-react';
+import { Home, FileText } from 'lucide-react';
 
-type Tab =
-  | { label: string; icon: React.ElementType; href: string; comingSoon?: false }
-  | { label: string; icon: React.ElementType; href: null; comingSoon: true };
+type Tab = { label: string; icon: React.ElementType; href: string };
 
 const TABS: Tab[] = [
   { label: 'Home', icon: Home, href: '/' },
-  { label: 'Account', icon: User, href: null, comingSoon: true },
+  { label: 'Receipts', icon: FileText, href: '/receipts' },
 ];
 
 const HIDDEN_PATTERNS = [
-  /^\/receipts\/\d+\/assign$/,
-  /^\/receipts\/\d+\/summary$/,
-  /^\/[A-Z0-9]{1,10}$/i,
+  /^\/receipts\/\d+\//,
+  /^\/[A-Z0-9]{5}$/i,
+  /^\/login/,
+  /^\/sign-up/,
 ];
 
 export function BottomTabBar() {
@@ -30,47 +29,34 @@ export function BottomTabBar() {
       aria-label="Main navigation"
     >
       <div className="flex max-w-lg mx-auto">
-        {TABS.map(({ label, icon: Icon, href, comingSoon }) => {
-          const isActive = href !== null && pathname === href;
-          const inner = (
-            <div
-              className={`p-1.5 transition-colors duration-150 ${
-                isActive
-                  ? 'bg-[#FFD700] border-2 border-black'
-                  : 'border-2 border-transparent'
-              }`}
-            >
-              <Icon
-                className="w-5 h-5"
-                strokeWidth={isActive ? 2.5 : 2}
-              />
-            </div>
-          );
-
-          if (comingSoon) {
-            return (
-              <button
-                key={label}
-                disabled
-                aria-label={`${label} — coming soon`}
-                className="flex-1 flex flex-col items-center justify-center pt-2 pb-0 min-h-[44px] text-[#c0bbb8] cursor-not-allowed select-none"
-              >
-                {inner}
-              </button>
-            );
-          }
-
+        {TABS.map(({ label, icon: Icon, href }) => {
+          const isActive = href === '/' ? pathname === '/' : pathname === href;
           return (
             <Link
-              key={label}
+              key={href}
               href={href}
               aria-label={label}
               aria-current={isActive ? 'page' : undefined}
-              className={`flex-1 flex flex-col items-center justify-center pt-2 pb-0 min-h-[44px] transition-colors duration-150 ${
+              className={`flex-1 flex flex-col items-center gap-0.5 pt-2 pb-1 transition-colors duration-150 ${
                 isActive ? 'text-black' : 'text-[#7e7576] hover:text-black'
               }`}
             >
-              {inner}
+              <div
+                className={`p-1.5 transition-colors duration-150 ${
+                  isActive
+                    ? 'bg-[#FFD700] border-2 border-black rounded-lg'
+                    : 'border-2 border-transparent'
+                }`}
+              >
+                <Icon className="w-5 h-5" strokeWidth={isActive ? 2.5 : 2} />
+              </div>
+              <span
+                className={`font-dm-mono text-[9px] uppercase tracking-widest ${
+                  isActive ? 'font-bold text-black' : 'font-medium text-[#7e7576]'
+                }`}
+              >
+                {label}
+              </span>
             </Link>
           );
         })}

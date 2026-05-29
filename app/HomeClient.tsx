@@ -5,26 +5,9 @@ import { useRouter } from 'next/navigation';
 import { useUser, useClerk } from '@clerk/nextjs';
 import { upload } from '@vercel/blob/client';
 import { Image, ArrowRight, Loader2, LogIn, Settings, LogOut } from 'lucide-react';
-import { api, type MyReceipt } from '@/lib/client/api-client';
-import ReceiptStatusBadge from '@/components/ReceiptStatusBadge';
-import { formatCurrency } from '@/lib/helpers/CurrencyHelper';
+import { api } from '@/lib/client/api-client';
 
-function formatParticipants(names: string[]): string | null {
-  if (names.length === 0) {
-    return null;
-  }
-  const shown = names.slice(0, 2);
-  const rest = names.length - shown.length;
-  const suffix = rest > 0 ? ` and ${rest} other${rest > 1 ? 's' : ''}` : '';
-  return 'with ' + shown.join(', ') + suffix;
-}
-
-interface Props {
-  initialOwedReceipts: MyReceipt[] | null;
-  initialOwingReceipts: MyReceipt[] | null;
-}
-
-export default function HomeClient({ initialOwedReceipts, initialOwingReceipts }: Props) {
+export default function HomeClient() {
   const router = useRouter();
   const [file, setFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
@@ -38,10 +21,8 @@ export default function HomeClient({ initialOwedReceipts, initialOwingReceipts }
   const [shareCodeError, setShareCodeError] = useState<string | null>(null);
   const [shareCodeLoading, setShareCodeLoading] = useState(false);
 
-  const { user } = useUser();
+  const { user, isSignedIn, isLoaded } = useUser();
   const { signOut } = useClerk();
-  const isSignedIn = initialOwedReceipts !== null;
-  const [activeTab, setActiveTab] = useState<'owed' | 'owing'>('owed');
   const [accountMenuOpen, setAccountMenuOpen] = useState(false);
   const avatarInitial = (user?.firstName?.[0] ?? user?.emailAddresses?.[0]?.emailAddress?.[0] ?? '?').toUpperCase();
 
@@ -181,7 +162,7 @@ export default function HomeClient({ initialOwedReceipts, initialOwingReceipts }
       onPaste={handlePaste}
       tabIndex={0}
     >
-      <div className="max-w-lg mx-auto p-4 pb-20">
+      <div className="max-w-lg mx-auto p-4 pb-28">
 
         {/* Header */}
         <div className="mb-4 flex items-center justify-between">
@@ -189,7 +170,12 @@ export default function HomeClient({ initialOwedReceipts, initialOwingReceipts }
             mahal ai &lt;3
           </h1>
 
-          {isSignedIn ? (
+          {!isLoaded ? (
+            <div
+              aria-hidden
+              className="w-10 h-10 rounded-full border-[3px] border-black bg-[#f3f3f3] animate-pulse"
+            />
+          ) : isSignedIn ? (
             <div className="relative">
               <button
                 onClick={() => setAccountMenuOpen((o) => !o)}
@@ -324,165 +310,6 @@ export default function HomeClient({ initialOwedReceipts, initialOwingReceipts }
                 Choose Different Image
               </button>
             </>
-          )}
-        </div>
-
-        {/* Receipts — teaser for guests, tabbed list for signed-in users */}
-        <div className="mt-4 bg-white border-[3px] border-black shadow-[3px_3px_0px_0px_#000] rounded-xl p-5 flex flex-col gap-3">
-
-          <h2 className="font-dm-sans font-bold text-2xl">My Receipts</h2>
-
-          {/* Tab bar — only for signed-in users */}
-          {isSignedIn && (
-            <div className="flex border-2 border-black rounded-lg overflow-hidden shadow-[2px_2px_0px_0px_#000]">
-              <button
-                type="button"
-                onClick={() => setActiveTab('owed')}
-                className={`flex-1 py-2 font-dm-mono text-[11px] font-bold uppercase tracking-widest transition-colors ${
-                  activeTab === 'owed'
-                    ? 'bg-[#FFD700] text-black'
-                    : 'bg-white text-[#7e775f] hover:bg-[#fff9ef]'
-                }`}
-              >
-                I&apos;m Owed
-              </button>
-              <div className="w-[2px] bg-black flex-shrink-0" />
-              <button
-                type="button"
-                onClick={() => setActiveTab('owing')}
-                className={`flex-1 py-2 font-dm-mono text-[11px] font-bold uppercase tracking-widest transition-colors ${
-                  activeTab === 'owing'
-                    ? 'bg-[#FFD700] text-black'
-                    : 'bg-white text-[#7e775f] hover:bg-[#fff9ef]'
-                }`}
-              >
-                I Owe
-              </button>
-            </div>
-          )}
-
-          {/* Content */}
-          {!isSignedIn ? (
-            <div className="relative overflow-hidden rounded-lg">
-              {/* Ghost UI — blurred to hint at the feature */}
-              <div className="flex flex-col border-2 border-black rounded-lg overflow-hidden select-none pointer-events-none blur-[2px]">
-                {/* Mock tab bar */}
-                <div className="flex border-b-2 border-black">
-                  <div className="flex-1 py-2 bg-[#FFD700] font-dm-mono text-[11px] font-bold uppercase tracking-widest text-center text-black">
-                    I&apos;m Owed
-                  </div>
-                  <div className="w-[2px] bg-black flex-shrink-0" />
-                  <div className="flex-1 py-2 bg-white font-dm-mono text-[11px] font-bold uppercase tracking-widest text-center text-[#7e775f]">
-                    I Owe
-                  </div>
-                </div>
-                {[
-                  { title: 'Post-climbing Jiangnan', status: 'FLZD', date: 'May 10, 2025', with: 'with Maria, Juan' },
-                  { title: 'Manam family dinner', status: 'DRFT', date: 'May 7, 2025', with: 'with Bea and 2 others' },
-                  { title: 'Midnight Mcdonalds', status: 'FLZD', date: 'Apr 22, 2025', with: 'with Carlo, Ana' },
-                ].map((r, index) => (
-                  <div
-                    key={r.title}
-                    className={`flex items-center justify-between px-4 py-3 bg-white ${index > 0 ? 'border-t-2 border-black' : ''}`}
-                  >
-                    <div className="flex flex-col gap-0.5 min-w-0">
-                      <div className="flex items-center gap-2">
-                        <span className="font-dm-sans font-bold text-sm truncate">{r.title}</span>
-                        <ReceiptStatusBadge status={r.status} />
-                      </div>
-                      <span className="font-dm-mono text-[10px] text-[#7e775f]">{r.date} · {r.with}</span>
-                    </div>
-                    <ArrowRight className="w-4 h-4 flex-shrink-0 ml-3 text-[#4d4732]" strokeWidth={2.5} />
-                  </div>
-                ))}
-              </div>
-              {/* Gradient overlay with sign-up CTA */}
-              <div className="absolute inset-0 flex flex-col items-center justify-center bg-gradient-to-b from-transparent via-white/50 to-white rounded-lg">
-                <p className="font-dm-sans font-bold text-sm mb-0.5 text-center">Never lose a receipt again</p>
-                <p className="font-dm-mono text-[10px] text-[#4d4732] mb-3 text-center">Sign up for free and track every group bill</p>
-                <a
-                  href="/sign-up"
-                  className="h-11 px-5 border-[4px] border-black rounded-lg font-dm-mono font-bold text-sm uppercase bg-[#FFD700] text-black shadow-[4px_4px_0px_0px_#000] hover:bg-[#FFE44D] active:translate-x-[2px] active:translate-y-[2px] active:shadow-none transition-all cursor-pointer flex items-center gap-2"
-                >
-                  Sign up <ArrowRight className="w-4 h-4" strokeWidth={2.5} />
-                </a>
-              </div>
-            </div>
-          ) : activeTab === 'owed' ? (
-            initialOwedReceipts!.length === 0 ? (
-              <p className="font-dm-mono text-sm text-[#7e775f]">No one owes you yet — create a receipt and mark yourself as the payer.</p>
-            ) : (
-              <>
-                <div className="flex flex-col border-2 border-black rounded-lg overflow-hidden">
-                  {initialOwedReceipts!.slice(0, 3).map((r, index) => (
-                    <button
-                      key={r.id}
-                      type="button"
-                      onClick={() => router.push(`/${r.shareCode}`)}
-                      className={`flex items-center justify-between px-4 py-3 bg-white hover:bg-[#fff9ef] active:bg-[#f3f3f3] transition-colors cursor-pointer text-left ${index > 0 ? 'border-t-2 border-black' : ''}`}
-                    >
-                      <div className="flex flex-col gap-0.5 min-w-0 flex-1">
-                        <div className="flex items-center gap-2">
-                          <span className="font-dm-sans font-bold text-sm truncate">{r.title || 'Untitled receipt'}</span>
-                          <ReceiptStatusBadge status={r.status} />
-                        </div>
-                        <span className="font-dm-mono text-[10px] text-[#7e775f]">
-                          {new Date(r.receiptTime).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
-                          {formatParticipants(r.participantNames) && ` · ${formatParticipants(r.participantNames)}`}
-                        </span>
-                      </div>
-                      <div className="flex flex-col items-end gap-0.5 ml-3 flex-shrink-0">
-                        {r.userOwedAmount > 0 && (
-                          <span className="font-dm-mono font-bold text-sm text-black">{formatCurrency(r.userOwedAmount)}</span>
-                        )}
-                        <ArrowRight className="w-3.5 h-3.5 text-[#7e775f]" strokeWidth={2.5} />
-                      </div>
-                    </button>
-                  ))}
-                </div>
-                {initialOwedReceipts!.length > 3 && (
-                  <button
-                    type="button"
-                    onClick={() => router.push('/receipts')}
-                    className="w-full font-dm-mono text-xs font-bold uppercase tracking-widest text-[#4d4732] hover:text-black transition-colors cursor-pointer text-center py-1"
-                  >
-                    See all {initialOwedReceipts!.length} →
-                  </button>
-                )}
-              </>
-            )
-          ) : (
-            initialOwingReceipts!.length === 0 ? (
-              <p className="font-dm-mono text-sm text-[#7e775f]">You're all settled up — no pending debts.</p>
-            ) : (
-              <div className="flex flex-col border-2 border-black rounded-lg overflow-hidden">
-                {initialOwingReceipts!.slice(0, 3).map((r, index) => (
-                  <button
-                    key={r.id}
-                    type="button"
-                    onClick={() => router.push(`/${r.shareCode}`)}
-                    className={`flex items-center justify-between px-4 py-3 bg-white hover:bg-[#fff9ef] active:bg-[#f3f3f3] transition-colors cursor-pointer text-left ${index > 0 ? 'border-t-2 border-black' : ''}`}
-                  >
-                    <div className="flex flex-col gap-0.5 min-w-0 flex-1">
-                      <div className="flex items-center gap-2">
-                        <span className="font-dm-sans font-bold text-sm truncate">{r.title || 'Untitled receipt'}</span>
-                        <ReceiptStatusBadge status={r.status} />
-                      </div>
-                      <span className="font-dm-mono text-[10px] text-[#7e775f]">
-                        {new Date(r.receiptTime).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
-                        {formatParticipants(r.participantNames) && ` · ${formatParticipants(r.participantNames)}`}
-                      </span>
-                    </div>
-                    <div className="flex flex-col items-end gap-0.5 ml-3 flex-shrink-0">
-                      {r.userOwedAmount > 0 && (
-                        <span className="font-dm-mono font-bold text-sm text-black">{formatCurrency(r.userOwedAmount)}</span>
-                      )}
-                      <ArrowRight className="w-3.5 h-3.5 text-[#7e775f]" strokeWidth={2.5} />
-                    </div>
-                  </button>
-                ))}
-              </div>
-            )
           )}
         </div>
 
