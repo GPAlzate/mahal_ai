@@ -332,7 +332,7 @@ export default function HomeClient() {
               <button
                 type="submit"
                 disabled={!shareCode.trim() || shareCodeLoading}
-                className="h-11 px-4 border-[3px] border-black rounded-lg bg-[#FFD700] text-black shadow-[3px_3px_0px_0px_#000] hover:bg-[#FFE44D] active:translate-x-[2px] active:translate-y-[2px] active:shadow-none transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
+                className="h-11 px-4 border-2 border-black rounded-lg bg-[#FFD700] text-black shadow-[2px_2px_0px_0px_#000] hover:bg-[#FFE44D] active:translate-x-[2px] active:translate-y-[2px] active:shadow-none transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
               >
                 {shareCodeLoading
                   ? <Loader2 strokeWidth={2.5} className="h-4 w-4 animate-spin" />
