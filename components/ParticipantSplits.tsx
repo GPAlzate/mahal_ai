@@ -44,9 +44,10 @@ interface Props {
   formatCurrency: (amount: number) => string;
   isReceiptPayer?: boolean;
   showPaymentUI?: boolean;
+  myParticipantId?: number | null;
 }
 
-export function ParticipantSplits({ receiptId, participantSplits, payerParticipantId, formatCurrency, isReceiptPayer, showPaymentUI = true }: Props) {
+export function ParticipantSplits({ receiptId, participantSplits, payerParticipantId, formatCurrency, isReceiptPayer, showPaymentUI = true, myParticipantId = null }: Props) {
   const payerName = payerParticipantId
     ? (participantSplits.find(p => p.participantId === payerParticipantId)?.displayName ?? null)
     : null;
@@ -140,6 +141,7 @@ export function ParticipantSplits({ receiptId, participantSplits, payerParticipa
         const showCollectorUI = isReceiptPayer && !isPayerEntry;
         const needsConfirmation = showCollectorUI && effectiveStatus === 'PCIP';
         const isPaid = effectiveStatus === 'PAID';
+        const isMe = split.participantId === myParticipantId;
         const gcashUrl = `gcash://com.mynt.gcash/app/006300090100?amount=${split.total.toFixed(2)}`;
 
         return (
@@ -157,6 +159,11 @@ export function ParticipantSplits({ receiptId, participantSplits, payerParticipa
                   {getInitials(split.displayName)}
                 </div>
                 <span className="font-dm-sans font-bold text-base uppercase truncate">{split.displayName}</span>
+                {isMe && (
+                  <span className="inline-flex items-center h-5 px-1.5 rounded-[4px] bg-black text-white font-dm-mono text-[9px] font-bold uppercase tracking-[0.15em] flex-shrink-0">
+                    You
+                  </span>
+                )}
               </div>
               <div className="flex items-center gap-2.5 flex-shrink-0">
                 {showPaymentUI && isPayerEntry && (

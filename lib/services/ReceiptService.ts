@@ -276,7 +276,7 @@ export class ReceiptService {
       WHERE r.deleted_at IS NULL
         AND r.status != 'DLTD'
         AND r.status != 'STLD'
-        AND my_p.id != r.payer_participant_id
+        AND my_p.id IS DISTINCT FROM r.payer_participant_id
         AND my_p.payment_status != 'PAID'
       GROUP BY r.id, my_p.id
       ORDER BY r.updated_at DESC

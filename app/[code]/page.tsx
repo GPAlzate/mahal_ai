@@ -30,6 +30,7 @@ import { KebabMenu } from '@/components/KebabMenu';
 import { ShareCodeBadge } from '@/components/ShareCodeBadge';
 import { SaveSplitsNudge } from '@/components/SaveSplitsNudge';
 import { ClaimParticipantStrip } from '@/components/ClaimParticipantStrip';
+import { getLocalClaim, clearLocalClaim } from '@/lib/client/localClaim';
 import { formatCurrency } from '@/lib/helpers/CurrencyHelper';
 
 export default function ShareCodePage({ params }: { params: Promise<{ code: string }> }) {
@@ -56,6 +57,7 @@ export default function ShareCodePage({ params }: { params: Promise<{ code: stri
   const [gcashError, setGcashError] = useState('');
   const [gcashCopied, setGcashCopied] = useState(false);
   const [isEditingGcash, setIsEditingGcash] = useState(true);
+  const [localClaimId, setLocalClaimId] = useState<number | null>(null);
 
 
   const payerParticipant = summary?.participantSplits.find(
@@ -66,6 +68,17 @@ export default function ShareCodePage({ params }: { params: Promise<{ code: stri
   const settled = settledOverride || summary?.receipt.status === 'STLD';
   const isLinkedParticipant = !!userId && !!summary?.participantSplits.some(p => p.userId === userId);
   const unclaimedParticipants = summary?.participantSplits.filter(p => p.userId === null) ?? [];
+
+  // Anonymous claim: only valid while the participant is still unclaimed server-side
+  const localClaimedParticipant = summary?.participantSplits.find(
+    p => p.participantId === localClaimId && p.userId === null
+  );
+  const hasLocalClaim = !userId && !!localClaimedParticipant;
+  const linkedParticipant = userId
+    ? summary?.participantSplits.find(p => p.userId === userId)
+    : undefined;
+  const myParticipantId = linkedParticipant?.participantId
+    ?? (hasLocalClaim ? localClaimedParticipant.participantId : null);
 
 
   const dismissHelpModal = () => {
@@ -90,6 +103,7 @@ export default function ShareCodePage({ params }: { params: Promise<{ code: stri
 
         const data = await api.receipts.getSummary(id);
         setSummary(data);
+        setLocalClaimId(getLocalClaim(id));
         setGcashInput(data.receipt.gcashNumber ? formatGcashDisplay(data.receipt.gcashNumber) : '');
         setIsEditingGcash(!data.receipt.gcashNumber);
         setLoading(false);
@@ -101,6 +115,43 @@ export default function ShareCodePage({ params }: { params: Promise<{ code: stri
 
     fetchReceipt();
   }, [shareCode, router, refreshKey]);
+
+  // Replay a local (anonymous) claim once the user signs in, so the
+  // participant gets stamped with their user_id and the receipt shows
+  // up in My Receipts.
+  useEffect(() => {
+    if (!userId || !summary || localClaimId === null) {
+      return;
+    }
+
+    const receiptId = summary.receipt.id;
+
+    if (isLinkedParticipant) {
+      clearLocalClaim(receiptId);
+      setLocalClaimId(null);
+      return;
+    }
+
+    const stillUnclaimed = summary.participantSplits.some(
+      p => p.participantId === localClaimId && p.userId === null
+    );
+    if (!stillUnclaimed) {
+      clearLocalClaim(receiptId);
+      setLocalClaimId(null);
+      return;
+    }
+
+    api.participants
+      .claim(receiptId, localClaimId)
+      .catch(() => {
+        // Someone else claimed that spot first — drop the stale local claim
+      })
+      .finally(() => {
+        clearLocalClaim(receiptId);
+        setLocalClaimId(null);
+        setRefreshKey(k => k + 1);
+      });
+  }, [userId, summary, localClaimId, isLinkedParticipant]);
 
 
 const handleSaveGcash = async () => {
@@ -338,17 +389,21 @@ const handleSaveGcash = async () => {
           payerParticipantId={summary.receipt.payerParticipantId ?? null}
           formatCurrency={formatCurrency}
           isReceiptPayer={isReceiptPayer}
+          myParticipantId={myParticipantId}
         />
-        {!!userId && !isLinkedParticipant && unclaimedParticipants.length > 0 && (
+        {!isLinkedParticipant && !hasLocalClaim && unclaimedParticipants.length > 0 && (
           <ClaimParticipantStrip
             receiptId={summary.receipt.id}
             unclaimedParticipants={unclaimedParticipants}
-            onClaimed={() => setRefreshKey(k => k + 1)}
+            onClaimed={() => {
+              setLocalClaimId(getLocalClaim(summary.receipt.id));
+              setRefreshKey(k => k + 1);
+            }}
           />
         )}
 
         <div className="mt-4">
-          <SaveSplitsNudge />
+          <SaveSplitsNudge claimedName={hasLocalClaim ? localClaimedParticipant.displayName : undefined} />
         </div>
 
         {isReceiptPayer && (

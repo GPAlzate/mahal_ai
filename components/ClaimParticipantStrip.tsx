@@ -1,8 +1,10 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useAuth } from '@clerk/nextjs';
 import { Check, X } from 'lucide-react';
 import { api } from '@/lib/client/api-client';
+import { setLocalClaim } from '@/lib/client/localClaim';
 import type { ParticipantSplit } from '@/lib/schemas/receipt/public/ParticipantSplit';
 
 const PARTICIPANT_COLORS = ['#ffc8d0', '#ffb5a7', '#b8e8c0', '#a8e4df', '#b8e0ff', '#d0c4f8', '#f0bce8'];
@@ -22,6 +24,7 @@ interface Props {
 }
 
 export function ClaimParticipantStrip({ receiptId, unclaimedParticipants, onClaimed }: Props) {
+  const { isSignedIn } = useAuth();
   const storageKey = `mahal_claim_seen_${receiptId}`;
 
   const [open, setOpen] = useState(false);
@@ -62,6 +65,18 @@ export function ClaimParticipantStrip({ receiptId, unclaimedParticipants, onClai
     if (!selected || claiming) {
       return;
     }
+
+    // Anonymous users claim locally — no account to attach server-side.
+    // The claim is replayed against the API if they sign in later.
+    if (!isSignedIn) {
+      setLocalClaim(receiptId, selected);
+      localStorage.setItem(storageKey, '1');
+      setOpen(false);
+      setClaimed(true);
+      onClaimed();
+      return;
+    }
+
     setClaiming(true);
     setError(null);
     try {
