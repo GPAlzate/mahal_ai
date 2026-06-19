@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { PaymentStatusSchema } from '@/lib/schemas/participant/public/PaymentStatus';
+import { PaymentStatusSchema } from '../../participant/public/PaymentStatus';
 
 /**
  * Schema for a participant's share of a receipt line

@@ -1,7 +1,7 @@
 import { z } from 'zod';
-import { ReceiptSchema } from '@/lib/schemas/receipt/public/Receipt';
-import { ParticipantSchema } from '@/lib/schemas/participant/public/Participant';
-import { LineParticipantSchema } from '@/lib/schemas/participant/public/LineParticipant';
+import { ReceiptSchema } from './Receipt';
+import { ParticipantSchema } from '../../participant/public/Participant';
+import { LineParticipantSchema } from '../../participant/public/LineParticipant';
 
 /**
  * Split Group - virtual concept combining receipt context with participants and assignments

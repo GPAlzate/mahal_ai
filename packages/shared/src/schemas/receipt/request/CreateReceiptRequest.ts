@@ -1,4 +1,4 @@
-import { ReceiptStatusSchema } from '@/lib/schemas/receipt/public/Receipt';
+import { ReceiptStatusSchema } from '../public/Receipt';
 import { z } from 'zod';
 
 /**

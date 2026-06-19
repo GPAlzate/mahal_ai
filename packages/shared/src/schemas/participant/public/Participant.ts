@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { PaymentStatusSchema } from '@/lib/schemas/participant/public/PaymentStatus';
+import { PaymentStatusSchema } from './PaymentStatus';
 
 /**
  * Schema for Participant database entity

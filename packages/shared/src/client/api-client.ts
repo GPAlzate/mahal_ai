@@ -2,13 +2,13 @@
  * Type-safe API client for frontend
  */
 
-import type { Receipt, ReceiptStatus } from '@/lib/schemas/receipt/public/Receipt';
-import type { ReceiptLine } from '@/lib/schemas/receipt/public/ReceiptLine';
-import type { Participant } from '@/lib/schemas/participant/public/Participant';
-import type { LineParticipant } from '@/lib/schemas/participant/public/LineParticipant';
-import type { ReceiptSummary } from '@/lib/schemas/receipt/public/ReceiptSummary';
-import type { SplitGroup } from '@/lib/schemas/receipt/public/SplitGroup';
-import type { PaymentStatus } from '@/lib/schemas/participant/public/PaymentStatus';
+import type { Receipt, ReceiptStatus } from '../schemas/receipt/public/Receipt';
+import type { ReceiptLine } from '../schemas/receipt/public/ReceiptLine';
+import type { Participant } from '../schemas/participant/public/Participant';
+import type { LineParticipant } from '../schemas/participant/public/LineParticipant';
+import type { ReceiptSummary } from '../schemas/receipt/public/ReceiptSummary';
+import type { SplitGroup } from '../schemas/receipt/public/SplitGroup';
+import type { PaymentStatus } from '../schemas/participant/public/PaymentStatus';
 
 export interface MyReceipt {
   id: number;
@@ -31,14 +31,38 @@ class APIError extends Error {
   }
 }
 
+/**
+ * Runtime configuration for the API client.
+ *
+ * Web: leave defaults — `baseUrl` stays '' so requests are relative and Clerk
+ * auth rides along on cookies.
+ * Mobile: call `configureApiClient` once at startup with the deployed origin
+ * and a `getAuthHeaders` that returns the Clerk session token, since native
+ * has no cookies and same-origin.
+ */
+interface ApiClientConfig {
+  baseUrl: string;
+  getAuthHeaders?: () => Promise<Record<string, string>> | Record<string, string>;
+}
+
+const config: ApiClientConfig = {
+  baseUrl: '',
+};
+
+export function configureApiClient(next: Partial<ApiClientConfig>): void {
+  Object.assign(config, next);
+}
+
 async function fetchAPI<T>(
   url: string,
   options?: RequestInit
 ): Promise<T> {
-  const response = await fetch(url, {
+  const authHeaders = config.getAuthHeaders ? await config.getAuthHeaders() : {};
+  const response = await fetch(`${config.baseUrl}${url}`, {
     ...options,
     headers: {
       'Content-Type': 'application/json',
+      ...authHeaders,
       ...options?.headers,
     },
   });

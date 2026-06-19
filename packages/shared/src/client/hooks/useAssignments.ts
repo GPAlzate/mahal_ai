@@ -1,6 +1,6 @@
 'use client';
 
-import { api } from '@/lib/client/api-client';
+import { api } from '../api-client';
 import { useState, useEffect } from 'react';
 
 interface Assignment {

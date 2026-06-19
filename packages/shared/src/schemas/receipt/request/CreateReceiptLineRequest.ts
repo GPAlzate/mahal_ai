@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { ReceiptLineTypeSchema } from '@/lib/schemas/receipt/public/ReceiptLineType';
+import { ReceiptLineTypeSchema } from '../public/ReceiptLineType';
 
 /**
  * Schema for creating a receipt line

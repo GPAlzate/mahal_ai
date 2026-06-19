@@ -24,6 +24,24 @@
       }
     ],
     "paths": {
+      "@/lib/schemas/*": [
+        "./packages/shared/src/schemas/*"
+      ],
+      "@/lib/helpers/*": [
+        "./packages/shared/src/helpers/*"
+      ],
+      "@/lib/client/api-client": [
+        "./packages/shared/src/client/api-client"
+      ],
+      "@/lib/client/hooks/*": [
+        "./packages/shared/src/client/hooks/*"
+      ],
+      "@mahal/shared": [
+        "./packages/shared/src/index"
+      ],
+      "@mahal/shared/*": [
+        "./packages/shared/src/*"
+      ],
       "@/*": [
         "./*"
       ]

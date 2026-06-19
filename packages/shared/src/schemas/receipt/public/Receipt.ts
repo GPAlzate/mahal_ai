@@ -1,4 +1,4 @@
-import { ReceiptLineSchema } from '@/lib/schemas/receipt/public/ReceiptLine';
+import { ReceiptLineSchema } from './ReceiptLine';
 import { z } from 'zod';
 
 /**

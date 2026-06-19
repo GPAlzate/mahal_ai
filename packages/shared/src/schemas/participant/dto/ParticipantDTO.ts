@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { PaymentStatusSchema } from '@/lib/schemas/participant/public/PaymentStatus';
+import { PaymentStatusSchema } from '../public/PaymentStatus';
 
 /**
  * DTO schema for Participant from database (snake_case)
