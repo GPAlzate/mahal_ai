@@ -2,10 +2,10 @@
   "name": "@mahal/shared",
   "version": "0.1.0",
   "private": true,
-  "type": "module",
+  "main": "./index.ts",
   "exports": {
-    ".": "./src/index.ts",
-    "./*": "./src/*.ts"
+    ".": "./index.ts",
+    "./*": "./*.ts"
   },
   "peerDependencies": {
     "react": ">=18",
