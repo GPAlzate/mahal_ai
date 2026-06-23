@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, use, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { X, Pencil, Plus, Trash2, ArrowLeft, ArrowRight, MoreVertical, Eye, HelpCircle, Users } from 'lucide-react';
+import { X, Pencil, Plus, Trash2, ArrowLeft, ArrowRight, MoreVertical, Eye, HelpCircle, Users, Loader2, Check, AlertCircle } from 'lucide-react';
 import LoadingScreen from '@/components/LoadingScreen';
 import { LineItemModal } from '@/components/LineItemModal';
 import { ParticipantAssignModal } from '@/components/ParticipantAssignModal';
@@ -28,6 +28,16 @@ interface LineAssignments {
 interface Participant {
   id: number;
   displayName: string;
+}
+
+const AUTOSAVE_DELAY_MS = 1200;
+
+function cloneAssignments(source: LineAssignments): LineAssignments {
+  const copy: LineAssignments = {};
+  for (const [lineId, parts] of Object.entries(source)) {
+    copy[+lineId] = { ...parts };
+  }
+  return copy;
 }
 
 export default function AssignPage({ params }: { params: Promise<{ id: string }> }) {
@@ -58,6 +68,9 @@ export default function AssignPage({ params }: { params: Promise<{ id: string }>
   const [showHelpModal, setShowHelpModal] = useState(false);
   const [assignModalLine, setAssignModalLine] = useState<ReceiptLine | null>(null);
   const [openKebabId, setOpenKebabId] = useState<number | null>(null);
+  const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
+  const savedAssignmentsRef = useRef<LineAssignments>({});
+  const autosaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     if (!localStorage.getItem('mahal_assign_help_seen')) {
@@ -97,6 +110,7 @@ export default function AssignPage({ params }: { params: Promise<{ id: string }>
         });
 
         setAssignments(assignmentsData);
+        savedAssignmentsRef.current = cloneAssignments(assignmentsData);
         setLoading(false);
       } catch (err: any) {
         setError(err.message);
@@ -199,6 +213,144 @@ export default function AssignPage({ params }: { params: Promise<{ id: string }>
     }
   };
 
+  // Translate the local toggle state into the share quantities actually stored in
+  // the DB. Purchase shares are kept as-is; discount shares are split evenly (1/N)
+  // across whoever is assigned, matching the Continue-flow behaviour.
+  const computeEffectiveAssignments = (
+    source: LineAssignments,
+    purchaseIds: Set<number>,
+    discountIds: Set<number>
+  ): LineAssignments => {
+    const effective: LineAssignments = {};
+    for (const [lineIdStr, parts] of Object.entries(source)) {
+      const lineId = +lineIdStr;
+      const participantIds = Object.keys(parts).filter((pid) => parts[+pid] > 0);
+      if (participantIds.length === 0) {
+        continue;
+      }
+      if (purchaseIds.has(lineId)) {
+        effective[lineId] = {};
+        for (const pid of participantIds) {
+          effective[lineId][+pid] = parts[+pid];
+        }
+      } else if (discountIds.has(lineId)) {
+        const shareQuantity = 1 / participantIds.length;
+        effective[lineId] = {};
+        for (const pid of participantIds) {
+          effective[lineId][+pid] = shareQuantity;
+        }
+      }
+    }
+    return effective;
+  };
+
+  // Persist only the difference between the local state and what's already in the
+  // DB, one (line, participant) pair at a time. Each call touches a single person's
+  // share on a single line, so concurrent editors (multiple people on the shared
+  // link) never clobber one another. Returns true when everything saved.
+  const flushAssignments = async (): Promise<boolean> => {
+    const purchaseIds = new Set(purchaseLines.map((line) => +line.id));
+    const discountIds = new Set(discountLines.map((line) => +line.id));
+    const effective = computeEffectiveAssignments(assignments, purchaseIds, discountIds);
+    const saved = savedAssignmentsRef.current;
+
+    const assignOps: { lineId: number; participantId: number; shareQuantity: number }[] = [];
+    const unassignOps: { lineId: number; participantId: number }[] = [];
+
+    for (const [lineIdStr, parts] of Object.entries(effective)) {
+      const lineId = +lineIdStr;
+      for (const pidStr of Object.keys(parts)) {
+        const participantId = +pidStr;
+        const shareQuantity = parts[participantId];
+        const prev = saved[lineId]?.[participantId];
+        if (prev === undefined || Math.abs(prev - shareQuantity) > 1e-9) {
+          assignOps.push({ lineId, participantId, shareQuantity });
+        }
+      }
+    }
+
+    for (const [lineIdStr, parts] of Object.entries(saved)) {
+      const lineId = +lineIdStr;
+      for (const pidStr of Object.keys(parts)) {
+        const participantId = +pidStr;
+        if (effective[lineId]?.[participantId] === undefined) {
+          unassignOps.push({ lineId, participantId });
+        }
+      }
+    }
+
+    if (assignOps.length === 0 && unassignOps.length === 0) {
+      return true;
+    }
+
+    setSaveStatus('saving');
+    const nextSaved = cloneAssignments(saved);
+    let hadError = false;
+
+    await Promise.all([
+      ...assignOps.map(async (op) => {
+        try {
+          await api.assignments.assign(receiptId, op.lineId, op.participantId, op.shareQuantity);
+          if (!nextSaved[op.lineId]) {
+            nextSaved[op.lineId] = {};
+          }
+          nextSaved[op.lineId][op.participantId] = op.shareQuantity;
+        } catch {
+          hadError = true;
+        }
+      }),
+      ...unassignOps.map(async (op) => {
+        try {
+          await api.assignments.unassign(receiptId, op.lineId, op.participantId);
+          if (nextSaved[op.lineId]) {
+            delete nextSaved[op.lineId][op.participantId];
+          }
+        } catch (err: any) {
+          // A 404 means the row is already gone — that's the state we wanted.
+          if (err?.status === 404) {
+            if (nextSaved[op.lineId]) {
+              delete nextSaved[op.lineId][op.participantId];
+            }
+          } else {
+            hadError = true;
+          }
+        }
+      }),
+    ]);
+
+    savedAssignmentsRef.current = nextSaved;
+    setSaveStatus(hadError ? 'error' : 'saved');
+    return !hadError;
+  };
+
+  // Debounced autosave: persist changes ~1.2s after the user stops tapping.
+  useEffect(() => {
+    if (loading) {
+      return;
+    }
+    if (autosaveTimerRef.current) {
+      clearTimeout(autosaveTimerRef.current);
+    }
+    autosaveTimerRef.current = setTimeout(() => {
+      flushAssignments();
+    }, AUTOSAVE_DELAY_MS);
+    return () => {
+      if (autosaveTimerRef.current) {
+        clearTimeout(autosaveTimerRef.current);
+      }
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [assignments, loading]);
+
+  // Let the "Saved" confirmation fade back to idle after a moment.
+  useEffect(() => {
+    if (saveStatus !== 'saved') {
+      return;
+    }
+    const t = setTimeout(() => setSaveStatus('idle'), 2000);
+    return () => clearTimeout(t);
+  }, [saveStatus]);
+
   const handleContinue = async () => {
     if (currentView === 'items') {
       const unassignedLines = purchaseLines.filter(
@@ -211,68 +363,45 @@ export default function AssignPage({ params }: { params: Promise<{ id: string }>
         return;
       }
 
-      try {
-        setSaving(true);
-        setError(null);
-        setUnassignedLineIds(new Set());
+      setSaving(true);
+      setError(null);
+      setUnassignedLineIds(new Set());
 
-        const purchaseLinesMap = new Map(purchaseLines.map(line => [+line.id, line]));
-        const assignmentsList = Object.entries(assignments).flatMap(([lineId, lineParticipants]) => {
-          const lineIdNum = +lineId;
-          if (!purchaseLinesMap.has(lineIdNum)) {
-            return [];
-          }
-          return Object.entries(lineParticipants).map(([participantId, shareQuantity]) => ({
-            receiptLineId: lineIdNum,
-            participantId: Number(participantId),
-            shareQuantity: shareQuantity as number,
-          }));
-        });
-
-        await api.assignments.batchAssign(receiptId, assignmentsList);
-        setActiveLineId(null);
-        setActiveParticipantId(null);
-        setCurrentView('misc-charges');
-        setSaving(false);
-      } catch (err: any) {
-        setError(err.message || 'Unable to save assignments');
-        setSaving(false);
+      if (autosaveTimerRef.current) {
+        clearTimeout(autosaveTimerRef.current);
       }
+      const ok = await flushAssignments();
+      if (!ok) {
+        setError("Couldn't save assignments. Check your connection and try again.");
+        setSaving(false);
+        return;
+      }
+
+      setActiveLineId(null);
+      setActiveParticipantId(null);
+      setCurrentView('misc-charges');
+      setSaving(false);
     } else if (currentView === 'misc-charges') {
       setActiveLineId(null);
       setActiveParticipantId(null);
       setCurrentView('discounts');
     } else if (currentView === 'discounts') {
-      try {
-        setSaving(true);
-        setError(null);
+      setSaving(true);
+      setError(null);
 
-        const discountLinesMap = new Map(discountLines.map(line => [+line.id, line]));
-        const discountAssignmentsList = Object.entries(assignments).flatMap(([lineId, participants]) => {
-          const lineIdNum = +lineId;
-          const line = discountLinesMap.get(lineIdNum);
-          if (!line) return [];
-          const participantIds = Object.keys(participants);
-          if (participantIds.length === 0) return [];
-          const shareQuantity = 1 / participantIds.length;
-          return participantIds.map((participantId) => ({
-            receiptLineId: lineIdNum,
-            participantId: Number(participantId),
-            shareQuantity,
-          }));
-        });
-
-        if (discountAssignmentsList.length > 0) {
-          await api.assignments.batchAssign(receiptId, discountAssignmentsList);
-        }
-
-        setActiveLineId(null);
-        setActiveParticipantId(null);
-        router.push(`/receipts/${receiptId}/summary`);
-      } catch (err: any) {
-        setError(err.message || 'Unable to save assignments');
-        setSaving(false);
+      if (autosaveTimerRef.current) {
+        clearTimeout(autosaveTimerRef.current);
       }
+      const ok = await flushAssignments();
+      if (!ok) {
+        setError("Couldn't save assignments. Check your connection and try again.");
+        setSaving(false);
+        return;
+      }
+
+      setActiveLineId(null);
+      setActiveParticipantId(null);
+      router.push(`/receipts/${receiptId}/summary`);
     }
   };
 
@@ -511,6 +640,34 @@ export default function AssignPage({ params }: { params: Promise<{ id: string }>
           })}
         </div>
       </header>
+
+      {/* Autosave status — reserved height so the layout doesn't jump */}
+      <div
+        className="px-4 pt-2 max-w-2xl mx-auto w-full flex justify-end min-h-[20px]"
+        aria-live="polite"
+      >
+        {saveStatus === 'saving' && (
+          <span className="flex items-center gap-1.5 font-dm-mono text-[10px] font-bold uppercase tracking-widest text-[#7e7576]">
+            <Loader2 className="w-3 h-3 animate-spin motion-reduce:animate-none" />
+            Saving
+          </span>
+        )}
+        {saveStatus === 'saved' && (
+          <span className="flex items-center gap-1.5 font-dm-mono text-[10px] font-bold uppercase tracking-widest text-[#4c4546]">
+            <Check className="w-3 h-3" />
+            Saved
+          </span>
+        )}
+        {saveStatus === 'error' && (
+          <button
+            onClick={() => flushAssignments()}
+            className="flex items-center gap-1.5 font-dm-mono text-[10px] font-bold uppercase tracking-widest text-red-600"
+          >
+            <AlertCircle className="w-3 h-3" />
+            Save failed — retry
+          </button>
+        )}
+      </div>
 
       {/* Error message */}
       {error && (
