@@ -9,6 +9,29 @@ interface Participant {
   displayName: string;
 }
 
+type SplitModeId = 'equal' | 'pieces' | 'shares';
+
+// The split options offered in the picker, in display order.
+// To remove an option from the app, comment out its line here — the code for it
+// stays intact below. 'pieces' is additionally gated to whole-number quantities
+// ≥ 2 at runtime (see canSplitByPiece).
+//
+// TODO(shares-trial 2026-06): 'shares' is commented out to observe whether
+// EQUAL + BY PIECE cover real usage. A pre-existing unequal split still
+// auto-selects shares (so legacy data renders and stays editable), which is why
+// the active mode is always shown even when it's disabled here.
+const ENABLED_SPLIT_MODES: SplitModeId[] = [
+  'equal',
+  'pieces',
+  // 'shares',
+];
+
+const SPLIT_MODE_LABELS: Record<SplitModeId, string> = {
+  equal: 'equal',
+  pieces: 'by piece',
+  shares: 'shares',
+};
+
 interface ReceiptLine {
   id: number;
   itemName: string;
@@ -50,16 +73,102 @@ export function ParticipantAssignModal({
   getInitials,
   equalSplitOnly = false,
 }: ParticipantAssignModalProps) {
-  const [splitMode, setSplitMode] = useState<'equal' | 'shares'>('equal');
+  const [splitMode, setSplitMode] = useState<'equal' | 'shares' | 'pieces'>('equal');
+  // Per-unit layout for "By piece" mode: one Set of participant ids per unit of
+  // the line's quantity. Local-only — it's converted to share weights on edit
+  // and never persisted as pieces.
+  const [pieces, setPieces] = useState<Set<number>[]>([]);
+  const [piecesDirty, setPiecesDirty] = useState(false);
+
+  // "By piece" only makes sense for a whole-numbered quantity of 2 or more.
+  const canSplitByPiece =
+    !!line && !equalSplitOnly && Number.isInteger(line.quantity) && line.quantity >= 2;
 
   useEffect(() => {
     if (line) {
       const values = Object.values(lineAssignments);
+      // Never default to 'pieces' — only equal/shares are auto-selected.
       setSplitMode(values.some(v => v > 1) ? 'shares' : 'equal');
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [line?.id]);
 
+  // Seed the piece layout when the user opts into "By piece". Starts every piece
+  // with whoever is currently assigned, so an equal split reads as "everyone on
+  // every piece" and the user just removes people from the pieces they skipped.
+  // Nothing is written until a piece is actually edited (see togglePiece).
+  useEffect(() => {
+    if (splitMode !== 'pieces' || !line) {
+      return;
+    }
+    const assigned = participants
+      .filter(p => (lineAssignments[p.id] || 0) > 0)
+      .map(p => p.id);
+    setPieces(Array.from({ length: line.quantity }, () => new Set(assigned)));
+    setPiecesDirty(false);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [splitMode, line?.id]);
+
   if (!isOpen || !line) return null;
+
+  // A participant's weight is the sum, over every piece they're on, of 1/(people
+  // on that piece). Whole piece alone => 1; shared four ways => 0.25. Absolute
+  // scale is irrelevant since the summary splits proportionally.
+  const computePieceWeights = (layout: Set<number>[]): Record<number, number> => {
+    const weights: Record<number, number> = {};
+    participants.forEach(p => { weights[p.id] = 0; });
+    layout.forEach(piece => {
+      if (piece.size === 0) {
+        return;
+      }
+      const portion = 1 / piece.size;
+      piece.forEach(pid => { weights[pid] += portion; });
+    });
+    return weights;
+  };
+
+  const applyPieces = (layout: Set<number>[]) => {
+    const weights = computePieceWeights(layout);
+    participants.forEach(p => onSetShares(p.id, weights[p.id] || 0));
+  };
+
+  const togglePiece = (pieceIndex: number, participantId: number) => {
+    const next = pieces.map((piece, i) => (i === pieceIndex ? new Set(piece) : piece));
+    if (next[pieceIndex].has(participantId)) {
+      next[pieceIndex].delete(participantId);
+    } else {
+      next[pieceIndex].add(participantId);
+    }
+    setPieces(next);
+    setPiecesDirty(true);
+    applyPieces(next);
+  };
+
+  const togglePieceAll = (pieceIndex: number) => {
+    const everyone = pieces[pieceIndex].size === participants.length;
+    const next = pieces.map((piece, i) => (i === pieceIndex ? new Set(piece) : piece));
+    next[pieceIndex] = everyone ? new Set() : new Set(participants.map(p => p.id));
+    setPieces(next);
+    setPiecesDirty(true);
+    applyPieces(next);
+  };
+
+  const resetPieces = () => {
+    const next = pieces.map(() => new Set<number>());
+    setPieces(next);
+    setPiecesDirty(true);
+    applyPieces(next);
+  };
+
+  const enabledModes = ENABLED_SPLIT_MODES.filter(mode =>
+    mode === 'pieces' ? canSplitByPiece : true
+  );
+  // Always surface the active mode, even if it's been disabled above — otherwise a
+  // line that auto-selected a disabled mode (e.g. legacy shares data) would show
+  // an empty picker and risk being silently flattened.
+  const splitModes = enabledModes.includes(splitMode)
+    ? enabledModes
+    : [...enabledModes, splitMode];
 
   const handleDone = () => {
     if (splitMode === 'equal') {
@@ -147,7 +256,7 @@ export function ParticipantAssignModal({
         {!equalSplitOnly && (
           <div className="px-4 pt-3 pb-2">
             <div className="flex rounded-full border-2 border-black bg-white p-[3px] gap-[3px]">
-              {(['equal', 'shares'] as const).map(mode => (
+              {splitModes.map(mode => (
                 <button
                   key={mode}
                   onClick={() => setSplitMode(mode)}
@@ -157,7 +266,7 @@ export function ParticipantAssignModal({
                       : 'text-[#7e7576]'
                   }`}
                 >
-                  {mode}
+                  {SPLIT_MODE_LABELS[mode]}
                 </button>
               ))}
             </div>
@@ -266,6 +375,88 @@ export function ParticipantAssignModal({
           </div>
         )}
 
+        {/* By piece mode: one row per unit, tap who shared each */}
+        {splitMode === 'pieces' && (
+          <div className="px-4 pt-1 pb-2 flex flex-col gap-3 max-h-[50vh] overflow-y-auto">
+            {pieces.map((piece, pieceIndex) => {
+              const size = piece.size;
+              const everyone = size === participants.length;
+              let breakdown: string;
+              if (size === 0) {
+                breakdown = 'Tap who shared this';
+              } else if (size === 1) {
+                const onlyId = [...piece][0];
+                const only = participants.find(p => p.id === onlyId);
+                breakdown = `${formatCurrency(line.unitPrice)} · ${only ? only.displayName.split(' ')[0] : '1 person'}`;
+              } else {
+                breakdown = `${formatCurrency(line.unitPrice / size)} each · split ${size} ways`;
+              }
+              return (
+                <div key={pieceIndex} className="border-2 border-black rounded-lg bg-white">
+                  <div className="flex items-center justify-between px-3 py-2 border-b-2 border-[#d0d0d0]">
+                    <span className="font-dm-mono text-[10px] font-bold uppercase tracking-widest text-[#4d4732]">
+                      Piece {pieceIndex + 1} / {line.quantity}
+                    </span>
+                    <button
+                      onClick={() => togglePieceAll(pieceIndex)}
+                      className={`px-2 py-1 rounded font-dm-mono text-[9px] font-bold uppercase tracking-wide border-2 border-black transition-all ${
+                        everyone
+                          ? 'bg-[#FFD700] shadow-[1px_1px_0px_0px_#000]'
+                          : 'bg-white text-[#7e7576]'
+                      }`}
+                    >
+                      All
+                    </button>
+                  </div>
+                  <div className="px-3 py-3 flex flex-wrap gap-3">
+                    {participants.map((p, i) => {
+                      const isOn = piece.has(p.id);
+                      const color = participantColors[i % participantColors.length];
+                      return (
+                        <button
+                          key={p.id}
+                          onClick={() => togglePiece(pieceIndex, p.id)}
+                          className="flex flex-col items-center gap-1 cursor-pointer"
+                        >
+                          <div
+                            className={`w-11 h-11 rounded-full border-2 flex items-center justify-center relative transition-all ${
+                              isOn
+                                ? 'border-black shadow-[2px_2px_0px_0px_#000] active:translate-x-[0.5px] active:translate-y-[0.5px] active:shadow-none'
+                                : 'border-[#d0d0d0] active:scale-95'
+                            }`}
+                            style={{ backgroundColor: color, opacity: isOn ? 1 : 0.5 }}
+                          >
+                            <span className="font-dm-sans text-xs font-bold">
+                              {getInitials(p.displayName)}
+                            </span>
+                            {isOn && (
+                              <div className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full bg-[#FFD700] border-2 border-black flex items-center justify-center z-10">
+                                <Check className="w-2.5 h-2.5 text-black" />
+                              </div>
+                            )}
+                          </div>
+                          <span
+                            className={`font-dm-mono text-[9px] uppercase font-bold leading-tight ${
+                              isOn ? 'text-[#1b1b1b]' : 'text-[#7e7576]'
+                            }`}
+                          >
+                            {p.displayName.split(' ')[0]}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                  <div className="px-3 pb-2 -mt-1">
+                    <span className="font-dm-mono text-[10px] text-[#7e7576]">
+                      {breakdown}
+                    </span>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+
         {/* Footer */}
         <div className="border-t-4 border-black px-4 py-3 flex items-center justify-between gap-3 pb-[calc(12px+env(safe-area-inset-bottom))] sm:pb-3">
           {splitMode === 'equal' ? (
@@ -277,7 +468,7 @@ export function ParticipantAssignModal({
             </button>
           ) : (
             <button
-              onClick={onClear}
+              onClick={splitMode === 'pieces' ? resetPieces : onClear}
               className="px-4 py-3 rounded border-2 border-black bg-white font-dm-mono font-bold text-[10px] uppercase tracking-wide shadow-[2px_2px_0px_0px_#000] active:translate-x-[2px] active:translate-y-[2px] active:shadow-none transition-all"
             >
               Reset

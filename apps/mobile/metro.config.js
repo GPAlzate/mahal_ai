@@ -2,6 +2,7 @@
 // Lets the app resolve the workspace `@mahal/shared` package (TS source) and
 // dependencies hoisted to the workspace-root node_modules by pnpm.
 const { getDefaultConfig } = require('expo/metro-config');
+const { withNativeWind } = require('nativewind/metro');
 const path = require('path');
 
 const projectRoot = __dirname;
@@ -23,4 +24,5 @@ config.resolver.nodeModulesPaths = [
 // map, which breaks @clerk/clerk-expo's internal `require('./dummy-data')`.
 config.resolver.unstable_enablePackageExports = false;
 
-module.exports = config;
+// NativeWind: compiles global.css (Tailwind) into RN styles at bundle time.
+module.exports = withNativeWind(config, { input: './src/global.css' });
