@@ -404,18 +404,22 @@ export class ReceiptService {
     const [result] = await Promise.all([
       sql`
         WITH r AS (
-          SELECT id, owner_id, gcash_number FROM receipts WHERE id = ${receiptId} AND deleted_at IS NULL
+          SELECT id, owner_id, gcash_number, payer_participant_id FROM receipts WHERE id = ${receiptId} AND deleted_at IS NULL
         )
         UPDATE receipts
         SET
           payer_participant_id = ${payerParticipantId},
           gcash_number = CASE
-            WHEN r.gcash_number IS NULL
-              AND p.user_id IS NOT NULL
+            -- Payer unchanged: keep whatever number is already stored (incl. manual edits)
+            WHEN r.payer_participant_id = ${payerParticipantId}
+            THEN r.gcash_number
+            -- New payer is the owner: seed from their saved profile number
+            WHEN p.user_id IS NOT NULL
               AND p.user_id = r.owner_id
               AND u.gcash_number IS NOT NULL
             THEN u.gcash_number
-            ELSE r.gcash_number
+            -- Payer changed to someone else: clear the old number so the new payer's can be entered
+            ELSE NULL
           END,
           updated_at = NOW()
         FROM r

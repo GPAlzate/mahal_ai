@@ -1,8 +1,8 @@
-import { SignedIn, SignedOut, useUser } from '@clerk/clerk-expo';
+import { useAuth, useUser } from '@clerk/clerk-expo';
 import { api, type MyReceipt } from '@mahal/shared/client/api-client';
 import { formatCurrency } from '@mahal/shared/helpers/CurrencyHelper';
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, FlatList, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 function ReceiptList() {
@@ -43,23 +43,31 @@ function ReceiptList() {
 
 export default function HomeScreen() {
   const { user } = useUser();
+  const { signOut } = useAuth();
   return (
     <SafeAreaView style={styles.container}>
-      <Text style={styles.heading}>Mahal</Text>
-      <SignedIn>
-        <Text style={styles.muted}>Signed in as {user?.primaryEmailAddress?.emailAddress}</Text>
-        <ReceiptList />
-      </SignedIn>
-      <SignedOut>
-        <Text style={styles.muted}>Sign in to view your receipts.</Text>
-      </SignedOut>
+      <View style={styles.header}>
+        <Text style={styles.heading}>Mahal</Text>
+        <Pressable onPress={() => signOut()} hitSlop={8}>
+          <Text style={styles.signOut}>Sign out</Text>
+        </Pressable>
+      </View>
+      <Text style={styles.muted}>Signed in as {user?.primaryEmailAddress?.emailAddress}</Text>
+      <ReceiptList />
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1, paddingHorizontal: 20 },
-  heading: { fontSize: 32, fontWeight: '700', marginVertical: 16 },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginVertical: 16,
+  },
+  heading: { fontSize: 32, fontWeight: '700' },
+  signOut: { fontSize: 15, color: '#2563eb', fontWeight: '600' },
   muted: { fontSize: 15, opacity: 0.6, marginBottom: 12 },
   error: { fontSize: 15, color: '#dc2626', marginTop: 12 },
   loading: { marginTop: 24 },

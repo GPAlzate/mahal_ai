@@ -65,6 +65,9 @@ export default function ShareCodePage({ params }: { params: Promise<{ code: stri
   );
   const isReceiptPayer = !!userId && !!payerParticipant?.userId && userId === payerParticipant.userId;
   const isOwner = !!userId && !!summary?.receipt.ownerId && userId === summary.receipt.ownerId;
+  // The payer can set their own GCash number; the owner can also set it on the
+  // payer's behalf (e.g. when the payer is anonymous and can't sign in to do so).
+  const canEditGcash = isReceiptPayer || isOwner;
   const settled = settledOverride || summary?.receipt.status === 'STLD';
   const isLinkedParticipant = !!userId && !!summary?.participantSplits.some(p => p.userId === userId);
   const unclaimedParticipants = summary?.participantSplits.filter(p => p.userId === null) ?? [];
@@ -299,12 +302,20 @@ const handleSaveGcash = async () => {
 
         <ReceiptCard summary={summary} formatCurrency={formatCurrency} />
 
-        {isReceiptPayer && (
+        {canEditGcash && (
           <div className="border-4 border-black rounded-xl bg-white shadow-[3px_3px_0px_0px_#000] overflow-hidden">
             <div className="bg-[#0066FF] px-4 py-2.5 flex items-center justify-between">
               <div>
-                <p className="font-dm-mono text-[10px] font-bold uppercase tracking-widest text-white">GCash number</p>
-                <p className="font-dm-mono text-[11px] text-blue-200">So people know how to pay you</p>
+                <p className="font-dm-mono text-[10px] font-bold uppercase tracking-widest text-white">
+                  {isReceiptPayer
+                    ? 'GCash number'
+                    : payerParticipant
+                      ? `${payerParticipant.displayName}${payerParticipant.displayName.endsWith('s') ? "'" : "'s"} GCash`
+                      : 'GCash number'}
+                </p>
+                <p className="font-dm-mono text-[11px] text-blue-200">
+                  {isReceiptPayer ? 'So people know how to pay you' : 'Enter the number so people know how to pay'}
+                </p>
               </div>
               {!isEditingGcash && summary.receipt.gcashNumber && (
                 <button
@@ -360,7 +371,7 @@ const handleSaveGcash = async () => {
           </div>
         )}
 
-        {!isReceiptPayer && summary.payerGcashNumber && (
+        {!canEditGcash && summary.payerGcashNumber && (
           <div className="border-4 border-black rounded-xl bg-white shadow-[3px_3px_0px_0px_#000] overflow-hidden">
             <div className="bg-[#0066FF] px-4 py-2.5">
               <p className="font-dm-mono text-[10px] font-bold uppercase tracking-widest text-white">
