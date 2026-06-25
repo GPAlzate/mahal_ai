@@ -2,7 +2,7 @@ import { useSSO } from '@clerk/clerk-expo';
 import * as AuthSession from 'expo-auth-session';
 import * as WebBrowser from 'expo-web-browser';
 import { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 // Required for the OAuth web browser to dismiss and return control to the app.
@@ -49,45 +49,27 @@ export default function SignInScreen() {
   }, [startSSOFlow]);
 
   return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.content}>
-        <Text style={styles.title}>Mahal</Text>
-        <Text style={styles.subtitle}>Split receipts with friends</Text>
+    <SafeAreaView className="flex-1 bg-white">
+      <View className="flex-1 justify-center px-7">
+        <Text className="text-center text-4xl font-extrabold">Mahal</Text>
+        <Text className="mb-7 text-center text-base text-black/60">
+          Split receipts with friends
+        </Text>
 
         <Pressable
-          style={({ pressed }) => [styles.button, pressed && styles.buttonPressed]}
+          className="h-14 flex-row items-center justify-center rounded-xl border border-gray-300 bg-white active:bg-gray-100"
           onPress={onGooglePress}
           disabled={loading}
         >
           {loading ? (
             <ActivityIndicator color="#1f2937" />
           ) : (
-            <Text style={styles.buttonText}>Continue with Google</Text>
+            <Text className="text-base font-semibold text-gray-800">Continue with Google</Text>
           )}
         </Pressable>
 
-        {error ? <Text style={styles.error}>{error}</Text> : null}
+        {error ? <Text className="mt-2 text-center text-red-600">{error}</Text> : null}
       </View>
     </SafeAreaView>
   );
 }
-
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#fff' },
-  content: { flex: 1, justifyContent: 'center', paddingHorizontal: 28, gap: 12 },
-  title: { fontSize: 40, fontWeight: '800', textAlign: 'center' },
-  subtitle: { fontSize: 16, opacity: 0.6, textAlign: 'center', marginBottom: 28 },
-  button: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-    height: 52,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#d1d5db',
-    backgroundColor: '#fff',
-  },
-  buttonPressed: { backgroundColor: '#f3f4f6' },
-  buttonText: { fontSize: 16, fontWeight: '600', color: '#1f2937' },
-  error: { color: '#dc2626', textAlign: 'center', marginTop: 8 },
-});
