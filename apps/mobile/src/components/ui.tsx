@@ -1,5 +1,5 @@
 import { type ReactNode } from 'react';
-import { Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, Text, TextInput, type TextInputProps, View } from 'react-native';
 import { SafeAreaView, type Edge } from 'react-native-safe-area-context';
 
 /** Screen wrapper with safe-area padding and consistent horizontal gutters. */
@@ -30,4 +30,50 @@ export function Card({ children }: { children: ReactNode }) {
 /** Muted secondary text. */
 export function Muted({ children }: { children: ReactNode }) {
   return <Text className="text-base text-black/50">{children}</Text>;
+}
+
+/** Labeled text field. */
+export function Field({
+  label,
+  ...props
+}: { label: string } & TextInputProps) {
+  return (
+    <View className="gap-1.5">
+      <Text className="text-xs font-semibold uppercase tracking-wide text-gray-500">{label}</Text>
+      <TextInput
+        className="rounded-xl border border-gray-300 px-4 py-3 text-base text-foreground"
+        placeholderTextColor="#9ca3af"
+        {...props}
+      />
+    </View>
+  );
+}
+
+/** Primary action button. */
+export function Button({
+  label,
+  onPress,
+  loading,
+  disabled,
+}: {
+  label: string;
+  onPress: () => void;
+  loading?: boolean;
+  disabled?: boolean;
+}) {
+  return (
+    <Pressable
+      onPress={onPress}
+      disabled={disabled || loading}
+      className={`h-14 flex-row items-center justify-center rounded-2xl ${
+        disabled || loading ? 'bg-gray-300' : 'bg-black active:bg-gray-800'
+      }`}
+    >
+      {loading ? (
+        <ActivityIndicator color="#fff" />
+      ) : (
+        <Text className="text-base font-semibold text-white">{label}</Text>
+      )}
+    </Pressable>
+  );
 }

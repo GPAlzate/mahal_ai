@@ -82,6 +82,26 @@ async function fetchAPI<T>(
 
 export const api = {
   receipts: {
+    // Native-only: uploads a captured image (RN file: { uri, name, type }) to
+    // the server, which stores it in Vercel Blob and returns the URL. Bypasses
+    // `fetchAPI` because it sends multipart/form-data, not JSON.
+    uploadImage: async (file: { uri: string; name: string; type: string }): Promise<{ url: string }> => {
+      const authHeaders = config.getAuthHeaders ? await config.getAuthHeaders() : {};
+      const form = new FormData();
+      // React Native's FormData accepts this { uri, name, type } file shape.
+      form.append('file', file as unknown as Blob);
+      const response = await fetch(`${config.baseUrl}/api/blob-upload/mobile`, {
+        method: 'POST',
+        headers: { ...authHeaders },
+        body: form,
+      });
+      const data = await response.json();
+      if (!response.ok) {
+        throw new APIError(data.error || 'Upload failed', response.status, data.details);
+      }
+      return data;
+    },
+
     // Attaches a blob URL to an existing receipt, transitions ULIP → PRSP,
     // and schedules background AI parsing.
     triggerParse: (id: number, imageUrl: string) =>
@@ -237,6 +257,19 @@ export const api = {
 
   user: {
     get: () => fetchAPI<{ username: string | null; displayName: string | null; gcashNumber: string | null }>('/api/user'),
+  },
+
+  settings: {
+    // Partial profile update. Omitted fields are left unchanged server-side.
+    update: (body: {
+      username?: string;
+      displayName?: string | null;
+      gcashNumber?: string | null;
+    }) =>
+      fetchAPI<{ username: string | null; displayName: string | null; gcashNumber: string | null }>(
+        '/api/settings',
+        { method: 'PATCH', body: JSON.stringify(body) }
+      ),
   },
 
   users: {
