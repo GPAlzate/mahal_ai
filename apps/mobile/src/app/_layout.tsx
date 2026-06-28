@@ -27,6 +27,9 @@ function RootNavigator() {
     <Stack screenOptions={{ headerShown: false }}>
       <Stack.Protected guard={isSignedIn}>
         <Stack.Screen name="(tabs)" />
+        <Stack.Screen name="receipt/[id]" />
+        <Stack.Screen name="receipt/[id]/assign" />
+        <Stack.Screen name="receipt/[id]/participants" />
       </Stack.Protected>
       <Stack.Protected guard={!isSignedIn}>
         <Stack.Screen name="sign-in" />

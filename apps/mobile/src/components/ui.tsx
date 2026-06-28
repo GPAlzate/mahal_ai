@@ -1,3 +1,5 @@
+import { useRouter } from 'expo-router';
+import { ChevronLeft } from 'lucide-react-native';
 import { type ReactNode } from 'react';
 import { ActivityIndicator, Pressable, Text, TextInput, type TextInputProps, View } from 'react-native';
 import { SafeAreaView, type Edge } from 'react-native-safe-area-context';
@@ -20,6 +22,24 @@ export function Screen({
 /** Large screen title. */
 export function ScreenTitle({ children }: { children: ReactNode }) {
   return <Text className="my-4 text-3xl font-bold text-foreground">{children}</Text>;
+}
+
+/** Top bar with a back button and a title, for pushed detail screens. */
+export function Header({ title, right }: { title: string; right?: ReactNode }) {
+  const router = useRouter();
+  return (
+    <View className="flex-row items-center justify-between py-3">
+      <View className="flex-row items-center gap-1">
+        <Pressable onPress={() => router.back()} hitSlop={8} className="-ml-1">
+          <ChevronLeft color="#000" size={28} />
+        </Pressable>
+        <Text numberOfLines={1} className="text-xl font-bold text-foreground">
+          {title}
+        </Text>
+      </View>
+      {right ?? null}
+    </View>
+  );
 }
 
 /** Rounded surface card. */

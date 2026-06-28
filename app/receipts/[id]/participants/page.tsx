@@ -50,16 +50,25 @@ export default function ParticipantsPage({ params }: { params: Promise<{ id: str
   const trimmedInput = participantName.trim();
   const showDropdown = !!user && trimmedInput.length >= 1 && (searching || searchResults.length > 0 || trimmedInput.length >= 2);
 
+  const myName = user?.fullName ?? user?.firstName ?? '';
+  const myShortName = user?.firstName ?? myName;
+  const alreadyAdded = !!user && participants.some((p) => p.userId === user.id);
+  const canAddMe = !!user && !alreadyAdded && !!myName;
+
+  const handleAddMe = () => {
+    if (!user || !myName) {
+      return;
+    }
+    setParticipants((prev) => [...prev, { tempId: `creator-${user.id}`, displayName: myName, userId: user.id }]);
+  };
+
   useEffect(() => {
     if (participantsInitialized.current) {
       return;
     }
-    if (user === undefined) {
-      return;
-    }
     participantsInitialized.current = true;
 
-    api.participants.list(receiptId).then(async (existing) => {
+    api.participants.list(receiptId).then((existing) => {
       if (existing.length > 0) {
         setParticipants(
           existing.map((p) => ({
@@ -68,15 +77,9 @@ export default function ParticipantsPage({ params }: { params: Promise<{ id: str
             displayName: p.displayName,
           }))
         );
-      } else if (user) {
-        const profile = await api.user.get().catch(() => null);
-        const name = profile?.displayName ?? user.fullName ?? user.firstName ?? '';
-        if (name) {
-          setParticipants([{ tempId: `creator-${user.id}`, displayName: name, userId: user.id }]);
-        }
       }
     }).catch(() => {});
-  }, [receiptId, user]);
+  }, [receiptId]);
 
   useEffect(() => {
     let cancelled = false;
@@ -314,6 +317,17 @@ export default function ParticipantsPage({ params }: { params: Promise<{ id: str
                   </div>
                 )}
               </div>
+            )}
+
+            {canAddMe && (
+              <button
+                type="button"
+                onClick={handleAddMe}
+                className="self-start mt-3 flex items-center gap-1.5 h-9 px-3 border-2 border-black rounded-lg bg-white font-dm-mono text-xs font-bold uppercase tracking-wider shadow-[2px_2px_0px_0px_#000] hover:bg-[#fff9ef] active:translate-x-[2px] active:translate-y-[2px] active:shadow-none transition-all"
+              >
+                <Plus className="w-3.5 h-3.5" strokeWidth={2.5} />
+                Add me{myShortName ? ` (${myShortName})` : ''}
+              </button>
             )}
           </div>
 

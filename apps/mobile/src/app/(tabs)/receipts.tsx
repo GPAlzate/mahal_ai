@@ -1,4 +1,5 @@
 import { api, type MyReceipt } from '@mahal/shared/client/api-client';
+import { useRouter } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, FlatList, RefreshControl, Text, View } from 'react-native';
 
@@ -6,6 +7,7 @@ import { ReceiptCard } from '@/components/ReceiptCard';
 import { Muted, Screen, ScreenTitle } from '@/components/ui';
 
 export default function ReceiptsScreen() {
+  const router = useRouter();
   const [receipts, setReceipts] = useState<MyReceipt[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
@@ -44,8 +46,7 @@ export default function ReceiptsScreen() {
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
           ListEmptyComponent={<Muted>No receipts yet.</Muted>}
           renderItem={({ item }) => (
-            // TODO(Phase 5): onPress → receipt detail (assign/participants/summary by status).
-            <ReceiptCard receipt={item} />
+            <ReceiptCard receipt={item} onPress={() => router.push(`/receipt/${item.id}`)} />
           )}
         />
       ) : null}

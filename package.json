@@ -6,7 +6,8 @@
     "dev": "concurrently --names \"next,ngrok\" --prefix-colors \"cyan,yellow\" \"next dev\" \"ngrok http 3000 --log stdout --log-format logfmt --log-level info\"",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "mobile": "pnpm --filter mobile tunnel"
   },
   "dependencies": {
     "@mahal/shared": "workspace:*",
