@@ -7,7 +7,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "mobile": "pnpm --filter mobile tunnel"
+    "mobile": "pnpm --filter mobile tunnel",
+    "mobile:build": "pnpm --filter mobile build:dev"
   },
   "dependencies": {
     "@mahal/shared": "workspace:*",

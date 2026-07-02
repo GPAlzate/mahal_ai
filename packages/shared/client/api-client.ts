@@ -51,6 +51,12 @@ const config: ApiClientConfig = {
 
 export function configureApiClient(next: Partial<ApiClientConfig>): void {
   Object.assign(config, next);
+  // Strip trailing slashes so `${baseUrl}/api/...` never becomes a `//api/...`
+  // double slash, which the server answers with a 308 redirect — and React
+  // Native's fetch drops the body of a POST when following that redirect.
+  if (config.baseUrl) {
+    config.baseUrl = config.baseUrl.replace(/\/+$/, '');
+  }
 }
 
 async function fetchAPI<T>(

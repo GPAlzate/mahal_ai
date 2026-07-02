@@ -118,6 +118,14 @@ export function ParticipantSplits({ receiptId, participantSplits, payerParticipa
     }
   };
 
+  const orderedSplits = participantSplits
+    .map((split, index) => ({ split, colorIndex: index }))
+    .sort((a, b) => {
+      const aIsMe = a.split.participantId === myParticipantId;
+      const bIsMe = b.split.participantId === myParticipantId;
+      return Number(bIsMe) - Number(aIsMe);
+    });
+
   return (
     <>
       <h2 className="font-dm-sans font-bold text-2xl uppercase mt-2">
@@ -131,9 +139,9 @@ export function ParticipantSplits({ receiptId, participantSplits, payerParticipa
             : 'Tap your name to see your share and pay.'}
       </p>
 
-      {participantSplits.map((split, i) => {
+      {orderedSplits.map(({ split, colorIndex }) => {
         const isExpanded = expandedParticipants.has(split.participantId);
-        const color = PARTICIPANT_COLORS[i % PARTICIPANT_COLORS.length];
+        const color = PARTICIPANT_COLORS[colorIndex % PARTICIPANT_COLORS.length];
         const effectiveStatus: PaymentStatus = localStatuses.get(split.participantId) ?? split.paymentStatus ?? 'PNYP';
         const isConfirming = confirmingIds.has(split.participantId);
         const isResetting = resettingIds.has(split.participantId);
@@ -158,12 +166,7 @@ export function ParticipantSplits({ receiptId, participantSplits, payerParticipa
                 >
                   {getInitials(split.displayName)}
                 </div>
-                <span className="font-dm-sans font-bold text-base uppercase truncate">{split.displayName}</span>
-                {isMe && (
-                  <span className="inline-flex items-center h-5 px-1.5 rounded-[4px] bg-black text-white font-dm-mono text-[9px] font-bold uppercase tracking-[0.15em] flex-shrink-0">
-                    You
-                  </span>
-                )}
+                <span className="font-dm-sans font-bold text-base uppercase truncate">{isMe ? 'You' : split.displayName}</span>
               </div>
               <div className="flex items-center gap-2.5 flex-shrink-0">
                 {showPaymentUI && isPayerEntry && (
