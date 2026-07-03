@@ -30,6 +30,7 @@ function RootNavigator() {
         <Stack.Screen name="receipt/[id]" />
         <Stack.Screen name="receipt/[id]/assign" />
         <Stack.Screen name="receipt/[id]/participants" />
+        <Stack.Screen name="[code]" />
       </Stack.Protected>
       <Stack.Protected guard={!isSignedIn}>
         <Stack.Screen name="sign-in" />

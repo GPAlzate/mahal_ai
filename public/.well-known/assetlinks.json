@@ -1,0 +1,12 @@
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "com.mahalai.app",
+      "sha256_cert_fingerprints": [
+        "4D:07:BA:49:92:6C:3C:13:86:2E:55:64:E6:FE:D6:21:39:FF:F5:12:FA:ED:3B:FE:71:C8:BE:08:CD:36:F8:49"
+      ]
+    }
+  }
+]
