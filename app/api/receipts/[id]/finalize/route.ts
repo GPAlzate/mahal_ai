@@ -30,7 +30,8 @@ export async function PUT(
       return NextResponse.json({ error: 'Invalid receipt ID' }, { status: 400 });
     }
 
-    // Check if receipt exists and is not already finalized
+    // Check if receipt exists. Re-finalizing an already-finalized receipt is
+    // allowed: it re-validates assignments and returns a fresh summary.
     const receiptCheck = await sql`
       SELECT id, status FROM receipts
       WHERE id = ${receiptId} AND deleted_at IS NULL
@@ -38,13 +39,6 @@ export async function PUT(
 
     if (receiptCheck.length === 0) {
       return NextResponse.json({ error: 'Receipt not found' }, { status: 404 });
-    }
-
-    if (receiptCheck[0].status === 'FLZD') {
-      return NextResponse.json(
-        { error: 'Receipt is already finalized' },
-        { status: 400 }
-      );
     }
 
     // Validate that all purchase lines are assigned to at least one participant

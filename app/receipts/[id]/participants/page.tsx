@@ -94,10 +94,7 @@ export default function ParticipantsPage({ params }: { params: Promise<{ id: str
         setShareCode(receipt.shareCode);
         setParseStatus(receipt.status);
 
-        if (receipt.status === 'FLZD') {
-          setCheckingLines(false);
-          router.push(`/${receipt.shareCode}`);
-        } else if (receipt.status === 'DRFT') {
+        if (receipt.status === 'DRFT' || receipt.status === 'FLZD' || receipt.status === 'STLD') {
           setLinesReady(true);
           setCheckingLines(false);
         } else if (receipt.status === 'DLTD') {

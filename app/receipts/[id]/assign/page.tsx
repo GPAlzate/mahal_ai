@@ -89,12 +89,6 @@ export default function AssignPage({ params }: { params: Promise<{ id: string }>
       try {
         const splitGroup = await api.splitGroups.get(receiptId);
 
-        if (splitGroup.receipt.status === 'FLZD') {
-          setLoading(false);
-          router.push(`/${splitGroup.receipt.shareCode}`);
-          return;
-        }
-
         const lines = splitGroup.receipt.lines || [];
         setAllLines(lines);
         setParticipants(splitGroup.participants);

@@ -2,7 +2,7 @@ import { sql } from '@/lib/db';
 import { AssignLineParticipantRequest } from '@/lib/schemas/participant/request/AssignLineParticipantRequest';
 import { toLineParticipant, toLineParticipantDTO } from '@/lib/schemas/participant/dto/LineParticipantDTO';
 import { Logger } from '@/lib/utils/Logger';
-import { validateReceiptIsModifiable } from '@/lib/services/receiptValidation';
+import { validateReceiptExists } from '@/lib/services/receiptValidation';
 
 /**
  * Service for managing line participant assignments
@@ -77,9 +77,9 @@ export class LineParticipantService {
     receiptId: number,
     assignments: Array<{ receiptLineId: number; participantId: number; shareQuantity: number }>
   ) {
-    // Verify receipt exists and is not finalized (once, not per assignment)
+    // Verify receipt exists (once, not per assignment)
     this._logger.log(`Fetching receipt for receiptId ${receiptId}.`)
-    await validateReceiptIsModifiable(receiptId);
+    await validateReceiptExists(receiptId);
 
     // Group by receiptLineId so we can replace all assignments per line
     const byLine = new Map<number, typeof assignments>();
@@ -127,7 +127,6 @@ export class LineParticipantService {
   ) {
     const validation = await sql`
       SELECT
-        r.status AS receipt_status,
         rl.id AS line_id,
         p.id AS participant_id
       FROM receipts r
@@ -144,9 +143,6 @@ export class LineParticipantService {
 
     const check = validation[0];
 
-    if (check.receipt_status === 'FLZD') {
-      throw new Error('Cannot modify finalized receipt');
-    }
     if (!check.line_id) {
       throw new Error('Receipt line not found');
     }
@@ -173,8 +169,8 @@ export class LineParticipantService {
    * @returns Deleted line participant assignment
    */
   async unassignParticipant(receiptId: number, receiptLineId: number, participantId: number) {
-    // Verify receipt exists and is not finalized
-    await validateReceiptIsModifiable(receiptId);
+    // Verify receipt exists
+    await validateReceiptExists(receiptId);
 
     // Verify assignment exists
     const assignmentCheck = await sql`

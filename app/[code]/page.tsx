@@ -18,7 +18,7 @@ function formatGcashDisplay(raw: string): string {
 }
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@clerk/nextjs';
-import { CheckCircle2, Eye, MoreVertical, Trash2, X, Share2, HelpCircle } from 'lucide-react';
+import { CheckCircle2, Eye, MoreVertical, Pencil, Trash2, X, Share2, HelpCircle } from 'lucide-react';
 
 import Link from 'next/link';
 import { api } from '@/lib/client/api-client';
@@ -49,6 +49,7 @@ export default function ShareCodePage({ params }: { params: Promise<{ code: stri
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [showSettleConfirm, setShowSettleConfirm] = useState(false);
+  const [showEditWarning, setShowEditWarning] = useState(false);
   const [settling, setSettling] = useState(false);
   const [settledOverride, setSettledOverride] = useState(false);
   const [gcashInput, setGcashInput] = useState('');
@@ -82,6 +83,23 @@ export default function ShareCodePage({ params }: { params: Promise<{ code: stri
     : undefined;
   const myParticipantId = linkedParticipant?.participantId
     ?? (hasLocalClaim ? localClaimedParticipant.participantId : null);
+
+  // Payer excluded: they're auto-marked PAID for fronting the bill, so their
+  // status doesn't mean money was sent to them.
+  const paidParticipants = summary?.participantSplits.filter(
+    p => p.participantId !== summary.receipt.payerParticipantId
+      && (p.paymentStatus === 'PAID' || p.paymentStatus === 'PCIP')
+  ) ?? [];
+
+  const paidNames = paidParticipants.map(p => p.displayName);
+  let paidNamesLabel = '';
+  if (paidNames.length === 1) {
+    paidNamesLabel = paidNames[0];
+  } else if (paidNames.length === 2) {
+    paidNamesLabel = `${paidNames[0]} and ${paidNames[1]}`;
+  } else if (paidNames.length > 2) {
+    paidNamesLabel = `${paidNames[0]}, ${paidNames[1]} + ${paidNames.length - 2} more`;
+  }
 
 
   const dismissHelpModal = () => {
@@ -275,6 +293,18 @@ const handleSaveGcash = async () => {
                 <KebabMenu
                   className="z-50"
                   items={[
+                    {
+                      label: 'Edit Split',
+                      icon: <Pencil className="w-4 h-4 flex-shrink-0" />,
+                      onClick: () => {
+                        setShowKebabMenu(false);
+                        if (paidParticipants.length > 0) {
+                          setShowEditWarning(true);
+                        } else {
+                          router.push(`/receipts/${summary.receipt.id}/assign`);
+                        }
+                      },
+                    },
                     ...(summary.receipt.imageURI ? [{
                       label: 'View Receipt',
                       icon: <Eye className="w-4 h-4 flex-shrink-0" />,
@@ -615,6 +645,41 @@ const handleSaveGcash = async () => {
                 onClick={() => setShowSettleConfirm(false)}
                 disabled={settling}
                 className="w-full h-12 border-4 border-black rounded-lg font-dm-mono font-bold text-sm uppercase bg-white shadow-[2px_2px_0px_0px_#000] hover:bg-[#f3f3f3] active:translate-x-[2px] active:translate-y-[2px] active:shadow-none transition-all disabled:opacity-50"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* Edit-After-Payment Warning Bottom Sheet */}
+      {showEditWarning && (
+        <>
+          <div
+            className="fixed inset-0 z-[60] bg-black/50"
+            onClick={() => setShowEditWarning(false)}
+          />
+          <div className="fixed bottom-0 inset-x-0 z-[70] bg-white border-x-4 border-t-4 border-black rounded-t-xl max-w-lg mx-auto pb-[env(safe-area-inset-bottom)]">
+            <div className="flex flex-col items-center gap-2 px-5 pt-5 pb-4 border-b-4 border-black">
+              <div className="bg-[#FFD700] border-2 border-black w-10 h-10 flex items-center justify-center">
+                <Pencil className="w-5 h-5" strokeWidth={2.5} />
+              </div>
+              <h2 className="font-dm-sans font-black text-xl uppercase tracking-tight">Edit the split?</h2>
+              <p className="font-dm-mono text-[11px] text-center text-[#4d4732]">
+                {paidNamesLabel} already paid. Editing can change what people owe, so you may need to settle any difference yourselves.
+              </p>
+            </div>
+            <div className="px-5 pt-4 pb-6 flex flex-col gap-2">
+              <button
+                onClick={() => router.push(`/receipts/${summary.receipt.id}/assign`)}
+                className="w-full h-12 border-4 border-black rounded-lg font-dm-mono font-bold text-sm uppercase bg-[#FFD700] shadow-[4px_4px_0px_0px_#000] hover:bg-[#FFE44D] active:translate-x-[4px] active:translate-y-[4px] active:shadow-none transition-all"
+              >
+                Edit Anyway
+              </button>
+              <button
+                onClick={() => setShowEditWarning(false)}
+                className="w-full h-12 border-4 border-black rounded-lg font-dm-mono font-bold text-sm uppercase bg-white shadow-[2px_2px_0px_0px_#000] hover:bg-[#f3f3f3] active:translate-x-[2px] active:translate-y-[2px] active:shadow-none transition-all"
               >
                 Cancel
               </button>

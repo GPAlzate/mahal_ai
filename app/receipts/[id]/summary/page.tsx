@@ -46,12 +46,6 @@ export default function SummaryPage({ params }: { params: Promise<{ id: string }
       try {
         const data = await api.receipts.getSummary(receiptId);
 
-        if (data.receipt.status === 'FLZD') {
-          setLoading(false);
-          router.push(`/${data.receipt.shareCode}`);
-          return;
-        }
-
         setSummary(data);
         setLoading(false);
 
@@ -155,6 +149,10 @@ export default function SummaryPage({ params }: { params: Promise<{ id: string }
       </div>
     );
   }
+
+  const alreadyFinalized = summary.receipt.status === 'FLZD' || summary.receipt.status === 'STLD';
+  const finalizeLabel = alreadyFinalized ? 'Save & View Split →' : 'Finalize Receipt →';
+  const finalizeBusyLabel = alreadyFinalized ? 'Saving...' : 'Finalizing...';
 
   return (
     <div className="min-h-dvh flex flex-col bg-[#fff9ef] text-[#1b1b1b] pb-[196px]">
@@ -280,7 +278,7 @@ export default function SummaryPage({ params }: { params: Promise<{ id: string }
           disabled={finalizing}
           className="w-full h-16 border-[4px] border-black rounded-lg font-dm-mono font-bold text-base uppercase bg-[#FFD700] text-black shadow-[4px_4px_0px_0px_#000] hover:bg-[#FFE44D] active:translate-x-[4px] active:translate-y-[4px] active:shadow-none transition-all disabled:opacity-50 disabled:cursor-not-allowed"
         >
-          {finalizing ? 'Finalizing...' : 'Finalize Receipt →'}
+          {finalizing ? finalizeBusyLabel : finalizeLabel}
         </button>
         {summary.receipt.imageURI && summary.receipt.lines && summary.receipt.lines.length > 0 ? (
           <button

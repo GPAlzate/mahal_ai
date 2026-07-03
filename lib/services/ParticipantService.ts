@@ -2,7 +2,7 @@ import { sql } from '@/lib/db';
 import { CreateParticipantRequest } from '@/lib/schemas/participant/request/CreateParticipantRequest';
 import { UpdateParticipantRequest } from '@/lib/schemas/participant/request/UpdateParticipantRequest';
 import { toParticipant, toParticipantDTO } from '@/lib/schemas/participant/dto/ParticipantDTO';
-import { validateReceiptIsModifiable } from '@/lib/services/receiptValidation';
+import { validateReceiptExists } from '@/lib/services/receiptValidation';
 import { PaymentStatus } from '@/lib/schemas/participant/public/PaymentStatus';
 
 /**
@@ -45,7 +45,7 @@ export class ParticipantService {
     receiptId: number,
     createParticipantsRequest: CreateParticipantRequest[]
   ) {
-    await validateReceiptIsModifiable(receiptId);
+    await validateReceiptExists(receiptId);
 
     if (createParticipantsRequest.length === 0) {
       return [];
@@ -84,8 +84,8 @@ export class ParticipantService {
     participantId: number,
     participantData: UpdateParticipantRequest
   ) {
-    // Verify receipt exists and is not finalized
-    await validateReceiptIsModifiable(receiptId);
+    // Verify receipt exists
+    await validateReceiptExists(receiptId);
 
     // Verify participant exists and belongs to receipt
     const participantCheck = await sql`
@@ -114,8 +114,8 @@ export class ParticipantService {
    * @returns Deleted participant
    */
   async deleteParticipant(receiptId: number, participantId: number) {
-    // Verify receipt exists and is not finalized
-    await validateReceiptIsModifiable(receiptId);
+    // Verify receipt exists
+    await validateReceiptExists(receiptId);
 
     // Verify participant exists and belongs to receipt
     const participantCheck = await sql`

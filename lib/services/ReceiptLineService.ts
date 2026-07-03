@@ -2,7 +2,7 @@ import { sql } from '@/lib/db';
 import { CreateReceiptLineRequest } from '@/lib/schemas/receipt/request/CreateReceiptLineRequest';
 import { UpdateReceiptLineRequest } from '@/lib/schemas/receipt/request/UpdateReceiptLineRequest';
 import { toReceiptLine, toReceiptLineDTO } from '@/lib/schemas/receipt/dto/ReceiptLineDTO';
-import { validateReceiptIsModifiable } from '@/lib/services/receiptValidation';
+import { validateReceiptExists } from '@/lib/services/receiptValidation';
 
 /**
  * Service for managing receipt lines
@@ -31,8 +31,8 @@ export class ReceiptLineService {
    * @returns Created receipt line
    */
   async createReceiptLine(receiptId: number, lineData: CreateReceiptLineRequest) {
-    // Verify receipt exists and is not finalized
-    await validateReceiptIsModifiable(receiptId);
+    // Verify receipt exists
+    await validateReceiptExists(receiptId);
 
     const position = lineData.linePosition ?? null;
     const result = await sql`
@@ -74,8 +74,8 @@ export class ReceiptLineService {
     lineId: number,
     lineData: UpdateReceiptLineRequest
   ) {
-    // Verify receipt exists and is not finalized
-    await validateReceiptIsModifiable(receiptId);
+    // Verify receipt exists
+    await validateReceiptExists(receiptId);
 
     // Verify line exists and belongs to receipt
     const lineCheck = await sql`
@@ -140,8 +140,8 @@ export class ReceiptLineService {
    * @returns Deleted receipt line
    */
   async deleteReceiptLine(receiptId: number, lineId: number) {
-    // Verify receipt exists and is not finalized
-    await validateReceiptIsModifiable(receiptId);
+    // Verify receipt exists
+    await validateReceiptExists(receiptId);
 
     // Verify line exists and belongs to receipt
     const lineCheck = await sql`

@@ -5,7 +5,7 @@ export interface ReceiptRow {
   status: string;
 }
 
-export async function validateReceiptIsModifiable(receiptId: number): Promise<ReceiptRow> {
+export async function validateReceiptExists(receiptId: number): Promise<ReceiptRow> {
   const receipt = await sql`
     SELECT id, status FROM receipts
     WHERE id = ${receiptId} AND deleted_at IS NULL
@@ -13,10 +13,6 @@ export async function validateReceiptIsModifiable(receiptId: number): Promise<Re
 
   if (!receipt || receipt.length === 0) {
     throw new Error('Receipt not found');
-  }
-
-  if (receipt[0].status === 'FLZD') {
-    throw new Error('Cannot modify finalized receipt');
   }
 
   return receipt[0] as ReceiptRow;
