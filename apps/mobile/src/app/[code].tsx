@@ -1,7 +1,7 @@
 import { api } from '@mahal/shared/client/api-client';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { ActivityIndicator } from 'react-native';
+import { ActivityIndicator, View } from 'react-native';
 
 import { Header, Muted, Screen } from '@/components/ui';
 
@@ -50,7 +50,9 @@ export default function ShareCodeScreen() {
     <Screen>
       <Header title={code ? code.toUpperCase() : 'Receipt'} />
       {error ? (
-        <Muted className="mt-6 text-center">{error}</Muted>
+        <View className="mt-6 items-center">
+          <Muted>{error}</Muted>
+        </View>
       ) : (
         <ActivityIndicator className="mt-6" />
       )}

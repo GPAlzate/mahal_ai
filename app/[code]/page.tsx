@@ -225,6 +225,17 @@ const handleSaveGcash = async () => {
     setTimeout(() => setGcashCopied(false), 2000);
   };
 
+  const handleEditSplit = () => {
+    if (!summary) {
+      return;
+    }
+    if (paidParticipants.length > 0) {
+      setShowEditWarning(true);
+    } else {
+      router.push(`/receipts/${summary.receipt.id}/assign`);
+    }
+  };
+
   const handleDelete = async () => {
     if (!summary) {
       return;
@@ -293,18 +304,6 @@ const handleSaveGcash = async () => {
                 <KebabMenu
                   className="z-50"
                   items={[
-                    {
-                      label: 'Edit Split',
-                      icon: <Pencil className="w-4 h-4 flex-shrink-0" />,
-                      onClick: () => {
-                        setShowKebabMenu(false);
-                        if (paidParticipants.length > 0) {
-                          setShowEditWarning(true);
-                        } else {
-                          router.push(`/receipts/${summary.receipt.id}/assign`);
-                        }
-                      },
-                    },
                     ...(summary.receipt.imageURI ? [{
                       label: 'View Receipt',
                       icon: <Eye className="w-4 h-4 flex-shrink-0" />,
@@ -447,24 +446,32 @@ const handleSaveGcash = async () => {
           <SaveSplitsNudge claimedName={hasLocalClaim ? localClaimedParticipant.displayName : undefined} />
         </div>
 
-        {isReceiptPayer && (
-          <div className="mt-6 border-t-4 border-black pt-5 flex flex-col gap-2">
+        <div className="mt-6 border-t-4 border-black pt-5 flex flex-col gap-2">
+          {isReceiptPayer && (
             <span className="font-dm-mono text-[9px] font-bold uppercase tracking-widest text-[#7e775f]">Owner actions</span>
-            {settled ? (
-              <div className="w-full h-12 border-4 border-black flex items-center justify-center gap-2 bg-[#8ed4a3]">
-                <CheckCircle2 className="w-4 h-4" strokeWidth={2.5} />
-                <span className="font-dm-mono font-bold text-sm uppercase tracking-widest">Receipt Settled</span>
-              </div>
-            ) : (
-              <button
-                onClick={() => setShowSettleConfirm(true)}
-                className="w-full h-12 border-4 border-black font-dm-mono font-bold text-sm uppercase bg-white text-black shadow-[4px_4px_0px_0px_#000] hover:bg-[#f3f3f3] active:translate-x-[4px] active:translate-y-[4px] active:shadow-none transition-all"
-              >
-                Mark as Settled
-              </button>
-            )}
-          </div>
-        )}
+          )}
+          <button
+            onClick={handleEditSplit}
+            className="w-full h-12 border-4 border-black flex items-center justify-center gap-2 font-dm-mono font-bold text-sm uppercase bg-white text-black shadow-[4px_4px_0px_0px_#000] hover:bg-[#f3f3f3] active:translate-x-[4px] active:translate-y-[4px] active:shadow-none transition-all"
+          >
+            <Pencil className="w-4 h-4" strokeWidth={2.5} />
+            Edit Split
+          </button>
+          {isReceiptPayer && settled && (
+            <div className="w-full h-12 border-4 border-black flex items-center justify-center gap-2 bg-[#8ed4a3]">
+              <CheckCircle2 className="w-4 h-4" strokeWidth={2.5} />
+              <span className="font-dm-mono font-bold text-sm uppercase tracking-widest">Receipt Settled</span>
+            </div>
+          )}
+          {isReceiptPayer && !settled && (
+            <button
+              onClick={() => setShowSettleConfirm(true)}
+              className="w-full h-12 border-4 border-black font-dm-mono font-bold text-sm uppercase bg-white text-black shadow-[4px_4px_0px_0px_#000] hover:bg-[#f3f3f3] active:translate-x-[4px] active:translate-y-[4px] active:shadow-none transition-all"
+            >
+              Mark as Settled
+            </button>
+          )}
+        </div>
 
         <div className="h-8" />
       </div>
