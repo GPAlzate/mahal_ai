@@ -11,6 +11,16 @@ interface Participant {
 
 type SplitModeId = 'equal' | 'pieces' | 'shares';
 
+// The split options offered in the picker, in display order.
+// To remove an option from the app, comment out its line here — the code for it
+// stays intact below. 'pieces' is additionally gated to whole-number quantities
+// ≥ 2 at runtime (see canSplitByPiece), since the piece UI needs discrete units.
+const ENABLED_SPLIT_MODES: SplitModeId[] = [
+  'equal',
+  'pieces',
+  'shares',
+];
+
 const SPLIT_MODE_LABELS: Record<SplitModeId, string> = {
   equal: 'equal',
   pieces: 'by piece',
@@ -69,12 +79,9 @@ export function ParticipantAssignModal({
   const canSplitByPiece =
     !!line && !equalSplitOnly && Number.isInteger(line.quantity) && line.quantity >= 2;
 
-  // The split options offered in the picker, in display order. Lines with
-  // discrete units get "by piece"; the rest (single items, fractional
-  // quantities) get "shares", the only way to express an unequal split there.
-  const enabledModes: SplitModeId[] = canSplitByPiece
-    ? ['equal', 'pieces']
-    : ['equal', 'shares'];
+  const enabledModes = ENABLED_SPLIT_MODES.filter(mode =>
+    mode === 'pieces' ? canSplitByPiece : true
+  );
 
   useEffect(() => {
     if (line) {
