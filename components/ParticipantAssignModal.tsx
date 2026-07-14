@@ -11,21 +11,6 @@ interface Participant {
 
 type SplitModeId = 'equal' | 'pieces' | 'shares';
 
-// The split options offered in the picker, in display order.
-// To remove an option from the app, comment out its line here — the code for it
-// stays intact below. 'pieces' is additionally gated to whole-number quantities
-// ≥ 2 at runtime (see canSplitByPiece).
-//
-// TODO(shares-trial 2026-06): 'shares' is commented out to observe whether
-// EQUAL + BY PIECE cover real usage. A pre-existing unequal split still
-// auto-selects shares (so legacy data renders and stays editable), which is why
-// the active mode is always shown even when it's disabled here.
-const ENABLED_SPLIT_MODES: SplitModeId[] = [
-  'equal',
-  'pieces',
-  // 'shares',
-];
-
 const SPLIT_MODE_LABELS: Record<SplitModeId, string> = {
   equal: 'equal',
   pieces: 'by piece',
@@ -83,6 +68,13 @@ export function ParticipantAssignModal({
   // "By piece" only makes sense for a whole-numbered quantity of 2 or more.
   const canSplitByPiece =
     !!line && !equalSplitOnly && Number.isInteger(line.quantity) && line.quantity >= 2;
+
+  // The split options offered in the picker, in display order. Lines with
+  // discrete units get "by piece"; the rest (single items, fractional
+  // quantities) get "shares", the only way to express an unequal split there.
+  const enabledModes: SplitModeId[] = canSplitByPiece
+    ? ['equal', 'pieces']
+    : ['equal', 'shares'];
 
   useEffect(() => {
     if (line) {
@@ -160,12 +152,10 @@ export function ParticipantAssignModal({
     applyPieces(next);
   };
 
-  const enabledModes = ENABLED_SPLIT_MODES.filter(mode =>
-    mode === 'pieces' ? canSplitByPiece : true
-  );
-  // Always surface the active mode, even if it's been disabled above — otherwise a
-  // line that auto-selected a disabled mode (e.g. legacy shares data) would show
-  // an empty picker and risk being silently flattened.
+  // Always surface the active mode, even if it isn't offered for this line —
+  // otherwise a multi-quantity line with pre-existing unequal shares would
+  // auto-select a mode missing from the picker and risk being silently
+  // flattened.
   const splitModes = enabledModes.includes(splitMode)
     ? enabledModes
     : [...enabledModes, splitMode];
