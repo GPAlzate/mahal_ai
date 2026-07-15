@@ -30,6 +30,7 @@ import { KebabMenu } from '@/components/KebabMenu';
 import { ShareCodeBadge } from '@/components/ShareCodeBadge';
 import { SaveSplitsNudge } from '@/components/SaveSplitsNudge';
 import { ClaimParticipantStrip } from '@/components/ClaimParticipantStrip';
+import { NotificationOptIn } from '@/components/NotificationOptIn';
 import { getLocalClaim, clearLocalClaim } from '@/lib/client/localClaim';
 import { formatCurrency } from '@/lib/helpers/CurrencyHelper';
 
@@ -439,6 +440,13 @@ const handleSaveGcash = async () => {
               setLocalClaimId(getLocalClaim(summary.receipt.id));
               setRefreshKey(k => k + 1);
             }}
+          />
+        )}
+
+        {!settled && (myParticipantId !== null || isOwner || isReceiptPayer) && (
+          <NotificationOptIn
+            participantId={myParticipantId}
+            isCollector={isOwner || isReceiptPayer}
           />
         )}
 

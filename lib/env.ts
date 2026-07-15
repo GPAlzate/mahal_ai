@@ -57,3 +57,31 @@ export function getClerkSecretKey(): string {
 export function getAdminUserId(): string {
   return getEnvVar('NEXT_PUBLIC_ADMIN_USER_ID', false) ?? '';
 }
+
+/**
+ * Retrieves the VAPID public key for web push (client-safe)
+ */
+export function getVapidPublicKey(): string {
+  return getEnvVar('NEXT_PUBLIC_VAPID_PUBLIC_KEY') as string;
+}
+
+/**
+ * Retrieves the VAPID private key for web push (server-only)
+ */
+export function getVapidPrivateKey(): string {
+  return getEnvVar('VAPID_PRIVATE_KEY') as string;
+}
+
+/**
+ * Retrieves the VAPID subject (mailto: or https: URL identifying the sender)
+ */
+export function getVapidSubject(): string {
+  return getEnvVar('VAPID_SUBJECT') as string;
+}
+
+/**
+ * Shared secret protecting /api/cron/* endpoints
+ */
+export function getCronSecret(): string {
+  return getEnvVar('CRON_SECRET') as string;
+}

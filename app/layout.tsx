@@ -3,6 +3,7 @@ import "./globals.css";
 import { DM_Sans, DM_Mono } from "next/font/google";
 import { ClerkProvider } from "@clerk/nextjs";
 import { BottomTabBar } from "@/components/BottomTabBar";
+import { ServiceWorkerRegistrar } from "@/components/ServiceWorkerRegistrar";
 
 const dmSans = DM_Sans({ subsets: ["latin"], variable: "--font-dm-sans" });
 const dmMono = DM_Mono({ subsets: ["latin"], weight: ["400", "500"], variable: "--font-dm-mono" });
@@ -37,6 +38,7 @@ export default function RootLayout({
         <body className={`${dmSans.variable} ${dmMono.variable}`}>
           {children}
           <BottomTabBar />
+          <ServiceWorkerRegistrar />
         </body>
       </html>
     </ClerkProvider>

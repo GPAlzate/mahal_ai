@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { after } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
 import { sql } from '@/lib/db';
 import { participantService } from '@/lib/services/ParticipantService';
+import { pushNotificationService } from '@/lib/services/PushNotificationService';
 import { BatchCreateParticipantsRequestSchema } from '@/lib/schemas/participant/request/CreateParticipantRequest';
 
 /**
@@ -110,6 +112,35 @@ export async function POST(
       receiptId,
       sanitized
     );
+
+    // Notify registered users who were added to the split by someone else
+    const addedUserIds = sanitized
+      .map((p) => p.userId)
+      .filter((uid): uid is string => !!uid && uid !== authedUserId);
+
+    if (addedUserIds.length > 0) {
+      after(async () => {
+        try {
+          const receiptRows = await sql`
+            SELECT title, share_code FROM receipts WHERE id = ${receiptId} AND deleted_at IS NULL
+          `;
+          if (receiptRows.length === 0) {
+            return;
+          }
+          const actorName = authedUserId
+            ? await pushNotificationService.resolveActorName(receiptId, authedUserId)
+            : null;
+          await pushNotificationService.notifyAddedToReceipt({
+            userIds: addedUserIds,
+            actorName,
+            receiptTitle: receiptRows[0].title,
+            shareCode: receiptRows[0].share_code,
+          });
+        } catch (error) {
+          console.error('Failed to send added-to-receipt notifications:', error);
+        }
+      });
+    }
 
     return NextResponse.json(participants, { status: 201 });
   } catch (error) {

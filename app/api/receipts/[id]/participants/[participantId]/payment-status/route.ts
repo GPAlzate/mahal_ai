@@ -1,11 +1,41 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { after } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
 import { sql } from '@/lib/db';
 import { participantService } from '@/lib/services/ParticipantService';
+import { pushNotificationService } from '@/lib/services/PushNotificationService';
+import { receiptSummaryService } from '@/lib/services/ReceiptSummaryService';
 import { toParticipant, toParticipantDTO } from '@/lib/schemas/participant/dto/ParticipantDTO';
 import { PaymentStatusSchema } from '@/lib/schemas/participant/public/PaymentStatus';
 
-async function markPaid(receiptId: number, participantId: number) {
+async function getReceiptContext(receiptId: number) {
+  const rows = await sql`
+    SELECT r.title, r.share_code, r.owner_id, r.payer_participant_id,
+           payer.user_id AS payer_user_id
+    FROM receipts r
+    LEFT JOIN participants payer ON payer.id = r.payer_participant_id AND payer.deleted_at IS NULL
+    WHERE r.id = ${receiptId} AND r.deleted_at IS NULL
+  `;
+  return rows[0] ?? null;
+}
+
+async function getParticipantAmount(receiptId: number, participantId: number): Promise<number | null> {
+  try {
+    const summary = await receiptSummaryService.calculateSummary(receiptId);
+    return summary.participantSplits.find((s) => s.participantId === participantId)?.total ?? null;
+  } catch {
+    return null;
+  }
+}
+
+async function markPaid(
+  receiptId: number,
+  participantId: number,
+  actorUserId: string | null,
+  // False when the participant themselves triggered it (auto-PAID path):
+  // telling someone their own payment "was confirmed" is noise.
+  notifyConfirmed = true
+) {
   const updated = await sql`
     WITH upd AS (
       UPDATE participants
@@ -25,9 +55,45 @@ async function markPaid(receiptId: number, participantId: number) {
     return NextResponse.json({ error: 'Participant not found' }, { status: 404 });
   }
 
-  if (Number(updated[0].unpaid_count) === 0) {
+  const nowSettled = Number(updated[0].unpaid_count) === 0;
+  if (nowSettled) {
     await sql`UPDATE receipts SET status = 'STLD', updated_at = NOW() WHERE id = ${receiptId}`;
   }
+
+  after(async () => {
+    try {
+      const receipt = await getReceiptContext(receiptId);
+      if (!receipt) {
+        return;
+      }
+
+      if (notifyConfirmed) {
+        const amount = await getParticipantAmount(receiptId, participantId);
+        await pushNotificationService.notifyPaymentConfirmed({
+          participantId,
+          amount,
+          receiptTitle: receipt.title,
+          shareCode: receipt.share_code,
+          excludeUserId: actorUserId,
+        });
+      }
+
+      if (nowSettled) {
+        const participantRows = await sql`
+          SELECT id FROM participants WHERE receipt_id = ${receiptId} AND deleted_at IS NULL
+        `;
+        await pushNotificationService.notifySettled({
+          participantIds: participantRows.map((p) => Number(p.id)),
+          ownerId: receipt.owner_id,
+          receiptTitle: receipt.title,
+          shareCode: receipt.share_code,
+          excludeUserId: actorUserId,
+        });
+      }
+    } catch (error) {
+      console.error('Failed to send payment notifications:', error);
+    }
+  });
 
   return NextResponse.json(toParticipant(toParticipantDTO(updated[0])), { status: 200 });
 }
@@ -91,7 +157,7 @@ export async function PATCH(
         return NextResponse.json({ error: 'Only the receipt owner or collector can confirm payments' }, { status: 403 });
       }
 
-      return markPaid(receiptId, participantIdNum);
+      return markPaid(receiptId, participantIdNum, userId);
     }
 
     if (newStatus === 'PCIP') {
@@ -106,9 +172,10 @@ export async function PATCH(
         return NextResponse.json({ error: 'Receipt not found' }, { status: 404 });
       }
 
-      // Payer has no account — no one can confirm, so go straight to PAID
+      // Payer has no account — no one can confirm, so go straight to PAID.
+      // The participant triggered this themselves, so skip the "confirmed" push.
       if (!receiptCheck[0].payer_user_id) {
-        return markPaid(receiptId, participantIdNum);
+        return markPaid(receiptId, participantIdNum, null, false);
       }
     }
 
@@ -117,6 +184,34 @@ export async function PATCH(
       participantIdNum,
       newStatus
     );
+
+    // "X marked their share as paid" — tell whoever can confirm (payer/owner)
+    if (newStatus === 'PCIP') {
+      after(async () => {
+        try {
+          const receipt = await getReceiptContext(receiptId);
+          if (!receipt) {
+            return;
+          }
+          const recipients = [receipt.payer_user_id, receipt.owner_id].filter(
+            (uid, index, all): uid is string => !!uid && all.indexOf(uid) === index
+          );
+          if (recipients.length === 0) {
+            return;
+          }
+          const amount = await getParticipantAmount(receiptId, participantIdNum);
+          await pushNotificationService.notifyPaymentClaimed({
+            userIds: recipients,
+            participantName: participant.displayName,
+            amount,
+            receiptTitle: receipt.title,
+            shareCode: receipt.share_code,
+          });
+        } catch (error) {
+          console.error('Failed to send payment-claimed notification:', error);
+        }
+      });
+    }
 
     return NextResponse.json(participant, { status: 200 });
   } catch (error) {

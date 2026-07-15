@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { after } from 'next/server';
+import { auth } from '@clerk/nextjs/server';
 import { sql } from '@/lib/db';
 import { receiptSummaryService } from '@/lib/services/ReceiptSummaryService';
+import { pushNotificationService } from '@/lib/services/PushNotificationService';
 
 /**
  * PUT /api/receipts/[id]/finalize
@@ -53,6 +56,28 @@ export async function PUT(
 
     // Calculate and return summary
     const summary = await receiptSummaryService.calculateSummary(receiptId);
+
+    // "Your total is ready" — only on the first finalization; re-finalizing
+    // an already-finalized receipt just refreshes the summary.
+    if (receiptCheck[0].status !== 'FLZD') {
+      const { userId } = await auth();
+      after(async () => {
+        try {
+          await pushNotificationService.notifyTotalsReady({
+            splits: summary.participantSplits.map((s) => ({
+              participantId: s.participantId,
+              total: s.total,
+            })),
+            receiptTitle: summary.receipt.title ?? null,
+            shareCode: summary.receipt.shareCode,
+            payerParticipantId: summary.receipt.payerParticipantId ?? null,
+            excludeUserId: userId,
+          });
+        } catch (error) {
+          console.error('Failed to send totals-ready notifications:', error);
+        }
+      });
+    }
 
     return NextResponse.json(summary, { status: 200 });
   } catch (error) {

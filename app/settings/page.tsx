@@ -5,6 +5,13 @@ import { useRouter } from 'next/navigation';
 import { useAuth } from '@clerk/nextjs';
 import { ArrowLeft, Loader2, Check } from 'lucide-react';
 import { api } from '@/lib/client/api-client';
+import {
+  getPushSupport,
+  getExistingSubscription,
+  subscribeToPush,
+  unsubscribeFromPush,
+  type PushSupport,
+} from '@/lib/client/push';
 
 interface UserProfile {
   username: string | null;
@@ -32,7 +39,32 @@ export default function SettingsPage() {
   const [error, setError] = useState<string | null>(null);
   const [phoneDisplay, setPhoneDisplay] = useState('');
   const [phoneError, setPhoneError] = useState('');
+  const [pushSupport, setPushSupport] = useState<PushSupport>('unsupported');
+  const [pushEnabled, setPushEnabled] = useState(false);
+  const [pushBusy, setPushBusy] = useState(false);
   const usernameCheckTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    setPushSupport(getPushSupport());
+    getExistingSubscription().then((subscription) => setPushEnabled(!!subscription));
+  }, []);
+
+  const handlePushToggle = async () => {
+    setPushBusy(true);
+    try {
+      if (pushEnabled) {
+        await unsubscribeFromPush();
+        setPushEnabled(false);
+      } else {
+        const ok = await subscribeToPush();
+        setPushEnabled(ok);
+      }
+    } catch {
+      // leave state as-is; user can retry
+    } finally {
+      setPushBusy(false);
+    }
+  };
 
   useEffect(() => {
     if (!isLoaded) {
@@ -285,6 +317,36 @@ export default function SettingsPage() {
                 </div>
               </div>
             </div>
+
+            {pushSupport !== 'unsupported' && (
+              <div className="flex flex-col gap-1">
+                <p className={sectionLabelClass}>Notifications</p>
+                <div className="border-2 border-black rounded-xl overflow-hidden bg-white shadow-[2px_2px_0px_0px_#000]">
+                  <div className={rowClass}>
+                    <div className="flex flex-col gap-0.5 min-w-0">
+                      <span className="font-dm-mono text-xs font-bold uppercase tracking-widest text-black">This device</span>
+                      <span className="font-dm-mono text-[10px] text-[#4d4732]">
+                        {pushSupport === 'needs-install'
+                          ? 'Add mahal to your home screen to turn these on'
+                          : 'Pings when receipts, payments, and splits move'}
+                      </span>
+                    </div>
+                    {pushSupport === 'supported' && (
+                      <button
+                        type="button"
+                        onClick={handlePushToggle}
+                        disabled={pushBusy}
+                        className={`h-9 px-4 border-2 border-black rounded-lg font-dm-mono font-bold text-[11px] uppercase tracking-widest shadow-[2px_2px_0px_0px_#000] active:translate-x-[2px] active:translate-y-[2px] active:shadow-none transition-all disabled:opacity-50 disabled:cursor-not-allowed flex-shrink-0 ${
+                          pushEnabled ? 'bg-[#b5ead7]' : 'bg-white hover:bg-[#fff9ef]'
+                        }`}
+                      >
+                        {pushBusy ? '...' : pushEnabled ? 'On' : 'Off'}
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
 
             {error && (
               <p className="font-dm-mono text-xs font-bold text-red-600 uppercase tracking-wider px-1">{error}</p>

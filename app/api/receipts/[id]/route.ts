@@ -1,5 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { after } from 'next/server';
+import { auth } from '@clerk/nextjs/server';
+import { sql } from '@/lib/db';
 import { receiptService } from '@/lib/services/ReceiptService';
+import { pushNotificationService } from '@/lib/services/PushNotificationService';
 import { ReceiptStatusSchema } from '@/lib/schemas/receipt/public/Receipt';
 
 /**
@@ -105,6 +109,26 @@ export async function PATCH(
 
     if (parsed.data === 'STLD') {
       const receipt = await receiptService.settleReceipt(receiptId);
+
+      // "Fully settled" — the group's closing moment
+      const { userId } = await auth();
+      after(async () => {
+        try {
+          const participantRows = await sql`
+            SELECT id FROM participants WHERE receipt_id = ${receiptId} AND deleted_at IS NULL
+          `;
+          await pushNotificationService.notifySettled({
+            participantIds: participantRows.map((p) => Number(p.id)),
+            ownerId: receipt.ownerId ?? null,
+            receiptTitle: receipt.title ?? null,
+            shareCode: receipt.shareCode,
+            excludeUserId: userId,
+          });
+        } catch (error) {
+          console.error('Failed to send settled notifications:', error);
+        }
+      });
+
       return NextResponse.json(receipt, { status: 200 });
     }
 

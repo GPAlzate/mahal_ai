@@ -40,6 +40,7 @@ export default function ParticipantsPage({ params }: { params: Promise<{ id: str
   const [receiptTitle, setReceiptTitle] = useState('');
   const [shareCode, setShareCode] = useState<string | null>(null);
 
+  const [myProfile, setMyProfile] = useState<{ username: string | null; displayName: string | null } | null>(null);
   const [searchResults, setSearchResults] = useState<UserSearchResult[]>([]);
   const [searching, setSearching] = useState(false);
   const searchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -50,8 +51,8 @@ export default function ParticipantsPage({ params }: { params: Promise<{ id: str
   const trimmedInput = participantName.trim();
   const showDropdown = !!user && trimmedInput.length >= 1 && (searching || searchResults.length > 0 || trimmedInput.length >= 2);
 
-  const myName = user?.fullName ?? user?.firstName ?? '';
-  const myShortName = user?.firstName ?? myName;
+  const myName = myProfile?.displayName ?? user?.fullName ?? user?.firstName ?? '';
+  const myShortName = myProfile?.displayName ?? user?.firstName ?? myName;
   const alreadyAdded = !!user && participants.some((p) => p.userId === user.id);
   const canAddMe = !!user && !alreadyAdded && !!myName;
 
@@ -59,8 +60,23 @@ export default function ParticipantsPage({ params }: { params: Promise<{ id: str
     if (!user || !myName) {
       return;
     }
-    setParticipants((prev) => [...prev, { tempId: `creator-${user.id}`, displayName: myName, userId: user.id }]);
+    setParticipants((prev) => [
+      ...prev,
+      {
+        tempId: `creator-${user.id}`,
+        displayName: myName,
+        userId: user.id,
+        ...(myProfile?.username ? { username: myProfile.username } : {}),
+      },
+    ]);
   };
+
+  useEffect(() => {
+    if (!user) {
+      return;
+    }
+    api.user.get().then(setMyProfile).catch(() => {});
+  }, [user]);
 
   useEffect(() => {
     if (participantsInitialized.current) {
