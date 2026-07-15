@@ -1,4 +1,4 @@
--- Web push notifications: device subscriptions, nudge log, unclaimed-items reminder tracking
+-- Web push notifications: device subscriptions, nudge log
 
 -- One row per browser push subscription. A subscription belongs to a signed-in
 -- user (user_id), an anonymous participant on one receipt (participant_id), or
@@ -28,7 +28,3 @@ CREATE TABLE public.nudges (
 );
 
 CREATE INDEX idx_nudges_receipt_participant ON public.nudges (receipt_id, participant_id, created_at DESC);
-
--- One-shot "items still unclaimed" reminder per receipt.
-ALTER TABLE public.receipts
-    ADD COLUMN unclaimed_reminder_sent_at timestamp without time zone;

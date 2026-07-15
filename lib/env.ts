@@ -78,10 +78,3 @@ export function getVapidPrivateKey(): string {
 export function getVapidSubject(): string {
   return getEnvVar('VAPID_SUBJECT') as string;
 }
-
-/**
- * Shared secret protecting /api/cron/* endpoints
- */
-export function getCronSecret(): string {
-  return getEnvVar('CRON_SECRET') as string;
-}
