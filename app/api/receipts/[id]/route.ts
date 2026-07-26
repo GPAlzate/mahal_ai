@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { after } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
 import { sql } from '@/lib/db';
+import { guardReceipt } from '@/lib/server/receiptAuth';
 import { receiptService } from '@/lib/services/ReceiptService';
 import { pushNotificationService } from '@/lib/services/PushNotificationService';
 import { ReceiptStatusSchema } from '@/lib/schemas/receipt/public/Receipt';
@@ -34,6 +35,12 @@ export async function GET(
 
     if (isNaN(receiptId)) {
       return NextResponse.json({ error: 'Invalid receipt ID' }, { status: 400 });
+    }
+
+    const gate = await guardReceipt(request, receiptId, 'read');
+
+    if (!gate.ok) {
+      return gate.response;
     }
 
     const { searchParams } = new URL(request.url);
@@ -72,6 +79,12 @@ export async function PATCH(
       return NextResponse.json({ error: 'Invalid receipt ID' }, { status: 400 });
     }
 
+    const gate = await guardReceipt(request, receiptId, 'write');
+
+    if (!gate.ok) {
+      return gate.response;
+    }
+
     const body = await request.json();
 
     if (body.title !== undefined) {
@@ -83,6 +96,14 @@ export async function PATCH(
     }
 
     if (body.gcashNumber !== undefined) {
+      // This is where people are told to send money, so holding the share link
+      // is not enough — only the owner or the payer may change it.
+      const manageGate = await guardReceipt(request, receiptId, 'manage');
+
+      if (!manageGate.ok) {
+        return manageGate.response;
+      }
+
       const val = body.gcashNumber === null ? null : String(body.gcashNumber);
       const receipt = await receiptService.updateGcashNumber(receiptId, val);
       return NextResponse.json(receipt, { status: 200 });
@@ -108,6 +129,13 @@ export async function PATCH(
     }
 
     if (parsed.data === 'STLD') {
+      // Declaring the split closed is the collector's call, not any link holder's.
+      const manageGate = await guardReceipt(request, receiptId, 'manage');
+
+      if (!manageGate.ok) {
+        return manageGate.response;
+      }
+
       const receipt = await receiptService.settleReceipt(receiptId);
 
       // "Fully settled" — the group's closing moment

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { guardReceipt } from '@/lib/server/receiptAuth';
 import { lineParticipantService } from '@/lib/services/LineParticipantService';
 import { AssignLineParticipantRequestSchema } from '@/lib/schemas/participant/request/AssignLineParticipantRequest';
 
@@ -20,11 +21,18 @@ export async function GET(
   { params }: { params: Promise<{ id: string; lineId: string }> }
 ) {
   try {
-    const { lineId } = await params;
+    const { id, lineId } = await params;
+    const receiptId = +id;
     const receiptLineId = +lineId;
 
-    if (isNaN(receiptLineId)) {
-      return NextResponse.json({ error: 'Invalid receipt line ID' }, { status: 400 });
+    if (isNaN(receiptId) || isNaN(receiptLineId)) {
+      return NextResponse.json({ error: 'Invalid receipt ID or line ID' }, { status: 400 });
+    }
+
+    const gate = await guardReceipt(request, receiptId, 'read');
+
+    if (!gate.ok) {
+      return gate.response;
     }
 
     const assignments = await lineParticipantService.getLineAssignments(receiptLineId);
@@ -67,6 +75,12 @@ export async function POST(
 
     if (isNaN(receiptId) || isNaN(receiptLineId)) {
       return NextResponse.json({ error: 'Invalid receipt ID or line ID' }, { status: 400 });
+    }
+
+    const gate = await guardReceipt(request, receiptId, 'write');
+
+    if (!gate.ok) {
+      return gate.response;
     }
 
     const body = await request.json();

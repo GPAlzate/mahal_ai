@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { guardReceipt } from '@/lib/server/receiptAuth';
 import { lineParticipantService } from '@/lib/services/LineParticipantService';
 
 /**
@@ -27,6 +28,12 @@ export async function DELETE(
         { error: 'Invalid receipt ID, line ID, or participant ID' },
         { status: 400 }
       );
+    }
+
+    const gate = await guardReceipt(request, receiptId, 'write');
+
+    if (!gate.ok) {
+      return gate.response;
     }
 
     const assignment = await lineParticipantService.unassignParticipant(

@@ -4,6 +4,7 @@ import { DM_Sans, DM_Mono } from "next/font/google";
 import { ClerkProvider } from "@clerk/nextjs";
 import { BottomTabBar } from "@/components/BottomTabBar";
 import { ServiceWorkerRegistrar } from "@/components/ServiceWorkerRegistrar";
+import { ApiClientConfigurator } from "@/components/ApiClientConfigurator";
 
 const dmSans = DM_Sans({ subsets: ["latin"], variable: "--font-dm-sans" });
 const dmMono = DM_Mono({ subsets: ["latin"], weight: ["400", "500"], variable: "--font-dm-mono" });
@@ -36,6 +37,7 @@ export default function RootLayout({
           <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
         </head>
         <body className={`${dmSans.variable} ${dmMono.variable}`}>
+          <ApiClientConfigurator />
           {children}
           <BottomTabBar />
           <ServiceWorkerRegistrar />

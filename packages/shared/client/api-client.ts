@@ -43,6 +43,15 @@ class APIError extends Error {
 interface ApiClientConfig {
   baseUrl: string;
   getAuthHeaders?: () => Promise<Record<string, string>> | Record<string, string>;
+  /**
+   * Look up the share code this client holds for a receipt, sent as
+   * `x-share-code` so the server can authorize guests who have the link but no
+   * account. Web wires this to its localStorage store; native leaves it unset
+   * because native users are always signed in and authorize by account.
+   */
+  getShareCode?: (receiptId: number) => string | null | undefined;
+  /** Record a share code the client just learned, for later requests. */
+  rememberShareCode?: (receiptId: number, shareCode: string) => void;
 }
 
 const config: ApiClientConfig = {
@@ -59,9 +68,37 @@ export function configureApiClient(next: Partial<ApiClientConfig>): void {
   }
 }
 
+/**
+ * Pull the receipt ID out of a request URL so the matching share code can be
+ * attached. Covers `/api/receipts/{id}/...` and `?receiptId={id}`; endpoints
+ * that carry the ID only in the body pass it explicitly instead.
+ */
+function receiptIdFromUrl(url: string): number | null {
+  const match = url.match(/\/api\/receipts\/(\d+)/) ?? url.match(/[?&]receiptId=(\d+)/);
+
+  return match ? Number(match[1]) : null;
+}
+
+function shareCodeHeaders(url: string, receiptIdHint?: number): Record<string, string> {
+  if (!config.getShareCode) {
+    return {};
+  }
+
+  const receiptId = receiptIdHint ?? receiptIdFromUrl(url);
+
+  if (receiptId === null || receiptId === undefined) {
+    return {};
+  }
+
+  const shareCode = config.getShareCode(receiptId);
+
+  return shareCode ? { 'x-share-code': shareCode } : {};
+}
+
 async function fetchAPI<T>(
   url: string,
-  options?: RequestInit
+  options?: RequestInit,
+  receiptIdHint?: number
 ): Promise<T> {
   const authHeaders = config.getAuthHeaders ? await config.getAuthHeaders() : {};
   const response = await fetch(`${config.baseUrl}${url}`, {
@@ -69,6 +106,7 @@ async function fetchAPI<T>(
     headers: {
       'Content-Type': 'application/json',
       ...authHeaders,
+      ...shareCodeHeaders(url, receiptIdHint),
       ...options?.headers,
     },
   });
@@ -116,11 +154,21 @@ export const api = {
         body: JSON.stringify({ imageUrl }),
       }),
 
-    create: (data: { status: ReceiptStatus; title?: string; receiptTime?: string }) =>
-      fetchAPI<{ receiptId: number }>('/api/receipts', {
+    // Records the new receipt's share code so the follow-up calls in the
+    // creation flow (attach image, add participants, edit lines) can prove
+    // access even when the creator is not signed in.
+    create: async (data: { status: ReceiptStatus; title?: string; receiptTime?: string }) => {
+      const result = await fetchAPI<{ receiptId: number; shareCode: string }>('/api/receipts', {
         method: 'POST',
         body: JSON.stringify(data),
-      }),
+      });
+
+      if (result.shareCode) {
+        config.rememberShareCode?.(result.receiptId, result.shareCode);
+      }
+
+      return result;
+    },
 
     updateStatus: (id: number, status: ReceiptStatus) =>
       fetchAPI<Receipt>(`/api/receipts/${id}`, {
@@ -149,8 +197,17 @@ export const api = {
     get: (id: number, includeLines?: boolean) =>
       fetchAPI<Receipt>(`/api/receipts/${id}${includeLines ? '?includeLines=true' : ''}`),
 
-    getByShareCode: (shareCode: string) =>
-      fetchAPI<Receipt>(`/api/receipts?shareCode=${shareCode}`),
+    // Following a share link is how a guest acquires access; remember the code
+    // against the resolved receipt ID for every later ID-addressed request.
+    getByShareCode: async (shareCode: string) => {
+      const receipt = await fetchAPI<Receipt>(
+        `/api/receipts?shareCode=${encodeURIComponent(shareCode)}`
+      );
+
+      config.rememberShareCode?.(receipt.id, shareCode);
+
+      return receipt;
+    },
 
     getSummary: (id: number) => fetchAPI<ReceiptSummary>(`/api/receipts/${id}/summary`),
 
@@ -244,10 +301,15 @@ export const api = {
       receiptId: number,
       assignments: Array<{ receiptLineId: number; participantId: number; shareQuantity: number }>
     ) =>
-      fetchAPI<LineParticipant[]>('/api/line-participants/batch', {
-        method: 'POST',
-        body: JSON.stringify({ receiptId, assignments }),
-      }),
+      fetchAPI<LineParticipant[]>(
+        '/api/line-participants/batch',
+        {
+          method: 'POST',
+          body: JSON.stringify({ receiptId, assignments }),
+        },
+        // The receipt ID is in the body, not the URL, so name it explicitly.
+        receiptId
+      ),
 
     unassign: (receiptId: number, lineId: number, participantId: number) =>
       fetchAPI<void>(

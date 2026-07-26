@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse, after } from 'next/server';
+import { guardReceipt } from '@/lib/server/receiptAuth';
+import { callerKey, rateLimit } from '@/lib/server/rateLimit';
 import { receiptService } from '@/lib/services/ReceiptService';
 import { getBlobBaseURL } from '@/lib/env';
 import { Logger } from '@/lib/utils/Logger';
@@ -29,6 +31,20 @@ export async function POST(
 
     if (isNaN(receiptId)) {
       return NextResponse.json({ error: 'Invalid receipt ID' }, { status: 400 });
+    }
+
+    const gate = await guardReceipt(request, receiptId, 'write');
+
+    if (!gate.ok) {
+      return gate.response;
+    }
+
+    // Every call here is a paid vision request, so cap it independently of the
+    // access check — a legitimate link holder should not be able to loop on it.
+    const limited = rateLimit(`receipts:parse:${callerKey(request)}`, 10, 60_000);
+
+    if (limited) {
+      return limited;
     }
 
     const body = await request.json();

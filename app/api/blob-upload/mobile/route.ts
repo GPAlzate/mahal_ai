@@ -1,6 +1,7 @@
 import { put } from '@vercel/blob';
 import { auth } from '@clerk/nextjs/server';
 import { NextResponse, type NextRequest } from 'next/server';
+import { rateLimit } from '@/lib/server/rateLimit';
 
 const ALLOWED_TYPES = [
   'image/jpeg',
@@ -24,6 +25,14 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   const { userId } = await auth();
   if (!userId) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
+  // Keyed by account rather than IP: callers here are always signed in, and
+  // mobile carriers put many users behind one address.
+  const limited = rateLimit(`blob:mobile:${userId}`, 20, 60_000);
+
+  if (limited) {
+    return limited;
   }
 
   const form = await request.formData();

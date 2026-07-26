@@ -7,11 +7,48 @@ const SHARE_CODE_CHARS = '23456789ABCDEFGHJKMNPQRSTUVWXYZ';
 
 /**
  * Length of generated share codes
+ *
+ * The share code is the capability that grants access to a receipt, so its
+ * length sets the brute-force cost. 31^5 is ~2.9e7, which is small enough that
+ * the rate limiting on the share-code lookup endpoint is load-bearing.
  */
 const SHARE_CODE_LENGTH = 5;
 
 /**
- * Generate a random 5-character alphanumeric share code
+ * Draw `count` uniformly distributed indices into SHARE_CODE_CHARS.
+ *
+ * Uses a CSPRNG — Math.random() is a predictable PRNG whose internal state can
+ * be recovered from a handful of observed outputs, which would let anyone who
+ * has seen a few share codes derive the ones issued after them.
+ *
+ * Rejection sampling discards the tail of the byte range that would otherwise
+ * bias the low-numbered characters.
+ */
+function randomIndices(count: number): number[] {
+  const alphabetSize = SHARE_CODE_CHARS.length;
+  const limit = Math.floor(256 / alphabetSize) * alphabetSize;
+  const indices: number[] = [];
+
+  while (indices.length < count) {
+    const bytes = new Uint8Array(count);
+    crypto.getRandomValues(bytes);
+
+    for (const byte of bytes) {
+      if (byte < limit) {
+        indices.push(byte % alphabetSize);
+      }
+
+      if (indices.length === count) {
+        break;
+      }
+    }
+  }
+
+  return indices;
+}
+
+/**
+ * Generate a random share code
  * Excludes confusing characters (0, O, 1, I, L) for better readability
  *
  * @returns A 5-character share code (e.g., "A3X9K")
@@ -23,12 +60,9 @@ const SHARE_CODE_LENGTH = 5;
  * ```
  */
 export function generateShareCode(): string {
-  let code = '';
-  for (let i = 0; i < SHARE_CODE_LENGTH; i++) {
-    const randomIndex = Math.floor(Math.random() * SHARE_CODE_CHARS.length);
-    code += SHARE_CODE_CHARS[randomIndex];
-  }
-  return code;
+  return randomIndices(SHARE_CODE_LENGTH)
+    .map((index) => SHARE_CODE_CHARS[index])
+    .join('');
 }
 
 /**

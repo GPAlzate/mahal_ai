@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { guardReceipt } from '@/lib/server/receiptAuth';
 import { receiptLineService } from '@/lib/services/ReceiptLineService';
 import { CreateReceiptLineRequestSchema } from '@/lib/schemas/receipt/request/CreateReceiptLineRequest';
 
@@ -32,6 +33,12 @@ export async function GET(
 
     if (isNaN(receiptId)) {
       return NextResponse.json({ error: 'Invalid receipt ID' }, { status: 400 });
+    }
+
+    const gate = await guardReceipt(request, receiptId, 'read');
+
+    if (!gate.ok) {
+      return gate.response;
     }
 
     const lines = await receiptLineService.getReceiptLines(receiptId);
@@ -83,6 +90,12 @@ export async function POST(
 
     if (isNaN(receiptId)) {
       return NextResponse.json({ error: 'Invalid receipt ID' }, { status: 400 });
+    }
+
+    const gate = await guardReceipt(request, receiptId, 'write');
+
+    if (!gate.ok) {
+      return gate.response;
     }
 
     const body = await request.json();

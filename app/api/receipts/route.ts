@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { auth } from '@clerk/nextjs/server';
+import { callerKey, rateLimit } from '@/lib/server/rateLimit';
 import { receiptService } from '@/lib/services/ReceiptService';
 import { FindReceiptByShareCodeRequestSchema } from '@/lib/schemas/receipt/request/FindReceiptByShareCodeRequest';
 import { CreateReceiptRequestSchema } from '@/lib/schemas/receipt/request/CreateReceiptRequest';
@@ -39,6 +40,14 @@ import { CreateReceiptRequestSchema } from '@/lib/schemas/receipt/request/Create
  */
 export async function GET(request: NextRequest) {
   try {
+    // This endpoint trades a share code for a full receipt, so it is the one
+    // place a guessed code pays off. Cap the guess rate.
+    const limited = rateLimit(`receipts:byShareCode:${callerKey(request)}`, 20, 60_000);
+
+    if (limited) {
+      return limited;
+    }
+
     const { searchParams } = new URL(request.url);
     const shareCode = searchParams.get('shareCode');
 
@@ -85,6 +94,13 @@ export async function GET(request: NextRequest) {
  */
 export async function POST(request: NextRequest) {
   try {
+    // Creation is open to anonymous users, so it needs a ceiling of its own.
+    const limited = rateLimit(`receipts:create:${callerKey(request)}`, 30, 60_000);
+
+    if (limited) {
+      return limited;
+    }
+
     const body = await request.json();
 
     // Validate request body
@@ -100,7 +116,13 @@ export async function POST(request: NextRequest) {
     const { userId } = await auth();
     const { receipt } = await receiptService.createReceipt({ ...createReceiptRequest.data, ownerId: userId ?? null });
 
-    return NextResponse.json({ receiptId: receipt.id }, { status: 201 });
+    // The share code goes back to the creator so the rest of the creation flow
+    // (attach image, add participants, edit lines) can authorize itself even
+    // when the creator is not signed in.
+    return NextResponse.json(
+      { receiptId: receipt.id, shareCode: receipt.shareCode },
+      { status: 201 }
+    );
   } catch (error) {
     console.error('Error creating manual receipt:', error);
 

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { guardReceipt } from '@/lib/server/receiptAuth';
 import { receiptSummaryService } from '@/lib/services/ReceiptSummaryService';
 
 /**
@@ -27,6 +28,12 @@ export async function GET(
 
     if (isNaN(receiptId)) {
       return NextResponse.json({ error: 'Invalid receipt ID' }, { status: 400 });
+    }
+
+    const gate = await guardReceipt(request, receiptId, 'read');
+
+    if (!gate.ok) {
+      return gate.response;
     }
 
     const summary = await receiptSummaryService.calculateSummary(receiptId);

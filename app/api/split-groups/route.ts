@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { guardReceipt } from '@/lib/server/receiptAuth';
 import { receiptService } from '@/lib/services/ReceiptService';
 import { participantService } from '@/lib/services/ParticipantService';
 import { lineParticipantService } from '@/lib/services/LineParticipantService';
@@ -30,6 +31,12 @@ export async function GET(request: NextRequest) {
 
     if (isNaN(receiptId)) {
       return NextResponse.json({ error: 'Invalid receipt ID' }, { status: 400 });
+    }
+
+    const gate = await guardReceipt(request, receiptId, 'read');
+
+    if (!gate.ok) {
+      return gate.response;
     }
 
     // Fetch receipt with lines, participants, and assignments in parallel

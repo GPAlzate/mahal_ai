@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { after } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
 import { sql } from '@/lib/db';
+import { guardReceipt } from '@/lib/server/receiptAuth';
 import { participantService } from '@/lib/services/ParticipantService';
 import { pushNotificationService } from '@/lib/services/PushNotificationService';
 import { BatchCreateParticipantsRequestSchema } from '@/lib/schemas/participant/request/CreateParticipantRequest';
@@ -32,6 +33,12 @@ export async function GET(
 
     if (isNaN(receiptId)) {
       return NextResponse.json({ error: 'Invalid receipt ID' }, { status: 400 });
+    }
+
+    const gate = await guardReceipt(request, receiptId, 'read');
+
+    if (!gate.ok) {
+      return gate.response;
     }
 
     const participants = await participantService.getParticipants(receiptId);
@@ -79,6 +86,12 @@ export async function POST(
 
     if (isNaN(receiptId)) {
       return NextResponse.json({ error: 'Invalid receipt ID' }, { status: 400 });
+    }
+
+    const gate = await guardReceipt(request, receiptId, 'write');
+
+    if (!gate.ok) {
+      return gate.response;
     }
 
     const { userId: authedUserId } = await auth();

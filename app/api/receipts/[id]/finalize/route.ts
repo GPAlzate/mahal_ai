@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { after } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
 import { sql } from '@/lib/db';
+import { guardReceipt } from '@/lib/server/receiptAuth';
 import { receiptSummaryService } from '@/lib/services/ReceiptSummaryService';
 import { pushNotificationService } from '@/lib/services/PushNotificationService';
 
@@ -31,6 +32,12 @@ export async function PUT(
 
     if (isNaN(receiptId)) {
       return NextResponse.json({ error: 'Invalid receipt ID' }, { status: 400 });
+    }
+
+    const gate = await guardReceipt(request, receiptId, 'write');
+
+    if (!gate.ok) {
+      return gate.response;
     }
 
     // Check if receipt exists. Re-finalizing an already-finalized receipt is

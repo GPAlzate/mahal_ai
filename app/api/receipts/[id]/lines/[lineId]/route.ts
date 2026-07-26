@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { guardReceipt } from '@/lib/server/receiptAuth';
 import { receiptLineService } from '@/lib/services/ReceiptLineService';
 import { UpdateReceiptLineRequestSchema } from '@/lib/schemas/receipt/request/UpdateReceiptLineRequest';
 
@@ -37,6 +38,16 @@ export async function PUT(
     const { id, lineId } = await params;
     const receiptId = +id;
     const lineIdNum = +lineId;
+
+    if (isNaN(receiptId) || isNaN(lineIdNum)) {
+      return NextResponse.json({ error: 'Invalid receipt ID or line ID' }, { status: 400 });
+    }
+
+    const gate = await guardReceipt(request, receiptId, 'write');
+
+    if (!gate.ok) {
+      return gate.response;
+    }
 
     const body = await request.json();
 
@@ -103,6 +114,12 @@ export async function DELETE(
 
     if (isNaN(receiptId) || isNaN(lineIdNum)) {
       return NextResponse.json({ error: 'Invalid receipt ID or line ID' }, { status: 400 });
+    }
+
+    const gate = await guardReceipt(request, receiptId, 'write');
+
+    if (!gate.ok) {
+      return gate.response;
     }
 
     const line = await receiptLineService.deleteReceiptLine(receiptId, lineIdNum);

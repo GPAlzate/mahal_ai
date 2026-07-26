@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { guardReceipt } from '@/lib/server/receiptAuth';
 import { lineParticipantService } from '@/lib/services/LineParticipantService';
 import { BatchAssignLineParticipantsRequestSchema } from '@/lib/schemas/participant/request/BatchAssignLineParticipantsRequest';
 
@@ -38,6 +39,12 @@ export async function POST(request: NextRequest) {
     }
 
     const { receiptId, assignments } = validation.data;
+
+    const gate = await guardReceipt(request, receiptId, 'write');
+
+    if (!gate.ok) {
+      return gate.response;
+    }
 
     const result = await lineParticipantService.batchAssignParticipants(receiptId, assignments);
 

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { guardReceipt } from '@/lib/server/receiptAuth';
 import { participantService } from '@/lib/services/ParticipantService';
 import { UpdateParticipantRequestSchema } from '@/lib/schemas/participant/request/UpdateParticipantRequest';
 
@@ -32,6 +33,12 @@ export async function PUT(
 
     if (isNaN(receiptId) || isNaN(participantIdNum)) {
       return NextResponse.json({ error: 'Invalid receipt ID or participant ID' }, { status: 400 });
+    }
+
+    const gate = await guardReceipt(request, receiptId, 'write');
+
+    if (!gate.ok) {
+      return gate.response;
     }
 
     const body = await request.json();
@@ -93,6 +100,12 @@ export async function DELETE(
 
     if (isNaN(receiptId) || isNaN(participantIdNum)) {
       return NextResponse.json({ error: 'Invalid receipt ID or participant ID' }, { status: 400 });
+    }
+
+    const gate = await guardReceipt(request, receiptId, 'write');
+
+    if (!gate.ok) {
+      return gate.response;
     }
 
     const participant = await participantService.deleteParticipant(receiptId, participantIdNum);
