@@ -63,6 +63,8 @@ export default function AssignPage({ params }: { params: Promise<{ id: string }>
   const [receiptShareCode, setReceiptShareCode] = useState<string | null>(null);
   const titleInputRef = useRef<HTMLInputElement>(null);
   const [showReceiptImage, setShowReceiptImage] = useState(false);
+  const receiptDialogRef = useRef<HTMLDivElement>(null);
+  const receiptCloseButtonRef = useRef<HTMLButtonElement>(null);
   const [showKebabMenu, setShowKebabMenu] = useState(false);
   const [deleteConfirmLine, setDeleteConfirmLine] = useState<ReceiptLine | null>(null);
   const [showHelpModal, setShowHelpModal] = useState(false);
@@ -78,6 +80,59 @@ export default function AssignPage({ params }: { params: Promise<{ id: string }>
       return () => clearTimeout(t);
     }
   }, []);
+
+  useEffect(() => {
+    if (!showReceiptImage) return;
+
+    const previouslyFocused = document.activeElement instanceof HTMLElement
+      ? document.activeElement
+      : null;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    receiptCloseButtonRef.current?.focus();
+
+    const handleDialogKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        setShowReceiptImage(false);
+        return;
+      }
+
+      if (event.key !== 'Tab' || !receiptDialogRef.current) return;
+
+      const focusableElements = Array.from(
+        receiptDialogRef.current.querySelectorAll<HTMLElement>(
+          'button:not([disabled]), a[href], [tabindex]:not([tabindex="-1"])'
+        )
+      );
+      const firstElement = focusableElements[0];
+      const lastElement = focusableElements[focusableElements.length - 1];
+
+      if (!firstElement || !lastElement) {
+        event.preventDefault();
+        return;
+      }
+
+      if (!receiptDialogRef.current.contains(document.activeElement)) {
+        event.preventDefault();
+        firstElement.focus();
+      } else if (event.shiftKey && document.activeElement === firstElement) {
+        event.preventDefault();
+        lastElement.focus();
+      } else if (!event.shiftKey && document.activeElement === lastElement) {
+        event.preventDefault();
+        firstElement.focus();
+      }
+    };
+
+    document.addEventListener('keydown', handleDialogKeyDown);
+
+    return () => {
+      document.removeEventListener('keydown', handleDialogKeyDown);
+      document.body.style.overflow = previousOverflow;
+      previouslyFocused?.focus();
+    };
+  }, [showReceiptImage]);
 
   const dismissHelpModal = () => {
     localStorage.setItem('mahal_assign_help_seen', '1');
@@ -547,39 +602,58 @@ export default function AssignPage({ params }: { params: Promise<{ id: string }>
       {/* Header */}
       <header className="sticky top-0 z-40 bg-white border-b-4 border-black w-full">
         {/* Row 1: nav */}
-        <div className="px-5 h-14 flex items-center justify-between">
+        <div className="px-5 h-14 grid grid-cols-[auto_1fr_auto] items-center gap-2">
           <button
+            type="button"
+            aria-label="Go back"
             onClick={() => {
               if (currentView === 'misc-charges') setCurrentView('items');
               else if (currentView === 'discounts') setCurrentView('misc-charges');
               else router.push(`/receipts/${receiptId}/participants`);
             }}
-            className="p-1.5 border-2 border-black rounded bg-white shadow-[2px_2px_0px_0px_#000] active:shadow-none active:translate-x-[2px] active:translate-y-[2px] transition-all flex items-center justify-center"
+            className="min-w-11 min-h-11 p-2 border-2 border-black rounded bg-white shadow-[2px_2px_0px_0px_#000] active:shadow-none active:translate-x-[2px] active:translate-y-[2px] transition-all flex items-center justify-center focus-visible:outline-4 focus-visible:outline-offset-2 focus-visible:outline-[#5b8fa3]"
           >
-            <ArrowLeft className="w-4 h-4" />
+            <ArrowLeft className="w-4 h-4" aria-hidden="true" />
           </button>
-          <span className="font-dm-sans font-black text-sm uppercase tracking-tight text-[#7e7576]">
+          <span className="min-w-0 text-center font-dm-sans font-black text-sm uppercase tracking-tight text-[#7e7576]">
             {currentView === 'items' ? 'Assign Items' : currentView === 'discounts' ? 'Assign Discounts' : 'Misc Charges'}
           </span>
-          <div className="relative">
-            <button
-              onClick={() => setShowKebabMenu(v => !v)}
-              className="p-1.5 border-2 border-black rounded bg-white shadow-[2px_2px_0px_0px_#000] active:shadow-none active:translate-x-[2px] active:translate-y-[2px] transition-all flex items-center justify-center"
-            >
-              <MoreVertical className="w-4 h-4" />
-            </button>
-            {showKebabMenu && (
-              <>
-                <div className="fixed inset-0 z-40" onClick={() => setShowKebabMenu(false)} />
-                <KebabMenu
-                  className="z-50 w-44"
-                  items={[
-                    { label: 'How to Use', icon: <HelpCircle className="w-4 h-4 flex-shrink-0" />, onClick: () => { setShowHelpModal(true); setShowKebabMenu(false); } },
-                    ...(receiptImageURI ? [{ label: 'View Receipt', icon: <Eye className="w-4 h-4 flex-shrink-0" />, onClick: () => { setShowReceiptImage(true); setShowKebabMenu(false); } }] : []),
-                  ]}
-                />
-              </>
+          <div className="flex items-center gap-2">
+            {receiptImageURI && (
+              <button
+                type="button"
+                onClick={() => setShowReceiptImage(true)}
+                aria-label="View original receipt"
+                aria-haspopup="dialog"
+                className="min-h-11 min-w-11 px-2 border-2 border-black rounded bg-white shadow-[2px_2px_0px_0px_#000] active:shadow-none active:translate-x-[2px] active:translate-y-[2px] transition-all flex items-center justify-center gap-1.5 font-dm-mono text-[10px] font-bold uppercase tracking-wide focus-visible:outline-4 focus-visible:outline-offset-2 focus-visible:outline-[#5b8fa3]"
+              >
+                <Eye className="w-4 h-4 flex-shrink-0" aria-hidden="true" />
+                <span className="hidden min-[430px]:inline" aria-hidden="true">Receipt</span>
+              </button>
             )}
+            <div className="relative">
+              <button
+                type="button"
+                aria-label="Open page menu"
+                aria-expanded={showKebabMenu}
+                aria-haspopup="menu"
+                onClick={() => setShowKebabMenu(v => !v)}
+                className="min-w-11 min-h-11 p-2 border-2 border-black rounded bg-white shadow-[2px_2px_0px_0px_#000] active:shadow-none active:translate-x-[2px] active:translate-y-[2px] transition-all flex items-center justify-center focus-visible:outline-4 focus-visible:outline-offset-2 focus-visible:outline-[#5b8fa3]"
+              >
+                <MoreVertical className="w-4 h-4" aria-hidden="true" />
+              </button>
+              {showKebabMenu && (
+                <>
+                  <div className="fixed inset-0 z-40" onClick={() => setShowKebabMenu(false)} />
+                  <KebabMenu
+                    className="z-50 w-44"
+                    items={[
+                      { label: 'How to Use', icon: <HelpCircle className="w-4 h-4 flex-shrink-0" />, onClick: () => { setShowHelpModal(true); setShowKebabMenu(false); } },
+                    ]}
+                  />
+                </>
+              )}
+            </div>
           </div>
         </div>
 
@@ -1140,22 +1214,47 @@ showLineTypeSelector={currentView === 'misc-charges'}
       {/* Receipt Image Modal */}
       {showReceiptImage && receiptImageURI && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/70"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4"
           onClick={() => setShowReceiptImage(false)}
         >
           <div
-            className="relative max-w-lg w-full mx-4 max-h-[90vh] flex flex-col"
+            ref={receiptDialogRef}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="receipt-image-title"
+            className="relative max-w-lg w-full max-h-[90vh] flex flex-col"
             onClick={(e) => e.stopPropagation()}
           >
-            <button
-              onClick={() => setShowReceiptImage(false)}
-              className="absolute -top-3 -right-3 z-10 bg-white border-4 border-black p-2 hover:bg-red-100 transition-colors"
-            >
-              <X className="w-5 h-5" />
-            </button>
-            <div className="overflow-auto bg-white border-4 border-black">
-              <img src={receiptImageURI} alt="Original receipt" className="w-full h-auto" />
+            <div className="min-h-[52px] flex items-center justify-between gap-4 bg-white border-4 border-b-0 border-black pl-4">
+              <h2 id="receipt-image-title" className="font-dm-sans font-black text-sm uppercase tracking-wide">
+                Original Receipt
+              </h2>
+              <button
+                ref={receiptCloseButtonRef}
+                type="button"
+                aria-label="Close receipt"
+                onClick={() => setShowReceiptImage(false)}
+                className="self-stretch min-w-[52px] flex items-center justify-center border-l-4 border-black hover:bg-red-100 transition-colors focus-visible:outline-4 focus-visible:outline-offset-[-6px] focus-visible:outline-[#5b8fa3]"
+              >
+                <X className="w-5 h-5" aria-hidden="true" />
+              </button>
             </div>
+            <div className="min-h-0 flex-1 overflow-auto bg-white border-4 border-black">
+              <img
+                src={receiptImageURI}
+                alt={`Original receipt for ${receiptTitle || 'this split'}`}
+                className="w-full h-auto"
+              />
+            </div>
+            <a
+              href={receiptImageURI}
+              target="_blank"
+              rel="noreferrer"
+              className="min-h-11 bg-white border-4 border-t-0 border-black flex items-center justify-center font-dm-mono text-[10px] font-bold uppercase tracking-wide hover:bg-[#f3f3f3] transition-colors focus-visible:outline-4 focus-visible:outline-offset-2 focus-visible:outline-[#5b8fa3]"
+            >
+              Open full size
+              <span className="sr-only"> in a new tab</span>
+            </a>
           </div>
         </div>
       )}

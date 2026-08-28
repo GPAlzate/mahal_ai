@@ -51,6 +51,7 @@ export function ParticipantSplits({ receiptId, participantSplits, payerParticipa
   const payerName = payerParticipantId
     ? (participantSplits.find(p => p.participantId === payerParticipantId)?.displayName ?? null)
     : null;
+  const payerFirstName = payerName?.split(' ')[0] ?? null;
   const [expandedParticipants, setExpandedParticipants] = useState<Set<number>>(new Set());
   const cardRefs = useRef<Map<number, HTMLElement | null>>(new Map());
   const [confirmingIds, setConfirmingIds] = useState<Set<number>>(new Set());
@@ -129,14 +130,22 @@ export function ParticipantSplits({ receiptId, participantSplits, payerParticipa
   return (
     <>
       <h2 className="font-dm-sans font-bold text-2xl uppercase mt-2">
-        {!showPaymentUI ? 'Review these' : isReceiptPayer ? 'Payment Status' : 'What do you owe?'}
+        {!showPaymentUI
+          ? 'Review these'
+          : isReceiptPayer
+            ? 'Payment Status'
+            : myParticipantId === null
+              ? 'Find your share'
+              : 'Your share is listed first'}
       </h2>
       <p className="font-dm-sans text-sm text-gray-500">
         {!showPaymentUI
           ? 'Tap a name to see their breakdown.'
           : isReceiptPayer
             ? 'Confirm payments as you receive them.'
-            : 'Tap your name to see your share and pay.'}
+            : myParticipantId === null
+              ? `Choose your name below to see what you owe${payerName ? ` and pay ${payerName}.` : '.'}`
+              : `Tap your row to review what you owe${payerName ? ` and pay ${payerName} via GCash.` : '.'}`}
       </p>
 
       {orderedSplits.map(({ split, colorIndex }) => {
@@ -175,12 +184,12 @@ export function ParticipantSplits({ receiptId, participantSplits, payerParticipa
                 {showPaymentUI && !isPayerEntry && isReceiptPayer && (
                   <PaymentBadge status={effectiveStatus} />
                 )}
-                {showPaymentUI && !isPayerEntry && !isReceiptPayer && effectiveStatus === 'PNYP' && !isExpanded && (
+                {showPaymentUI && isMe && !isPayerEntry && !isReceiptPayer && effectiveStatus === 'PNYP' && !isExpanded && (
                   <button
                     onClick={(e) => { e.stopPropagation(); handleGcashClick(split.participantId, gcashUrl); }}
                     className="inline-flex items-center h-8 px-3 border-[3px] border-black rounded-lg bg-[#0066FF] text-white font-dm-mono text-[10px] font-bold uppercase tracking-widest shadow-[2px_2px_0px_0px_#000] active:translate-x-[2px] active:translate-y-[2px] active:shadow-none transition-all"
                   >
-                    Pay ↗
+                    {payerFirstName ? `Pay ${payerFirstName} ↗` : 'Pay via GCash ↗'}
                   </button>
                 )}
                 {showPaymentUI && !isPayerEntry && !isReceiptPayer && effectiveStatus === 'PAID' && (
@@ -314,7 +323,7 @@ export function ParticipantSplits({ receiptId, participantSplits, payerParticipa
                       </div>
                     )}
                   </>
-                ) : isPaid ? (
+                ) : !isMe ? null : isPaid ? (
                   <div className="flex items-center justify-center w-full h-11 border-[3px] border-black rounded-lg bg-[#b5ead7] font-dm-mono font-bold text-sm uppercase shadow-[3px_3px_0px_0px_#000]">
                     Payment confirmed
                   </div>

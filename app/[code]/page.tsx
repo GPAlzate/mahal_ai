@@ -65,6 +65,7 @@ export default function ShareCodePage({ params }: { params: Promise<{ code: stri
   const payerParticipant = summary?.participantSplits.find(
     p => p.participantId === summary.receipt.payerParticipantId
   );
+  const payerFirstName = payerParticipant?.displayName.split(' ')[0] ?? null;
   const isReceiptPayer = !!userId && !!payerParticipant?.userId && userId === payerParticipant.userId;
   const isOwner = !!userId && !!summary?.receipt.ownerId && userId === summary.receipt.ownerId;
   // The payer can set their own GCash number; the owner can also set it on the
@@ -562,20 +563,24 @@ const handleSaveGcash = async () => {
                     </div>
                   </div>
 
-                  {/* Step 2: Pay */}
+                  {/* Step 2: Pay the receipt payer */}
                   <div className="flex flex-col gap-1.5">
-                    <span className="font-dm-mono text-[9px] font-bold uppercase tracking-widest text-[#7e775f]">02 — Pay</span>
+                    <span className="font-dm-mono text-[9px] font-bold uppercase tracking-widest text-[#7e775f]">
+                      02 — {payerFirstName ? `Pay ${payerFirstName}` : 'Pay via GCash'}
+                    </span>
                     <div className="border-2 border-black p-4 bg-stone-50 flex flex-col items-center gap-3">
                       <div className="flex items-center justify-between w-full border-2 border-black px-3 py-2.5 bg-white">
                         <div className="flex items-center gap-2">
                           <div className="w-7 h-7 rounded-full bg-[#ffe16d] border-2 border-black flex items-center justify-center font-dm-sans text-[9px] font-bold">YU</div>
                           <span className="font-dm-sans font-bold text-sm uppercase">You</span>
-                          <span className="inline-flex items-center px-2 py-0.5 border-2 border-black bg-[#0066FF] text-white font-dm-mono text-[9px] font-bold uppercase tracking-widest shadow-[1px_1px_0px_0px_#000]">Pay ↗</span>
+                          <span className="inline-flex items-center px-2 py-0.5 border-2 border-black bg-[#0066FF] text-white font-dm-mono text-[9px] font-bold uppercase tracking-widest shadow-[1px_1px_0px_0px_#000]">
+                            {payerFirstName ? `Pay ${payerFirstName} ↗` : 'Pay via GCash ↗'}
+                          </span>
                         </div>
                         <span className="font-dm-mono font-bold text-sm">₱350</span>
                       </div>
                       <p className="font-dm-sans font-bold text-sm text-center">
-                        Tap "Pay" on your row. GCash opens with the amount ready.
+                        Tap {payerFirstName ? `"Pay ${payerFirstName}"` : '"Pay via GCash"'} on your row. GCash opens with your amount ready.
                       </p>
                     </div>
                   </div>
