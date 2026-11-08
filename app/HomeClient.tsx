@@ -6,6 +6,7 @@ import { useUser, useClerk } from '@clerk/nextjs';
 import { upload } from '@vercel/blob/client';
 import { Image, ArrowRight, Loader2, LogIn, Settings, LogOut } from 'lucide-react';
 import { api } from '@/lib/client/api-client';
+import { compressReceiptImage } from '@/lib/client/compress-receipt-image';
 
 export default function HomeClient() {
   const router = useRouter();
@@ -44,16 +45,21 @@ export default function HomeClient() {
 
     const controller = new AbortController();
     uploadAbortRef.current = controller;
-    blobPromiseRef.current = upload(`receipts/${selectedFile.name}`, selectedFile, {
-      access: 'public',
-      handleUploadUrl: '/api/blob-upload',
-      abortSignal: controller.signal,
+    blobPromiseRef.current = compressReceiptImage(selectedFile, controller.signal).then((uploadFile) => {
+      controller.signal.throwIfAborted();
+      return upload(`receipts/${uploadFile.name}`, uploadFile, {
+        access: 'public',
+        handleUploadUrl: '/api/blob-upload',
+        abortSignal: controller.signal,
+      });
     });
 
     const createPromise = api.receipts.create({ status: 'ULIP' });
     receiptIdPromiseRef.current = createPromise.then((r) => r.receiptId);
 
     const capturedBlob = blobPromiseRef.current;
+    // Upload/compression can reject before receipt creation finishes.
+    void capturedBlob.catch(() => {});
     receiptIdPromiseRef.current.then((receiptId) => {
       capturedBlob
         .then((blob) => api.receipts.triggerParse(receiptId, blob.url))

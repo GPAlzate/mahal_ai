@@ -20,7 +20,7 @@ export class OpenAIService {
   }
 
   /**
-   * Parse a receipt image using GPT-5.1 via Responses API with Structured Outputs
+   * Parse a receipt image using GPT-6 Luna via Responses API with Structured Outputs
    *
    * Uses OpenAI Structured Outputs to ensure type-safe, schema-validated responses.
    * No need for manual JSON parsing or validation - OpenAI guarantees schema adherence.
@@ -31,11 +31,12 @@ export class OpenAIService {
    */
   async parseReceiptImage(imageURL: string): Promise<ParsedReceipt> {
     try {
-      this._logger.log('Starting receipt image parsing with GPT-5.1');
+      this._logger.log('Starting receipt image parsing with GPT-6 Luna');
 
       console.time('Receipt Parsing')
       const response = await this.client.responses.parse({
-        model: 'gpt-5.1',
+        model: 'gpt-6-luna',
+        reasoning: { effort: 'none' },
         input: [
           {
             role: 'user',
